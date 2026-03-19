@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Plus, Users, Clock, TrendingUp, Calendar, Settings, Search } from 'lucide-react'
+import { Plus, Users, Clock, TrendingUp, Calendar, Settings, Search, LogOut } from 'lucide-react'
 
 type LayoutProps = {
   children: React.ReactNode
@@ -44,6 +44,18 @@ export default function Layout({
 
         {/* Right: action button */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              const { createClient } = await import('@/lib/supabase')
+              const supabase = createClient()
+              await supabase.auth.signOut()
+              window.location.href = '/login'
+            }}
+            className="w-11 h-11 flex items-center justify-center text-ink-muted"
+            aria-label="Sign out"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
           <Link href="/clients" aria-label="Search clients" className="w-11 h-11 flex items-center justify-center text-ink-muted">
             <Search className="w-5 h-5" />
           </Link>
