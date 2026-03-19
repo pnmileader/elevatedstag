@@ -156,8 +156,8 @@ function ComposeContent() {
   if (loading) {
     return (
       <Layout currentPage="email">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-[#8A8A8A]" />
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-dark" />
         </div>
       </Layout>
     )
@@ -166,15 +166,15 @@ function ComposeContent() {
   return (
     <Layout currentPage="email">
       <div className="max-w-3xl">
-        <Link href="/email" className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] mb-6 font-body text-sm">
+        <Link href="/email" className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm">
           <ArrowLeft className="w-4 h-4" />
           Back to Email
         </Link>
 
-        <h1 className="font-heading text-2xl font-medium text-[#2D2D2D] mb-6">Compose Email</h1>
+        <h1 className="font-heading text-lg font-medium text-body mb-3">Compose Email</h1>
 
         {result && (
-          <div className={`mb-6 p-4 rounded-xl font-body text-sm ${
+          <div className={`mb-3 p-4 rounded font-body text-sm ${
             result.success
               ? 'bg-green-50 text-green-700 border border-green-200'
               : 'bg-red-50 text-red-700 border border-red-200'
@@ -183,9 +183,9 @@ function ComposeContent() {
           </div>
         )}
 
-        <form onSubmit={handleSend} className="space-y-6">
+        <form onSubmit={handleSend} className="space-y-3">
           {/* Send Mode */}
-          <div className="bg-white rounded-2xl border border-gray-med p-6" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+          <div className="bg-white rounded border border-gray-med p-6">
             <label className="block font-body font-medium text-sm mb-3">Send To</label>
             <div className="flex flex-wrap gap-2 mb-4">
               {[
@@ -198,9 +198,9 @@ function ComposeContent() {
                   key={mode}
                   type="button"
                   onClick={() => setSendMode(mode)}
-                  className={`px-4 py-2 rounded-xl font-body text-sm flex items-center gap-2 transition-colors ${
+                  className={`px-4 py-2 rounded font-body text-sm flex items-center gap-2 transition-colors ${
                     sendMode === mode
-                      ? 'bg-[#2D2D2D] text-white'
+                      ? 'bg-body text-white'
                       : 'bg-gray-light text-gray-dark hover:bg-gray-med'
                   }`}
                 >
@@ -213,7 +213,7 @@ function ComposeContent() {
               <select
                 value={selectedClientId}
                 onChange={(e) => setSelectedClientId(e.target.value)}
-                className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
               >
                 <option value="">Select a client...</option>
                 {clients.map(c => (
@@ -226,7 +226,7 @@ function ComposeContent() {
               <select
                 value={selectedTag}
                 onChange={(e) => setSelectedTag(e.target.value)}
-                className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
               >
                 <option value="">Select a tag...</option>
                 {uniqueTags.map(tag => (
@@ -239,7 +239,7 @@ function ComposeContent() {
               <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
               >
                 <option value="">Select a city...</option>
                 {uniqueCities.map(city => (
@@ -252,7 +252,7 @@ function ComposeContent() {
               <select
                 value={selectedZip}
                 onChange={(e) => setSelectedZip(e.target.value)}
-                className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
               >
                 <option value="">Select a ZIP code...</option>
                 {uniqueZips.map(zip => (
@@ -272,12 +272,12 @@ function ComposeContent() {
           </div>
 
           {/* Template */}
-          <div className="bg-white rounded-2xl border border-gray-med p-6" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+          <div className="bg-white rounded border border-gray-med p-6">
             <label className="block font-body font-medium text-sm mb-2">Template (optional)</label>
             <select
               value={selectedTemplateId}
               onChange={(e) => setSelectedTemplateId(e.target.value)}
-              className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+              className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
             >
               <option value="">No template</option>
               {templates.map(t => (
@@ -290,7 +290,7 @@ function ComposeContent() {
           </div>
 
           {/* Subject + Body */}
-          <div className="bg-white rounded-2xl border border-gray-med p-6" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+          <div className="bg-white rounded border border-gray-med p-6">
             <div className="mb-4">
               <label className="block font-body font-medium text-sm mb-2">Subject</label>
               <input
@@ -299,7 +299,7 @@ function ComposeContent() {
                 onChange={(e) => setSubject(e.target.value)}
                 required
                 placeholder="Email subject"
-                className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
               />
             </div>
 
@@ -311,7 +311,7 @@ function ComposeContent() {
                 required
                 rows={10}
                 placeholder="Email body... Use {FIRST_NAME} and {LAST_NAME} for personalization"
-                className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D] resize-y"
+                className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body resize-y"
               />
             </div>
           </div>
@@ -320,7 +320,7 @@ function ComposeContent() {
           <button
             type="submit"
             disabled={sending || recipients.length === 0 || !subject || !body}
-            className="w-full bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white py-3 rounded-xl font-body font-medium flex items-center justify-center gap-2 transition-colors"
+            className="w-full bg-body hover:bg-body-hover disabled:bg-gray-med text-white py-3 rounded font-body font-medium flex items-center justify-center gap-2 transition-colors"
           >
             {sending ? (
               <>
@@ -344,8 +344,8 @@ export default function ComposePage() {
   return (
     <Suspense fallback={
       <Layout currentPage="email">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-[#8A8A8A]" />
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-dark" />
         </div>
       </Layout>
     }>

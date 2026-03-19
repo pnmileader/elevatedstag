@@ -189,8 +189,8 @@ export default function AutomationsPage() {
   if (loading) {
     return (
       <Layout currentPage="settings">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-[#8A8A8A]" />
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-dark" />
         </div>
       </Layout>
     )
@@ -201,15 +201,15 @@ export default function AutomationsPage() {
       <div className="max-w-4xl">
         <Link
           href="/settings"
-          className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] mb-6 font-body text-sm"
+          className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Settings
         </Link>
 
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="font-heading text-2xl font-medium text-[#2D2D2D]">Email Automations</h1>
+            <h1 className="font-heading text-lg font-medium text-body">Email Automations</h1>
             <p className="font-body text-gray-dark mt-1">
               Configure automatic email sequences
             </p>
@@ -217,8 +217,8 @@ export default function AutomationsPage() {
         </div>
 
         {/* Automation Rules */}
-        <div className="bg-white rounded-2xl p-6 lg:p-8 border border-gray-med mb-8" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-          <h2 className="font-heading text-base font-medium text-[#2D2D2D] mb-6">Automation Rules</h2>
+        <div className="bg-white rounded p-3 lg:p-3 border border-gray-med mb-3">
+          <h2 className="font-heading text-base font-medium text-body mb-3">Automation Rules</h2>
 
           <div className="space-y-4">
             {rules.map(rule => {
@@ -227,13 +227,13 @@ export default function AutomationsPage() {
               return (
                 <div
                   key={rule.id}
-                  className={`p-5 rounded-2xl border-2 transition-colors ${
-                    rule.is_active ? 'border-[#2D2D2D] bg-gray-light/30' : 'border-gray-med bg-gray-light'
+                  className={`p-5 rounded border-2 transition-colors ${
+                    rule.is_active ? 'border-body bg-gray-light/30' : 'border-gray-med bg-gray-light'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${config.color}`}>
+                      <div className={`w-12 h-12 rounded flex items-center justify-center ${config.color}`}>
                         {config.icon}
                       </div>
                       <div className="flex-1">
@@ -260,7 +260,7 @@ export default function AutomationsPage() {
                             <select
                               value={rule.template_id || ''}
                               onChange={(e) => updateRuleTemplate(rule.id, e.target.value || null)}
-                              className="px-3 py-1 border border-[#F0EEEB] rounded-xl font-body text-sm bg-white focus:outline-none focus:border-[#2D2D2D]"
+                              className="px-3 py-1 border border-gray-med rounded font-body text-sm bg-white focus:outline-none focus:border-body"
                             >
                               <option value="">No template</option>
                               {templates.map(t => (
@@ -275,9 +275,9 @@ export default function AutomationsPage() {
                     {/* Toggle Button */}
                     <button
                       onClick={() => toggleRule(rule.id, rule.is_active)}
-                      className={`px-4 py-2 rounded-xl font-body text-sm font-medium flex items-center gap-2 transition-colors ${
+                      className={`px-4 py-2 rounded font-body text-sm font-medium flex items-center gap-2 transition-colors ${
                         rule.is_active
-                          ? 'bg-[#2D2D2D] text-white hover:bg-[#404040]'
+                          ? 'bg-body text-white hover:bg-body-hover'
                           : 'bg-gray-med text-gray-dark hover:bg-gray-dark hover:text-white'
                       }`}
                     >
@@ -301,14 +301,14 @@ export default function AutomationsPage() {
         </div>
 
         {/* Manual Actions */}
-        <div className="bg-white rounded-2xl p-6 lg:p-8 border border-gray-med mb-8" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-          <h2 className="font-heading text-base font-medium text-[#2D2D2D] mb-6">Manual Actions</h2>
+        <div className="bg-white rounded p-3 lg:p-3 border border-gray-med mb-3">
+          <h2 className="font-heading text-base font-medium text-body mb-3">Manual Actions</h2>
 
           <div className="flex flex-wrap gap-4">
             <button
               onClick={processQueue}
               disabled={processing}
-              className="px-6 py-3 bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white rounded-xl font-body font-medium flex items-center gap-2"
+              className="px-3 py-3 bg-body hover:bg-body-hover disabled:bg-gray-med text-white rounded font-body font-medium flex items-center gap-2"
             >
               {processing ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -321,7 +321,7 @@ export default function AutomationsPage() {
             <button
               onClick={checkReactivation}
               disabled={checkingReactivation}
-              className="px-6 py-3 border-2 border-[#2D2D2D] text-[#2D2D2D] hover:bg-gray-light rounded-xl font-body font-medium flex items-center gap-2"
+              className="px-3 py-3 border-2 border-body text-body hover:bg-gray-light rounded font-body font-medium flex items-center gap-2"
             >
               {checkingReactivation ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -334,10 +334,10 @@ export default function AutomationsPage() {
         </div>
 
         {/* Queued Emails */}
-        <div className="bg-white rounded-2xl p-6 lg:p-8 border border-gray-med" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-heading text-base font-medium text-[#2D2D2D]">Email Queue</h2>
-            <span className="bg-gray-light text-[#8A8A8A] px-3 py-1 rounded-full font-body text-sm font-medium">
+        <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading text-base font-medium text-body">Email Queue</h2>
+            <span className="bg-gray-light text-gray-dark px-3 py-1 rounded font-body text-sm font-medium">
               {queuedEmails.length} pending
             </span>
           </div>
@@ -352,10 +352,10 @@ export default function AutomationsPage() {
                 return (
                   <div
                     key={email.id}
-                    className="flex items-center justify-between p-4 bg-gray-light rounded-2xl"
+                    className="flex items-center justify-between p-4 bg-gray-light rounded"
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${config.color}`}>
+                      <div className={`w-10 h-10 rounded flex items-center justify-center ${config.color}`}>
                         {config.icon}
                       </div>
                       <div>

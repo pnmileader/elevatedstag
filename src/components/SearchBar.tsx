@@ -19,6 +19,7 @@ export default function SearchBar() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -83,6 +84,7 @@ export default function SearchBar() {
       }
 
       setResults(searchResults)
+      setHighlightedIndex(-1)
       setLoading(false)
     }, 300)
 
@@ -103,16 +105,37 @@ export default function SearchBar() {
     if (e.key === 'Escape') {
       setShowResults(false)
       inputRef.current?.blur()
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (results.length > 0) {
+        setHighlightedIndex((prev) => (prev + 1) % results.length)
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (results.length > 0) {
+        setHighlightedIndex((prev) => (prev - 1 + results.length) % results.length)
+      }
+    } else if (e.key === 'Enter') {
+      if (highlightedIndex >= 0 && highlightedIndex < results.length) {
+        e.preventDefault()
+        handleSelect(results[highlightedIndex])
+      }
     }
   }
 
   return (
     <div ref={containerRef} className="relative flex-1 max-w-lg">
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-dark" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
         <input
           ref={inputRef}
           type="text"
+          role="combobox"
+          aria-expanded={showResults && query.trim().length > 0}
+          aria-autocomplete="list"
+          aria-controls="search-results-listbox"
+          aria-activedescendant={highlightedIndex >= 0 ? `search-result-${highlightedIndex}` : undefined}
+          aria-label="Search clients, orders, fabrics"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)
@@ -121,15 +144,17 @@ export default function SearchBar() {
           onFocus={() => setShowResults(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search clients, orders, fabrics..."
-          className="w-full pl-10 pr-10 py-2 rounded-xl border border-gray-med bg-gray-light font-body text-sm focus:outline-none focus:border-gold focus:bg-white transition-colors"
+          className="ds-input pl-9 pr-9"
         />
         {query && (
           <button
             onClick={() => {
               setQuery('')
               setResults([])
+              setHighlightedIndex(-1)
             }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-dark hover:text-[#2D2D2D]"
+            aria-label="Clear search"
+            className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-dark hover:text-body"
           >
             <X className="w-4 h-4" />
           </button>
@@ -138,7 +163,7 @@ export default function SearchBar() {
 
       {/* Results Dropdown */}
       {showResults && query.trim() && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-gray-med z-50 overflow-hidden" style={{ boxShadow: '0 4px 24px rgba(0, 0, 0, 0.08)' }}>
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded border border-gray-med z-50 overflow-hidden" style={{ boxShadow: '0 4px 24px rgba(0, 0, 0, 0.08)' }}>
           {loading ? (
             <div className="p-4 text-center">
               <Loader2 className="w-5 h-5 animate-spin text-gold mx-auto" />
@@ -148,14 +173,17 @@ export default function SearchBar() {
               No results found for &ldquo;{query}&rdquo;
             </div>
           ) : (
-            <div className="max-h-80 overflow-y-auto">
-              {results.map((result) => (
+            <div id="search-results-listbox" role="listbox" className="max-h-80 overflow-y-auto">
+              {results.map((result, index) => (
                 <button
                   key={`${result.type}-${result.id}`}
+                  id={`search-result-${index}`}
+                  role="option"
+                  aria-selected={index === highlightedIndex}
                   onClick={() => handleSelect(result)}
-                  className="w-full flex items-center gap-3 p-3.5 hover:bg-gray-light transition-colors text-left border-b border-gray-med last:border-b-0"
+                  className={`w-full flex items-center gap-3 p-3.5 hover:bg-gray-light transition-colors text-left border-b border-gray-med last:border-b-0 ${index === highlightedIndex ? 'bg-gray-light' : ''}`}
                 >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  <div className={`w-8 h-8 rounded flex items-center justify-center flex-shrink-0 ${
                     result.type === 'client' ? 'bg-gold/10 text-gold' : 'bg-blue-50 text-blue-500'
                   }`}>
                     {result.type === 'client' ? (
@@ -165,7 +193,7 @@ export default function SearchBar() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-body font-medium text-sm truncate text-[#2D2D2D]">{result.title}</p>
+                    <p className="font-body font-medium text-sm truncate text-body">{result.title}</p>
                     <p className="font-body text-xs text-gray-dark truncate">{result.subtitle}</p>
                   </div>
                   <span className="text-[11px] text-gray-dark uppercase tracking-wide flex-shrink-0">

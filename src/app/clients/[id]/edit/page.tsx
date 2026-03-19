@@ -241,31 +241,31 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
     { id: 'style' as const, label: 'Style & Preferences' },
   ]
 
-  const inputClass = "w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-gold"
-  const labelClass = "block font-body text-sm font-medium text-[#8A8A8A] mb-1"
+  const inputClass = "w-full px-4 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold"
+  const labelClass = "block font-body text-sm font-medium text-gray-dark mb-1"
 
   return (
     <div className="min-h-screen bg-gray-light">
-      <header className="bg-white px-4 lg:px-8 py-4 flex items-center justify-between sticky top-0 z-50 border-b border-[#F0EEEB]">
+      <header className="bg-white px-4 lg:px-3 py-4 flex items-center justify-between sticky top-0 z-50 border-b border-gray-med">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gold rounded-full flex items-center justify-center">
+          <div className="w-9 h-9 bg-gold rounded flex items-center justify-center">
             <span className="text-white font-heading font-semibold text-sm">ES</span>
           </div>
-          <span className="font-heading text-[#2D2D2D] text-base font-medium tracking-wide hidden sm:block">
+          <span className="font-heading text-body text-base font-medium tracking-wide hidden sm:block">
             THE ELEVATED STAG
           </span>
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 lg:px-6 py-8">
-        <Link href={`/clients/${clientId}`} className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] mb-6 font-body text-sm">
+      <div className="max-w-3xl mx-auto px-4 lg:px-3 py-3">
+        <Link href={`/clients/${clientId}`} className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm">
           <ArrowLeft className="w-4 h-4" />
           Back to Client
         </Link>
 
-        <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="font-heading text-xl font-medium text-[#2D2D2D]">Edit Client</h1>
+        <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="font-heading text-xl font-medium text-body">Edit Client</h1>
             <button
               onClick={handleDelete}
               disabled={deleting}
@@ -277,7 +277,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* Section Tabs */}
-          <div className="flex gap-1 bg-gray-light rounded-lg p-1 mb-6">
+          <div className="flex gap-1 bg-gray-light rounded p-1 mb-3">
             {sections.map(s => (
               <button
                 key={s.id}
@@ -285,7 +285,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
                 onClick={() => setActiveSection(s.id)}
                 className={`flex-1 px-4 py-2 rounded-md font-body text-sm font-semibold transition-colors ${
                   activeSection === s.id
-                    ? 'bg-white shadow-sm text-[#2D2D2D]'
+                    ? 'bg-white text-body'
                     : 'text-gray-dark hover:text-black'
                 }`}
               >
@@ -295,12 +295,12 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 font-body text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-3 font-body text-sm">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-3">
             {/* === BASIC INFO === */}
             {activeSection === 'basic' && (
               <>
@@ -394,7 +394,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 <div className="pt-4 border-t border-gray-light">
-                  <h3 className="font-body text-sm font-semibold text-[#2D2D2D] mb-3">Upcoming Event / Deadline</h3>
+                  <h3 className="font-body text-sm font-semibold text-body mb-3">Upcoming Event / Deadline</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={labelClass}>Need By Date</label>
@@ -530,14 +530,14 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
             <div className="flex gap-4 pt-4 border-t border-gray-light">
               <Link
                 href={`/clients/${clientId}`}
-                className="flex-1 px-6 py-3 border border-[#F0EEEB] rounded-xl font-body font-semibold text-gray-dark text-center hover:bg-gray-light transition-colors"
+                className="flex-1 px-3 py-3 border border-gray-med rounded font-body font-semibold text-gray-dark text-center hover:bg-gray-light transition-colors"
               >
                 Cancel
               </Link>
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white px-6 py-3 rounded-xl font-body font-semibold flex items-center justify-center gap-2 transition-colors"
+                className="flex-1 bg-body hover:bg-body-hover disabled:bg-gray-med text-white px-3 py-3 rounded font-body font-semibold flex items-center justify-center gap-2 transition-colors"
               >
                 {saving ? (
                   <>

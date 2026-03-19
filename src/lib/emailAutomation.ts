@@ -42,7 +42,8 @@ export async function queueAppointmentReminder(appointmentId: string) {
     .eq('id', appointmentId)
     .single()
 
-  if (!appointment || !appointment.client?.email) {
+  const client = Array.isArray(appointment?.client) ? appointment.client[0] : appointment?.client
+  if (!appointment || !client?.email) {
     console.log('No appointment or client email found')
     return
   }
@@ -59,7 +60,7 @@ export async function queueAppointmentReminder(appointmentId: string) {
     return
   }
 
-  const client = appointment.client as Client
+  // client already extracted above from appointment.client
 
   for (const rule of rules as AutomationRule[]) {
     if (!rule.template) continue
@@ -156,7 +157,8 @@ export async function queuePostDeliveryFollowUp(orderId: string) {
     .eq('id', orderId)
     .single()
 
-  if (!order || !order.client?.email || !order.delivered_date) {
+  const client = Array.isArray(order?.client) ? order.client[0] : order?.client
+  if (!order || !client?.email || !order.delivered_date) {
     console.log('No order, client email, or delivery date found')
     return
   }
@@ -173,7 +175,7 @@ export async function queuePostDeliveryFollowUp(orderId: string) {
     return
   }
 
-  const client = order.client as Client
+  // client already extracted above from order.client
 
   for (const rule of rules as AutomationRule[]) {
     if (!rule.template) continue

@@ -24,6 +24,7 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null)
 
   const [newItem, setNewItem] = useState({
     title: '',
@@ -81,9 +82,7 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
     setSaving(false)
   }
 
-  const handleDelete = async (itemId: string) => {
-    if (!confirm('Delete this care item?')) return
-
+  const handleDeleteConfirm = async (itemId: string) => {
     const supabase = createClient()
     const { error } = await supabase
       .from('client_care_items')
@@ -93,6 +92,7 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
     if (!error) {
       setItems(items.filter(i => i.id !== itemId))
     }
+    setConfirmingDeleteId(null)
   }
 
   // Sort: incomplete first (by due date), then completed
@@ -105,12 +105,12 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
   })
 
   return (
-    <div className="bg-white rounded-2xl p-6 lg:p-8 border border-gray-med" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+    <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-heading text-sm font-medium text-[#2D2D2D]">Client Care</h2>
+        <h2 className="font-heading text-sm font-medium text-body">Client Care</h2>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="text-[#8A8A8A] hover:text-[#2D2D2D] font-body text-sm font-medium flex items-center gap-1"
+          className="text-gray-dark hover:text-body font-body text-sm font-medium flex items-center gap-1"
         >
           <Plus className="w-4 h-4" />
           Add Item
@@ -119,7 +119,7 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
 
       {/* Add Item Form */}
       {showForm && (
-        <form onSubmit={handleAddItem} className="mb-4 p-3 bg-gray-light rounded-lg">
+        <form onSubmit={handleAddItem} className="mb-4 p-3 bg-gray-light rounded">
           <div className="space-y-3">
             <div>
               <input
@@ -127,7 +127,7 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
                 value={newItem.title}
                 onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
                 placeholder="e.g., Send thank you note"
-                className="w-full px-3 py-2 border border-gray-med rounded-lg font-body text-sm focus:outline-none focus:border-gold"
+                className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold"
                 autoFocus
               />
             </div>
@@ -135,7 +135,7 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
               <select
                 value={newItem.item_type}
                 onChange={(e) => setNewItem({ ...newItem, item_type: e.target.value })}
-                className="px-3 py-2 border border-gray-med rounded-lg font-body text-sm focus:outline-none focus:border-gold bg-white"
+                className="px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold bg-white"
               >
                 <option value="custom">Custom</option>
                 <option value="thank_you_note">Thank You Note</option>
@@ -146,21 +146,21 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
                 type="date"
                 value={newItem.due_date}
                 onChange={(e) => setNewItem({ ...newItem, due_date: e.target.value })}
-                className="px-3 py-2 border border-gray-med rounded-lg font-body text-sm focus:outline-none focus:border-gold"
+                className="px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold"
               />
             </div>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="flex-1 px-3 py-2 border border-gray-med rounded-lg font-body text-sm text-gray-dark hover:bg-white transition-colors"
+                className="flex-1 px-3 py-2 border border-gray-med rounded font-body text-sm text-gray-dark hover:bg-white transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving || !newItem.title.trim()}
-                className="flex-1 px-3 py-2 bg-[#2D2D2D] text-white rounded-xl font-body text-sm font-medium hover:bg-[#404040] disabled:bg-gray-med transition-colors flex items-center justify-center gap-2"
+                className="flex-1 px-3 py-2 bg-body text-white rounded font-body text-sm font-medium hover:bg-body-hover disabled:bg-gray-med transition-colors flex items-center justify-center gap-2"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
               </button>
@@ -180,7 +180,10 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
               item={item}
               toggling={togglingId === item.id}
               onToggle={() => handleToggle(item)}
-              onDelete={() => handleDelete(item.id)}
+              confirmingDelete={confirmingDeleteId === item.id}
+              onDeleteRequest={() => setConfirmingDeleteId(item.id)}
+              onDeleteConfirm={() => handleDeleteConfirm(item.id)}
+              onDeleteCancel={() => setConfirmingDeleteId(null)}
             />
           ))}
         </div>
@@ -193,20 +196,29 @@ function CareItemRow({
   item,
   toggling,
   onToggle,
-  onDelete
+  confirmingDelete,
+  onDeleteRequest,
+  onDeleteConfirm,
+  onDeleteCancel
 }: {
   item: CareItem
   toggling: boolean
   onToggle: () => void
-  onDelete: () => void
+  confirmingDelete: boolean
+  onDeleteRequest: () => void
+  onDeleteConfirm: () => void
+  onDeleteCancel: () => void
 }) {
   const isOverdue = item.due_date && !item.completed && new Date(item.due_date) < new Date()
 
   return (
-    <div className={`flex items-center gap-4 p-4 rounded-lg group ${isOverdue ? 'bg-red-50' : 'hover:bg-gray-light'}`}>
+    <div className={`flex items-center gap-4 p-4 rounded group ${isOverdue ? 'bg-red-50' : 'hover:bg-gray-light'}`}>
       <button
         onClick={onToggle}
         disabled={toggling}
+        role="checkbox"
+        aria-checked={item.completed}
+        aria-label={`Mark "${item.title}" as ${item.completed ? 'incomplete' : 'complete'}`}
         className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
           item.completed
             ? 'bg-gold border-gold'
@@ -236,12 +248,33 @@ function CareItemRow({
         )}
       </div>
 
-      <button
-        onClick={onDelete}
-        className="opacity-0 group-hover:opacity-100 text-gray-dark hover:text-red-500 transition-opacity p-1"
-      >
-        <span className="text-xs">&#10005;</span>
-      </button>
+      {confirmingDelete ? (
+        <span className="flex items-center gap-1 font-body text-xs text-gray-dark">
+          Delete?
+          <button
+            onClick={onDeleteConfirm}
+            className="text-red-600 hover:text-red-700 font-medium px-1"
+            aria-label={`Confirm delete "${item.title}"`}
+          >
+            Yes
+          </button>
+          <button
+            onClick={onDeleteCancel}
+            className="text-gray-dark hover:text-body font-medium px-1"
+            aria-label="Cancel delete"
+          >
+            No
+          </button>
+        </span>
+      ) : (
+        <button
+          onClick={onDeleteRequest}
+          aria-label={`Delete "${item.title}"`}
+          className="opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:opacity-100 text-gray-dark hover:text-red-500 transition-opacity p-1"
+        >
+          <span className="text-xs">&#10005;</span>
+        </button>
+      )}
     </div>
   )
 }

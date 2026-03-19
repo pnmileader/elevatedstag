@@ -190,8 +190,8 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
   if (loading) {
     return (
       <Layout currentPage="clients">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-[#8A8A8A]" />
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-dark" />
         </div>
       </Layout>
     )
@@ -202,15 +202,15 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
       <div className="max-w-4xl">
         <Link
           href={`/clients/${id}`}
-          className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] mb-6 font-body text-sm"
+          className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to {client?.first_name} {client?.last_name}
         </Link>
 
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="font-heading text-2xl font-medium text-[#2D2D2D]">Custom Orders</h1>
+            <h1 className="font-heading text-lg font-medium text-body">Custom Orders</h1>
             <p className="font-body text-gray-dark">
               {client?.first_name} {client?.last_name} - Trinity Workflow Tracking
             </p>
@@ -218,7 +218,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
 
           <button
             onClick={openNewForm}
-            className="bg-[#2D2D2D] hover:bg-[#404040] text-white px-4 py-2 rounded-xl font-body font-medium text-sm flex items-center gap-2 transition-colors"
+            className="bg-body hover:bg-body-hover text-white px-4 py-2 rounded font-body font-medium text-sm flex items-center gap-2 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add Order
@@ -228,20 +228,20 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
         {/* Order Form Modal */}
         {showForm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 lg:p-8 border-b border-gray-med flex items-center justify-between">
-                <h2 className="font-heading text-base font-medium text-[#2D2D2D]">
+            <div className="bg-white rounded max-w-lg w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-3 lg:p-3 border-b border-gray-med flex items-center justify-between">
+                <h2 className="font-heading text-base font-medium text-body">
                   {editingOrder ? 'Edit Order' : 'New Custom Order'}
                 </h2>
                 <button
                   onClick={() => { setShowForm(false); resetForm(); }}
-                  className="p-2 hover:bg-gray-light rounded-xl"
+                  className="p-2 hover:bg-gray-light rounded"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="p-8 space-y-5">
+              <div className="p-3 space-y-2">
                 <div>
                   <label className="block font-body font-medium text-sm mb-2">
                     Garment Type *
@@ -250,7 +250,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                     value={garmentType}
                     onChange={(e) => setGarmentType(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-[#2D2D2D]"
+                    className="w-full px-3 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-body"
                   >
                     <option value="">Select type...</option>
                     {GARMENT_TYPES.map(type => (
@@ -269,7 +269,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                       value={fabricName}
                       onChange={(e) => setFabricName(e.target.value)}
                       placeholder="e.g., Navy Pinstripe"
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                   </div>
                   <div>
@@ -281,7 +281,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                       value={fabricCode}
                       onChange={(e) => setFabricCode(e.target.value)}
                       placeholder="e.g., V4-49146039"
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                   </div>
                 </div>
@@ -296,7 +296,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                       value={orderDate}
                       onChange={(e) => setOrderDate(e.target.value)}
                       required
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                   </div>
                   <div>
@@ -309,7 +309,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                       onChange={(e) => setPrice(e.target.value)}
                       placeholder="0.00"
                       step="0.01"
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                   </div>
                 </div>
@@ -321,7 +321,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-[#2D2D2D]"
+                    className="w-full px-3 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-body"
                   >
                     {STATUSES.map(s => (
                       <option key={s.value} value={s.value}>{s.label}</option>
@@ -338,7 +338,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                       type="date"
                       value={etaStart}
                       onChange={(e) => setEtaStart(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                   </div>
                   <div>
@@ -349,7 +349,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                       type="date"
                       value={etaEnd}
                       onChange={(e) => setEtaEnd(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                   </div>
                 </div>
@@ -363,23 +363,23 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                     value={trinityId}
                     onChange={(e) => setTrinityId(e.target.value)}
                     placeholder="e.g., T2-1822800"
-                    className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                    className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                   />
                 </div>
               </div>
 
-              <div className="p-6 lg:p-8 border-t border-gray-med flex gap-3">
+              <div className="p-3 lg:p-3 border-t border-gray-med flex gap-3">
                 <button
                   onClick={handleSave}
                   disabled={saving || !garmentType || !orderDate}
-                  className="flex-1 bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white py-2 rounded-xl font-body font-medium flex items-center justify-center gap-2"
+                  className="flex-1 bg-body hover:bg-body-hover disabled:bg-gray-med text-white py-2 rounded font-body font-medium flex items-center justify-center gap-2"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {editingOrder ? 'Update Order' : 'Add Order'}
                 </button>
                 <button
                   onClick={() => { setShowForm(false); resetForm(); }}
-                  className="px-6 py-2 border border-gray-med rounded-xl font-body font-medium text-gray-dark hover:border-[#2D2D2D]"
+                  className="px-3 py-2 border border-gray-med rounded font-body font-medium text-gray-dark hover:border-body"
                 >
                   Cancel
                 </button>
@@ -390,31 +390,31 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
 
         {/* Orders List */}
         {orders.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-gray-med" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+          <div className="bg-white rounded p-3 text-center border border-gray-med">
             <Package className="w-12 h-12 text-gray-med mx-auto mb-4" />
             <p className="font-body text-gray-dark mb-4">No custom orders yet</p>
             <button
               onClick={openNewForm}
-              className="text-[#8A8A8A] hover:text-[#2D2D2D] font-body text-sm font-medium"
+              className="text-gray-dark hover:text-body font-body text-sm font-medium"
             >
               Add the first order →
             </button>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-2">
             {orders.map(order => {
               const statusInfo = getStatusBadge(order.status)
 
               return (
                 <div
                   key={order.id}
-                  className="bg-white rounded-2xl border border-gray-med overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}
+                  className="bg-white rounded border border-gray-med overflow-hidden"
                 >
                   <div className="p-5">
                     <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-start gap-5">
+                      <div className="flex items-start gap-2">
                         {/* Swatch placeholder */}
-                        <div className="w-16 h-16 bg-gray-light rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <div className="w-16 h-16 bg-gray-light rounded flex items-center justify-center overflow-hidden flex-shrink-0">
                           {order.custom_swatch_url || order.swatch_image_url ? (
                             <img
                               src={order.custom_swatch_url || order.swatch_image_url || ''}
@@ -431,7 +431,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                           {order.fabric_name && (
                             <p className="font-body text-sm text-gray-dark">
                               {order.fabric_name}
-                              {order.fabric_code && <span className="text-[#8A8A8A] ml-2">({order.fabric_code})</span>}
+                              {order.fabric_code && <span className="text-gray-dark ml-2">({order.fabric_code})</span>}
                             </p>
                           )}
                           {order.trinity_garment_id && (
@@ -444,7 +444,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
 
                       <div className="text-right">
                         {order.price && (
-                          <p className="font-heading text-lg font-medium text-[#2D2D2D]">
+                          <p className="font-heading text-lg font-medium text-body">
                             ${order.price.toLocaleString()}
                           </p>
                         )}
@@ -457,7 +457,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                     {/* Status and ETA */}
                     <div className="flex items-center justify-between pt-3 border-t border-gray-light">
                       <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                        <span className={`px-3 py-1 rounded text-xs font-medium ${statusInfo.color}`}>
                           {statusInfo.label}
                         </span>
                         {order.eta_start && order.eta_end && order.status !== 'delivered' && (
@@ -479,7 +479,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                           <select
                             value={order.status}
                             onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                            className="px-2 py-1 border border-[#F0EEEB] rounded-xl text-xs font-body focus:outline-none focus:border-[#2D2D2D]"
+                            className="px-2 py-1 border border-gray-med rounded text-xs font-body focus:outline-none focus:border-body"
                           >
                             {STATUSES.map(s => (
                               <option key={s.value} value={s.value}>{s.label}</option>
@@ -488,7 +488,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                         )}
                         <button
                           onClick={() => openEditForm(order)}
-                          className="text-[#8A8A8A] hover:text-[#2D2D2D] font-body text-sm font-medium"
+                          className="text-gray-dark hover:text-body font-body text-sm font-medium"
                         >
                           Edit
                         </button>

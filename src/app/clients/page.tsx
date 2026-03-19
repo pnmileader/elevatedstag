@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { Users, MapPin, ChevronDown, Tag } from 'lucide-react'
 import Layout from '@/components/Layout'
 import { createClient } from '@/lib/supabase'
 
@@ -31,12 +30,32 @@ type Client = {
 
 type StageFilter = 'all' | 'vip' | 'active' | 'lead' | 'dormant'
 
+type SortField = 'name' | 'email' | 'phone' | 'city' | 'stage' | 'last_contact'
+type SortDir = 'asc' | 'desc'
+
+const stageOrder: Record<string, number> = { vip: 0, active: 1, lead: 2, dormant: 3 }
+
+const stageBorderColors: Record<string, string> = {
+  vip: 'var(--color-gold)',
+  active: 'var(--color-success)',
+  lead: 'var(--color-info)',
+  dormant: 'var(--color-muted)',
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<StageFilter>('all')
   const [cityFilter, setCityFilter] = useState<string>('all')
   const [tagFilter, setTagFilter] = useState<string>('all')
+  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
 
   useEffect(() => {
     async function loadClients() {
@@ -99,6 +118,42 @@ export default function ClientsPage() {
     return result
   }, [clients, activeFilter, cityFilter, tagFilter])
 
+  // Sort filtered clients
+  const sortedClients = useMemo(() => {
+    const sorted = [...filteredClients]
+    const dir = sortDir === 'asc' ? 1 : -1
+
+    sorted.sort((a, b) => {
+      let cmp = 0
+      switch (sortField) {
+        case 'name':
+          cmp = `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`)
+          break
+        case 'email':
+          cmp = (a.email || '').localeCompare(b.email || '')
+          break
+        case 'phone':
+          cmp = (a.phone || '').localeCompare(b.phone || '')
+          break
+        case 'city': {
+          const cityA = a.billing_address?.city?.trim() || ''
+          const cityB = b.billing_address?.city?.trim() || ''
+          cmp = cityA.localeCompare(cityB)
+          break
+        }
+        case 'stage':
+          cmp = (stageOrder[a.stage] ?? 9) - (stageOrder[b.stage] ?? 9)
+          break
+        case 'last_contact':
+          cmp = (a.last_contact_date || '').localeCompare(b.last_contact_date || '')
+          break
+      }
+      return cmp * dir
+    })
+
+    return sorted
+  }, [filteredClients, sortField, sortDir])
+
   const stageCounts = {
     all: clients.length,
     vip: clients.filter(c => c.stage === 'vip').length,
@@ -121,268 +176,225 @@ export default function ClientsPage() {
 
   const hasActiveFilters = cityFilter !== 'all' || tagFilter !== 'all'
 
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+
+  function sortIndicator(field: SortField) {
+    if (sortField !== field) return null
+    return sortDir === 'asc' ? ' \u2191' : ' \u2193'
+  }
+
+  const stageFilters: { key: StageFilter; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'vip', label: 'VIP' },
+    { key: 'active', label: 'Active' },
+    { key: 'lead', label: 'Lead' },
+    { key: 'dormant', label: 'Dormant' },
+  ]
+
   return (
     <Layout currentPage="clients">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-heading text-2xl font-medium text-[#2D2D2D]">Clients</h1>
-          <p className="font-body text-gray-dark">
-            {filteredClients.length} {activeFilter === 'all' ? 'total' : activeFilter} client{filteredClients.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-
-        {/* Stage Filter Pills */}
-        <div className="flex flex-wrap gap-2">
-          <StagePill
-            label="All"
-            count={stageCounts.all}
-            active={activeFilter === 'all'}
-            onClick={() => setActiveFilter('all')}
-          />
-          <StagePill
-            label="VIP"
-            count={stageCounts.vip}
-            active={activeFilter === 'vip'}
-            onClick={() => setActiveFilter('vip')}
-            color="bg-gold"
-          />
-          <StagePill
-            label="Active"
-            count={stageCounts.active}
-            active={activeFilter === 'active'}
-            onClick={() => setActiveFilter('active')}
-            color="bg-green-500"
-          />
-          <StagePill
-            label="Lead"
-            count={stageCounts.lead}
-            active={activeFilter === 'lead'}
-            onClick={() => setActiveFilter('lead')}
-            color="bg-blue-500"
-          />
-          <StagePill
-            label="Dormant"
-            count={stageCounts.dormant}
-            active={activeFilter === 'dormant'}
-            onClick={() => setActiveFilter('dormant')}
-            color="bg-gray-dark"
-          />
-        </div>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12 }}>
+        <h1 className="ds-page-title">Clients</h1>
+        <span className="ds-label">{filteredClients.length} client{filteredClients.length !== 1 ? 's' : ''}</span>
       </div>
 
-      {/* Location Filters */}
-      <div className="mb-6 flex flex-wrap items-center gap-4">
+      {/* Filter bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        {stageFilters.map(sf => (
+          <button
+            key={sf.key}
+            onClick={() => setActiveFilter(sf.key)}
+            className="ds-btn"
+            style={
+              activeFilter === sf.key
+                ? { background: 'var(--color-charcoal)', color: 'var(--color-cream)' }
+                : { background: 'transparent', color: 'var(--color-body)', border: '1px solid var(--color-gray-med)' }
+            }
+          >
+            {sf.label} ({stageCounts[sf.key]})
+          </button>
+        ))}
+
         {uniqueCities.length > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-gray-dark">
-              <MapPin className="w-4 h-4" />
-              <span className="font-body text-sm font-medium">City:</span>
-            </div>
-            <div className="relative">
-              <select
-                value={cityFilter}
-                onChange={(e) => setCityFilter(e.target.value)}
-                className="appearance-none bg-white border border-gray-med rounded-xl px-4 py-2 pr-10 font-body text-sm focus:outline-none focus:border-gold cursor-pointer hover:border-gold transition-colors"
-              >
-                <option value="all">All Cities ({cityCounts.all})</option>
-                {uniqueCities.map(city => (
-                  <option key={city} value={city}>
-                    {city} ({cityCounts[city] || 0})
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-dark pointer-events-none" />
-            </div>
-          </div>
+          <select
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            className="ds-input"
+            style={{ width: 'auto', paddingRight: 28 }}
+          >
+            <option value="all">All Cities ({cityCounts.all})</option>
+            {uniqueCities.map(city => (
+              <option key={city} value={city}>
+                {city} ({cityCounts[city] || 0})
+              </option>
+            ))}
+          </select>
         )}
 
         {uniqueTags.length > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-gray-dark">
-              <Tag className="w-4 h-4" />
-              <span className="font-body text-sm font-medium">Location Tag:</span>
-            </div>
-            <div className="relative">
-              <select
-                value={tagFilter}
-                onChange={(e) => setTagFilter(e.target.value)}
-                className="appearance-none bg-white border border-gray-med rounded-xl px-4 py-2 pr-10 font-body text-sm focus:outline-none focus:border-gold cursor-pointer hover:border-gold transition-colors"
-              >
-                <option value="all">All Tags</option>
-                {uniqueTags.map(tag => (
-                  <option key={tag} value={tag}>{tag}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-dark pointer-events-none" />
-            </div>
-          </div>
+          <select
+            value={tagFilter}
+            onChange={(e) => setTagFilter(e.target.value)}
+            className="ds-input"
+            style={{ width: 'auto', paddingRight: 28 }}
+          >
+            <option value="all">All Tags</option>
+            {uniqueTags.map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
         )}
 
         {hasActiveFilters && (
           <button
             onClick={() => { setCityFilter('all'); setTagFilter('all') }}
-            className="text-[#2D2D2D] hover:text-gold font-body text-sm font-medium"
+            className="ds-btn ds-btn-ghost"
           >
             Clear Filters
           </button>
         )}
       </div>
 
-      {/* Loading State */}
+      {/* Loading state */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 border border-gray-med animate-pulse" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-gray-med rounded-full" />
-                <div className="flex-1">
-                  <div className="h-5 bg-gray-med rounded w-3/4 mb-2" />
-                  <div className="h-4 bg-gray-med rounded w-1/2" />
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="ds-section">
+          <table className="ds-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th className="hidden md:table-cell">Email</th>
+                <th>Phone</th>
+                <th className="hidden md:table-cell">City</th>
+                <th>Stage</th>
+                <th>Last Contact</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[1, 2, 3, 4, 5].map(i => (
+                <tr key={i}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 28, height: 28, background: 'var(--color-gray-med)' }} className="animate-pulse" />
+                      <div style={{ width: 120, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" />
+                    </div>
+                  </td>
+                  <td className="hidden md:table-cell"><div style={{ width: 160, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" /></td>
+                  <td><div style={{ width: 100, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" /></td>
+                  <td className="hidden md:table-cell"><div style={{ width: 80, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" /></td>
+                  <td><div style={{ width: 50, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" /></td>
+                  <td><div style={{ width: 90, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : sortedClients.length === 0 ? (
+        /* Empty state */
+        <div style={{ padding: '48px 0', textAlign: 'center' }}>
+          <p style={{ color: 'var(--color-muted)', fontSize: 13, marginBottom: 12 }}>No clients found</p>
+          <Link href="/clients/new" className="ds-btn ds-btn-primary">
+            Add Client
+          </Link>
         </div>
       ) : (
-        <>
-          {/* Clients Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredClients.map((client) => (
-              <ClientCard key={client.id} client={client} />
-            ))}
-          </div>
+        /* Table */
+        <div className="ds-section" style={{ padding: 0 }}>
+          <table className="ds-table">
+            <thead>
+              <tr>
+                <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
+                  Name{sortIndicator('name')}
+                </th>
+                <th onClick={() => handleSort('email')} style={{ cursor: 'pointer' }} className="hidden md:table-cell">
+                  Email{sortIndicator('email')}
+                </th>
+                <th onClick={() => handleSort('phone')} style={{ cursor: 'pointer' }}>
+                  Phone{sortIndicator('phone')}
+                </th>
+                <th onClick={() => handleSort('city')} style={{ cursor: 'pointer' }} className="hidden md:table-cell">
+                  City{sortIndicator('city')}
+                </th>
+                <th onClick={() => handleSort('stage')} style={{ cursor: 'pointer' }}>
+                  Stage{sortIndicator('stage')}
+                </th>
+                <th onClick={() => handleSort('last_contact')} style={{ cursor: 'pointer' }}>
+                  Last Contact{sortIndicator('last_contact')}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedClients.map((client, idx) => {
+                const initials = `${client.first_name[0]}${client.last_name[0]}`
+                const city = client.billing_address?.city?.trim() || ''
+                const rowBg = idx % 2 === 1 ? 'var(--color-ivory)' : 'var(--color-warm-white)'
 
-          {filteredClients.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="w-16 h-16 text-gray-med mx-auto mb-4" />
-              {clients.length === 0 ? (
-                <>
-                  <h2 className="font-heading text-xl text-gray-dark">No clients yet</h2>
-                  <p className="font-body text-gray-dark mt-2">Add your first client to get started.</p>
+                return (
                   <Link
-                    href="/clients/new"
-                    className="inline-block mt-4 bg-[#2D2D2D] hover:bg-[#404040] text-white px-6 py-2 rounded-lg font-body font-medium transition-colors"
+                    key={client.id}
+                    href={`/clients/${client.id}`}
+                    style={{ display: 'contents' }}
                   >
-                    Add Client
+                    <tr
+                      style={{ background: rowBg, cursor: 'pointer', height: 32 }}
+                    >
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div
+                            className="ds-avatar"
+                            style={{
+                              background: 'var(--color-charcoal)',
+                              color: 'var(--color-cream)',
+                              width: 28,
+                              height: 28,
+                            }}
+                          >
+                            {initials}
+                          </div>
+                          <span style={{ fontWeight: 500 }}>
+                            {client.first_name} {client.last_name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="hidden md:table-cell" style={{ color: client.email ? 'var(--color-body)' : 'var(--color-muted)' }}>
+                        {client.email || '\u2014'}
+                      </td>
+                      <td style={{ color: client.phone ? 'var(--color-body)' : 'var(--color-muted)' }}>
+                        {client.phone || '\u2014'}
+                      </td>
+                      <td className="hidden md:table-cell" style={{ color: city ? 'var(--color-body)' : 'var(--color-muted)' }}>
+                        {city || '\u2014'}
+                      </td>
+                      <td>
+                        <span
+                          className="ds-status"
+                          style={{ borderLeftColor: stageBorderColors[client.stage] || 'var(--color-muted)' }}
+                        >
+                          {client.stage.toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        {client.last_contact_date ? (
+                          <span>{formatDate(client.last_contact_date)}</span>
+                        ) : (
+                          <span style={{ color: 'var(--color-muted)' }}>Never</span>
+                        )}
+                      </td>
+                    </tr>
                   </Link>
-                </>
-              ) : (
-                <>
-                  <h2 className="font-heading text-xl text-gray-dark">No matching clients</h2>
-                  <p className="font-body text-gray-dark mt-2">
-                    Try selecting a different filter or add a new client.
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-        </>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </Layout>
-  )
-}
-
-function StagePill({
-  label,
-  count,
-  active = false,
-  onClick,
-  color,
-}: {
-  label: string
-  count: number
-  active?: boolean
-  onClick: () => void
-  color?: string
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-5 py-2 rounded-xl font-body text-sm transition-colors flex items-center gap-2 whitespace-nowrap ${
-        active
-          ? 'bg-[#2D2D2D] text-white'
-          : 'bg-white text-gray-dark border border-gray-med hover:border-gold'
-      }`}
-    >
-      {color && !active && (
-        <span className={`w-2 h-2 rounded-full ${color}`} />
-      )}
-      {label} ({count})
-    </button>
-  )
-}
-
-function ClientCard({ client }: { client: Client }) {
-  const initials = `${client.first_name[0]}${client.last_name[0]}`
-  const city = client.billing_address?.city?.trim()
-
-  const stageColors = {
-    vip: 'bg-gold text-white',
-    active: 'bg-green-500 text-white',
-    lead: 'bg-blue-500 text-white',
-    dormant: 'bg-gray-dark text-white',
-  }
-
-  return (
-    <Link href={`/clients/${client.id}`}>
-      <div className="bg-white rounded-2xl p-5 lg:p-6 border border-gray-med hover:border-gray-dark/20 hover:shadow-sm transition-all cursor-pointer" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-        <div className="flex items-start gap-4">
-          <div className="w-11 h-11 lg:w-12 lg:h-12 bg-gold rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-heading font-medium text-sm lg:text-base">{initials}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-heading font-medium text-base lg:text-lg text-[#2D2D2D] truncate">
-              {client.first_name} {client.last_name}
-            </h3>
-            {client.email && (
-              <p className="font-body text-sm text-gray-dark truncate">{client.email}</p>
-            )}
-            {client.phone && (
-              <p className="font-body text-sm text-gray-dark">{client.phone}</p>
-            )}
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              {city && (
-                <p className="font-body text-xs text-gray-dark flex items-center gap-1">
-                  <MapPin className="w-3 h-3" />
-                  {city}
-                </p>
-              )}
-              {client.communication_preference && (
-                <span className="font-body text-[10px] text-gold bg-gold/10 px-1.5 py-0.5 rounded capitalize">
-                  {client.communication_preference}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 lg:mt-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-lg text-[11px] font-medium uppercase whitespace-nowrap ${stageColors[client.stage]}`}>
-              {client.stage}
-            </span>
-            {client.contact_type === 'referral' && (
-              <span className="px-3 py-1 rounded-lg text-[11px] font-medium uppercase whitespace-nowrap bg-purple-500 text-white">
-                Referral
-              </span>
-            )}
-            {client.location_tags && client.location_tags.length > 0 && (
-              <div className="flex gap-1">
-                {client.location_tags.slice(0, 2).map(tag => (
-                  <span key={tag} className="px-2 py-0.5 bg-gold/10 text-gold rounded-full text-[10px] font-medium">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-          {client.last_contact_date && (
-            <p className="font-body text-xs text-gray-dark">
-              Last: {new Date(client.last_contact_date).toLocaleDateString()}
-            </p>
-          )}
-        </div>
-      </div>
-    </Link>
   )
 }

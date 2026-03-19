@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   for (const email of pendingEmails) {
     try {
       // Send the email
-      await sendEmail(email.to_email, email.subject, email.body)
+      await sendEmail({ to: email.to_email, subject: email.subject, body: email.body })
 
       // Update status to sent
       await supabase

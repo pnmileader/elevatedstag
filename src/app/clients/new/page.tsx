@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
+import Layout from '@/components/Layout'
 
 export default function NewClientPage() {
   const router = useRouter()
@@ -101,40 +102,28 @@ export default function NewClientPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-light">
-      {/* Header */}
-      <header className="bg-white px-4 lg:px-8 py-4 flex items-center justify-between sticky top-0 z-50 border-b border-[#F0EEEB]">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gold rounded-full flex items-center justify-center">
-            <span className="text-white font-heading font-semibold text-sm">ES</span>
-          </div>
-          <span className="font-heading text-[#2D2D2D] text-base font-medium tracking-wide hidden sm:block">
-            THE ELEVATED STAG
-          </span>
-        </div>
-      </header>
-
+    <Layout currentPage="clients" showNewClient={false}>
       {/* Content */}
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <Link href="/clients" className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] mb-6 font-body text-sm">
+      <div className="max-w-2xl mx-auto px-3 py-3">
+        <Link href="/clients" className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm">
           <ArrowLeft className="w-4 h-4" />
           Back to Clients
         </Link>
 
-        <div className="bg-white rounded-2xl p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-          <h1 className="font-heading text-xl font-medium text-[#2D2D2D] mb-6">New Client</h1>
+        <div className="bg-white rounded p-3 border border-gray-med">
+          <h1 className="font-heading text-xl font-medium text-body mb-3">New Client</h1>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 font-body text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-3 font-body text-sm">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-3">
             {/* Name Row */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   First Name *
                 </label>
                 <input
@@ -142,13 +131,14 @@ export default function NewClientPage() {
                   name="first_name"
                   value={formData.first_name}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                   placeholder="James"
                   required
+                  aria-required="true"
                 />
               </div>
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   Last Name *
                 </label>
                 <input
@@ -156,9 +146,10 @@ export default function NewClientPage() {
                   name="last_name"
                   value={formData.last_name}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                   placeholder="Bettersworth"
                   required
+                  aria-required="true"
                 />
               </div>
             </div>
@@ -166,7 +157,7 @@ export default function NewClientPage() {
             {/* Contact Row */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   Email
                 </label>
                 <input
@@ -174,12 +165,12 @@ export default function NewClientPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                   placeholder="james@example.com"
                 />
               </div>
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   Phone
                 </label>
                 <input
@@ -187,7 +178,7 @@ export default function NewClientPage() {
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                   placeholder="(512) 555-1234"
                 />
               </div>
@@ -195,7 +186,7 @@ export default function NewClientPage() {
 
             {/* Address */}
             <div>
-              <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+              <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                 Street Address
               </label>
               <input
@@ -203,14 +194,14 @@ export default function NewClientPage() {
                 name="street"
                 value={formData.street}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                 placeholder="110 W Faust St"
               />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   City
                 </label>
                 <input
@@ -218,12 +209,12 @@ export default function NewClientPage() {
                   name="city"
                   value={formData.city}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                   placeholder="San Antonio"
                 />
               </div>
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   State
                 </label>
                 <input
@@ -231,13 +222,13 @@ export default function NewClientPage() {
                   name="state"
                   value={formData.state}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                   placeholder="TX"
                   maxLength={2}
                 />
               </div>
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   ZIP
                 </label>
                 <input
@@ -245,7 +236,7 @@ export default function NewClientPage() {
                   name="zip"
                   value={formData.zip}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                   placeholder="78204"
                   maxLength={10}
                 />
@@ -255,14 +246,14 @@ export default function NewClientPage() {
             {/* Stage and Source */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   Client Stage
                 </label>
                 <select
                   name="stage"
                   value={formData.stage}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold bg-white"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold bg-white"
                 >
                   <option value="lead">Lead</option>
                   <option value="active">Active</option>
@@ -271,7 +262,7 @@ export default function NewClientPage() {
                 </select>
               </div>
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   Source
                 </label>
                 <input
@@ -279,7 +270,7 @@ export default function NewClientPage() {
                   name="source"
                   value={formData.source}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                   placeholder="referral, website, event..."
                 />
               </div>
@@ -288,21 +279,21 @@ export default function NewClientPage() {
             {/* Contact Type & Referred By */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">Contact Type</label>
-                <select name="contact_type" value={formData.contact_type} onChange={handleChange} className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold bg-white">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">Contact Type</label>
+                <select name="contact_type" value={formData.contact_type} onChange={handleChange} className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold bg-white">
                   <option value="client">Client</option>
                   <option value="referral">Referral</option>
                 </select>
               </div>
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">Referred By</label>
-                <input type="text" name="referred_by" value={formData.referred_by} onChange={handleChange} className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold" placeholder="Name of referrer" />
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">Referred By</label>
+                <input type="text" name="referred_by" value={formData.referred_by} onChange={handleChange} className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold" placeholder="Name of referrer" />
               </div>
             </div>
 
             {/* Birthday */}
             <div>
-              <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+              <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                 Birthday
               </label>
               <input
@@ -310,13 +301,13 @@ export default function NewClientPage() {
                 name="birthday"
                 value={formData.birthday}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
               />
             </div>
 
             {/* Notes */}
             <div>
-              <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+              <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                 Notes
               </label>
               <textarea
@@ -324,14 +315,14 @@ export default function NewClientPage() {
                 value={formData.notes}
                 onChange={handleChange}
                 rows={3}
-                className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold resize-none"
+                className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold resize-none"
                 placeholder="Attorney, has 3 kids, prefers morning appointments..."
               />
             </div>
 
             {/* Preferences */}
             <div>
-              <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+              <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                 Style Preferences
               </label>
               <textarea
@@ -339,7 +330,7 @@ export default function NewClientPage() {
                 value={formData.preferences}
                 onChange={handleChange}
                 rows={3}
-                className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold resize-none"
+                className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold resize-none"
                 placeholder="Classic American style, prefers navy and charcoal, no pleats..."
               />
             </div>
@@ -348,14 +339,14 @@ export default function NewClientPage() {
             <div className="flex gap-4 pt-4">
               <Link
                 href="/clients"
-                className="flex-1 px-6 py-3 border border-[#F0EEEB] rounded-xl font-body font-semibold text-gray-dark text-center hover:bg-gray-light transition-colors"
+                className="flex-1 px-3 py-3 border border-gray-med rounded font-body font-semibold text-gray-dark text-center hover:bg-gray-light transition-colors"
               >
                 Cancel
               </Link>
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white px-6 py-3 rounded-xl font-body font-semibold flex items-center justify-center gap-2 transition-colors"
+                className="flex-1 bg-body hover:bg-body-hover disabled:bg-gray-med text-white px-3 py-3 rounded font-body font-semibold flex items-center justify-center gap-2 transition-colors"
               >
                 {saving ? (
                   <>
@@ -373,6 +364,6 @@ export default function NewClientPage() {
           </form>
         </div>
       </div>
-    </div>
+    </Layout>
   )
 }

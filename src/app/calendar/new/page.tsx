@@ -137,22 +137,22 @@ export default function NewAppointmentPage() {
       <div className="max-w-2xl">
         <Link
           href="/calendar"
-          className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] mb-6 font-body text-sm"
+          className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Calendar
         </Link>
 
-        <h1 className="font-heading text-2xl font-medium text-[#2D2D2D] mb-2">New Appointment</h1>
-        <p className="font-body text-gray-dark mb-8">Schedule a wardrobe appointment or fitting</p>
+        <h1 className="font-heading text-lg font-medium text-body mb-2">New Appointment</h1>
+        <p className="font-body text-gray-dark mb-3">Schedule a wardrobe appointment or fitting</p>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 font-body">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-3 font-body">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {/* Appointment Type */}
           <div>
             <label className="block font-body font-medium text-sm mb-3">
@@ -162,10 +162,10 @@ export default function NewAppointmentPage() {
               <button
                 type="button"
                 onClick={() => setAppointmentType('wardrobe')}
-                className={`flex-1 p-4 rounded-xl border-2 transition-colors ${
+                className={`flex-1 p-4 rounded border-2 transition-colors ${
                   appointmentType === 'wardrobe'
-                    ? 'border-[#2D2D2D] bg-gray-light'
-                    : 'border-[#F0EEEB] hover:border-[#2D2D2D]'
+                    ? 'border-body bg-gray-light'
+                    : 'border-gray-med hover:border-body'
                 }`}
               >
                 <div className="font-body font-medium">Wardrobe Appointment</div>
@@ -176,10 +176,10 @@ export default function NewAppointmentPage() {
               <button
                 type="button"
                 onClick={() => setAppointmentType('fitting')}
-                className={`flex-1 p-4 rounded-xl border-2 transition-colors ${
+                className={`flex-1 p-4 rounded border-2 transition-colors ${
                   appointmentType === 'fitting'
-                    ? 'border-[#2D2D2D] bg-gray-light'
-                    : 'border-[#F0EEEB] hover:border-[#2D2D2D]'
+                    ? 'border-body bg-gray-light'
+                    : 'border-gray-med hover:border-body'
                 }`}
               >
                 <div className="font-body font-medium">Fitting</div>
@@ -199,7 +199,7 @@ export default function NewAppointmentPage() {
             <select
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
-              className="w-full px-4 py-3 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-[#2D2D2D]"
+              className="w-full px-4 py-3 border border-gray-med rounded font-body focus:outline-none focus:border-body"
               disabled={loadingClients}
             >
               <option value="">Select a client...</option>
@@ -223,7 +223,7 @@ export default function NewAppointmentPage() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-[#2D2D2D]"
+                className="w-full px-4 py-3 border border-gray-med rounded font-body focus:outline-none focus:border-body"
               />
             </div>
             <div>
@@ -236,7 +236,7 @@ export default function NewAppointmentPage() {
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-[#2D2D2D]"
+                className="w-full px-4 py-3 border border-gray-med rounded font-body focus:outline-none focus:border-body"
               />
             </div>
           </div>
@@ -252,9 +252,9 @@ export default function NewAppointmentPage() {
                   key={mins}
                   type="button"
                   onClick={() => setDuration(mins)}
-                  className={`px-4 py-2 rounded-xl font-body text-sm transition-colors ${
+                  className={`px-4 py-2 rounded font-body text-sm transition-colors ${
                     duration === mins
-                      ? 'bg-[#2D2D2D] text-white'
+                      ? 'bg-body text-white'
                       : 'bg-gray-light hover:bg-gray-med text-gray-dark'
                   }`}
                 >
@@ -278,7 +278,7 @@ export default function NewAppointmentPage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g., Client's office, TES Studio"
-              className="w-full px-4 py-3 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-[#2D2D2D]"
+              className="w-full px-4 py-3 border border-gray-med rounded font-body focus:outline-none focus:border-body"
             />
           </div>
 
@@ -292,7 +292,7 @@ export default function NewAppointmentPage() {
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Any additional notes for this appointment..."
-              className="w-full px-4 py-3 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-[#2D2D2D] resize-none"
+              className="w-full px-4 py-3 border border-gray-med rounded font-body focus:outline-none focus:border-body resize-none"
             />
           </div>
 
@@ -301,7 +301,7 @@ export default function NewAppointmentPage() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white py-3 rounded-xl font-body font-medium flex items-center justify-center gap-2 transition-colors"
+              className="flex-1 bg-body hover:bg-body-hover disabled:bg-gray-med text-white py-3 rounded font-body font-medium flex items-center justify-center gap-2 transition-colors"
             >
               {saving ? (
                 <>
@@ -314,7 +314,7 @@ export default function NewAppointmentPage() {
             </button>
             <Link
               href="/calendar"
-              className="px-6 py-3 border border-gray-med hover:border-[#2D2D2D] rounded-xl font-body font-medium text-gray-dark transition-colors"
+              className="px-3 py-3 border border-gray-med hover:border-body rounded font-body font-medium text-gray-dark transition-colors"
             >
               Cancel
             </Link>

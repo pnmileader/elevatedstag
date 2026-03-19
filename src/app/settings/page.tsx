@@ -84,30 +84,30 @@ function SettingsContent() {
   return (
     <Layout currentPage="settings">
       <div className="max-w-3xl">
-        <h1 className="font-heading text-2xl font-medium text-[#2D2D2D] mb-2">Settings</h1>
-        <p className="font-body text-gray-dark mb-8">Manage integrations and preferences</p>
+        <h1 className="font-heading text-lg font-medium text-body mb-2">Settings</h1>
+        <p className="font-body text-gray-dark mb-3">Manage integrations and preferences</p>
 
         {/* Success/Error Messages */}
         {qbSuccess && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl mb-6 font-body flex items-center gap-2">
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-3 font-body flex items-center gap-2">
             <CheckCircle className="w-5 h-5" />
             Successfully connected to QuickBooks!
           </div>
         )}
         {qbError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 font-body flex items-center gap-2">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-3 font-body flex items-center gap-2">
             <XCircle className="w-5 h-5" />
             Failed to connect to QuickBooks: {qbError}
           </div>
         )}
         {googleSuccess && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl mb-6 font-body flex items-center gap-2">
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-3 font-body flex items-center gap-2">
             <CheckCircle className="w-5 h-5" />
             Successfully connected to Google Calendar!
           </div>
         )}
         {googleError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 font-body flex items-center gap-2">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-3 font-body flex items-center gap-2">
             <XCircle className="w-5 h-5" />
             Failed to connect to Google Calendar: {googleError}
           </div>
@@ -115,7 +115,7 @@ function SettingsContent() {
 
         {/* Sync Result */}
         {syncResult && (
-          <div className={`${syncResult.success ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'} border px-4 py-3 rounded-xl mb-6 font-body`}>
+          <div className={`${syncResult.success ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'} border px-4 py-3 rounded mb-3 font-body`}>
             {syncResult.success ? (
               <div>
                 <div className="flex items-center gap-2 font-medium mb-2">
@@ -137,14 +137,14 @@ function SettingsContent() {
         )}
 
         {/* QuickBooks Integration */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-med mb-6" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+        <div className="bg-white rounded p-3 border border-gray-med mb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-500 rounded-2xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-green-500 rounded flex items-center justify-center">
                 <span className="text-white font-bold text-lg">QB</span>
               </div>
               <div>
-                <h2 className="font-heading text-base font-medium text-[#2D2D2D]">QuickBooks Online</h2>
+                <h2 className="font-heading text-base font-medium text-body">QuickBooks Online</h2>
                 <p className="font-body text-sm text-gray-dark">
                   Sync clients and invoices automatically
                 </p>
@@ -152,7 +152,7 @@ function SettingsContent() {
             </div>
 
             {qbLoading ? (
-              <Loader2 className="w-6 h-6 animate-spin text-[#8A8A8A]" />
+              <Loader2 className="w-6 h-6 animate-spin text-gray-dark" />
             ) : qbConnected ? (
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-1 text-green-600 font-body text-sm font-medium">
@@ -163,7 +163,7 @@ function SettingsContent() {
             ) : (
               <a
                 href="/api/quickbooks/connect"
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-body font-medium text-sm flex items-center gap-2 transition-colors"
+                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded font-body font-medium text-sm flex items-center gap-2 transition-colors"
               >
                 Connect QuickBooks
               </a>
@@ -179,7 +179,7 @@ function SettingsContent() {
                 <button
                   onClick={handleSync}
                   disabled={syncing}
-                  className="bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white px-4 py-2 rounded-xl font-body text-sm font-medium flex items-center gap-2 transition-colors"
+                  className="bg-body hover:bg-body-hover disabled:bg-gray-med text-white px-4 py-2 rounded font-body text-sm font-medium flex items-center gap-2 transition-colors"
                 >
                   {syncing ? (
                     <>
@@ -195,7 +195,7 @@ function SettingsContent() {
                 </button>
                 <a
                   href="/api/quickbooks/connect"
-                  className="border border-gray-med hover:border-[#2D2D2D] text-gray-dark px-4 py-2 rounded-xl font-body text-sm flex items-center gap-2 transition-colors"
+                  className="border border-gray-med hover:border-body text-gray-dark px-4 py-2 rounded font-body text-sm flex items-center gap-2 transition-colors"
                 >
                   Reconnect
                 </a>
@@ -205,14 +205,14 @@ function SettingsContent() {
         </div>
 
         {/* Google Calendar Integration */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-med mb-6" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+        <div className="bg-white rounded p-3 border border-gray-med mb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-blue-500 rounded flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="font-heading text-base font-medium text-[#2D2D2D]">Google Calendar</h2>
+                <h2 className="font-heading text-base font-medium text-body">Google Calendar</h2>
                 <p className="font-body text-sm text-gray-dark">
                   Sync appointments and schedule fittings
                 </p>
@@ -220,7 +220,7 @@ function SettingsContent() {
             </div>
 
             {googleLoading ? (
-              <Loader2 className="w-6 h-6 animate-spin text-[#8A8A8A]" />
+              <Loader2 className="w-6 h-6 animate-spin text-gray-dark" />
             ) : googleConnected ? (
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-1 text-green-600 font-body text-sm font-medium">
@@ -231,7 +231,7 @@ function SettingsContent() {
             ) : (
               <a
                 href="/api/google/connect"
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-body font-medium text-sm flex items-center gap-2 transition-colors"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded font-body font-medium text-sm flex items-center gap-2 transition-colors"
               >
                 Connect Google Calendar
               </a>
@@ -245,7 +245,7 @@ function SettingsContent() {
               </p>
               <a
                 href="/api/google/connect"
-                className="border border-gray-med hover:border-blue-500 text-gray-dark px-4 py-2 rounded-xl font-body text-sm inline-flex items-center gap-2 transition-colors"
+                className="border border-gray-med hover:border-blue-500 text-gray-dark px-4 py-2 rounded font-body text-sm inline-flex items-center gap-2 transition-colors"
               >
                 Reconnect
               </a>
@@ -254,13 +254,13 @@ function SettingsContent() {
         </div>
 
         {/* Trinity Workflow - Coming Soon */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-med opacity-60 mb-6" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+        <div className="bg-white rounded p-3 border border-gray-med opacity-60 mb-3">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-purple-500 rounded-2xl flex items-center justify-center">
+            <div className="w-12 h-12 bg-purple-500 rounded flex items-center justify-center">
               <span className="text-white font-bold text-lg">TW</span>
             </div>
             <div>
-              <h2 className="font-heading text-base font-medium text-[#2D2D2D]">Trinity Workflow</h2>
+              <h2 className="font-heading text-base font-medium text-body">Trinity Workflow</h2>
               <p className="font-body text-sm text-gray-dark">
                 Coming in Phase 3 - Sync measurements and order status
               </p>
@@ -271,15 +271,15 @@ function SettingsContent() {
         {/* Email Automations */}
         <Link
           href="/settings/automations"
-          className="block bg-white rounded-2xl p-6 border border-gray-med hover:border-[#2D2D2D] transition-colors" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}
+          className="block bg-white rounded p-3 border border-gray-med hover:border-body transition-colors"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gray-light rounded-2xl flex items-center justify-center">
-                <Mail className="w-6 h-6 text-[#2D2D2D]" />
+              <div className="w-12 h-12 bg-gray-light rounded flex items-center justify-center">
+                <Mail className="w-6 h-6 text-body" />
               </div>
               <div>
-                <h2 className="font-heading text-base font-medium text-[#2D2D2D]">Email Automations</h2>
+                <h2 className="font-heading text-base font-medium text-body">Email Automations</h2>
                 <p className="font-body text-sm text-gray-dark">
                   Configure automatic email sequences
                 </p>
@@ -297,8 +297,8 @@ export default function SettingsPage() {
   return (
     <Suspense fallback={
       <Layout currentPage="settings">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-[#8A8A8A]" />
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-dark" />
         </div>
       </Layout>
     }>

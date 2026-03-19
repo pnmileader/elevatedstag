@@ -186,8 +186,8 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
   if (loading) {
     return (
       <Layout currentPage="clients">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-[#8A8A8A]" />
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-dark" />
         </div>
       </Layout>
     )
@@ -198,15 +198,15 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
       <div className="max-w-4xl">
         <Link
           href={`/clients/${id}`}
-          className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] mb-6 font-body text-sm"
+          className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to {client?.first_name} {client?.last_name}
         </Link>
 
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="font-heading text-2xl font-medium text-[#2D2D2D]">Ready-Made Purchases</h1>
+            <h1 className="font-heading text-lg font-medium text-body">Ready-Made Purchases</h1>
             <p className="font-body text-gray-dark">
               {client?.first_name} {client?.last_name} - Shoes, Jeans, Accessories
             </p>
@@ -214,7 +214,7 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
 
           <button
             onClick={openNewForm}
-            className="bg-[#2D2D2D] hover:bg-[#404040] text-white px-4 py-2 rounded-xl font-body font-medium text-sm flex items-center gap-2 transition-colors"
+            className="bg-body hover:bg-body-hover text-white px-4 py-2 rounded font-body font-medium text-sm flex items-center gap-2 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add Purchase
@@ -224,20 +224,20 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
         {/* Purchase Form Modal */}
         {showForm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 lg:p-8 border-b border-gray-med flex items-center justify-between">
-                <h2 className="font-heading text-base font-medium text-[#2D2D2D]">
+            <div className="bg-white rounded max-w-lg w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-3 lg:p-3 border-b border-gray-med flex items-center justify-between">
+                <h2 className="font-heading text-base font-medium text-body">
                   {editingPurchase ? 'Edit Purchase' : 'Add Ready-Made Purchase'}
                 </h2>
                 <button
                   onClick={() => { setShowForm(false); resetForm(); }}
-                  className="p-2 hover:bg-gray-light rounded-xl"
+                  className="p-2 hover:bg-gray-light rounded"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="p-8 space-y-5">
+              <div className="p-3 space-y-2">
                 {/* Category */}
                 <div>
                   <label className="block font-body font-medium text-sm mb-2">Category</label>
@@ -247,9 +247,9 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                         key={cat.value}
                         type="button"
                         onClick={() => setCategory(cat.value)}
-                        className={`px-3 py-2 rounded-xl font-body text-sm flex items-center gap-2 transition-colors ${
+                        className={`px-3 py-2 rounded font-body text-sm flex items-center gap-2 transition-colors ${
                           category === cat.value
-                            ? 'bg-[#2D2D2D] text-white'
+                            ? 'bg-body text-white'
                             : 'bg-gray-light hover:bg-gray-med text-gray-dark'
                         }`}
                       >
@@ -270,7 +270,7 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                       value={brand}
                       onChange={(e) => setBrand(e.target.value)}
                       placeholder="e.g., Magnanni"
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                     <datalist id="brand-list">
                       {COMMON_BRANDS.map(b => <option key={b} value={b} />)}
@@ -284,7 +284,7 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                       onChange={(e) => setProductName(e.target.value)}
                       placeholder="e.g., Oxford Dress Shoe"
                       required
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                   </div>
                 </div>
@@ -297,7 +297,7 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="e.g., Black, Brown, Cherry"
-                    className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                    className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                   />
                 </div>
 
@@ -310,7 +310,7 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                       value={size}
                       onChange={(e) => setSize(e.target.value)}
                       placeholder="e.g., 9.5 or 34x32"
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                   </div>
                   <div>
@@ -321,7 +321,7 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                       onChange={(e) => setPrice(e.target.value)}
                       placeholder="450.00"
                       step="0.01"
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                   </div>
                   <div>
@@ -331,7 +331,7 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
                       min="1"
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                   </div>
                 </div>
@@ -343,17 +343,17 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                     type="date"
                     value={purchaseDate}
                     onChange={(e) => setPurchaseDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                    className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                   />
                 </div>
               </div>
 
-              <div className="p-6 lg:p-8 border-t border-gray-med flex gap-3">
+              <div className="p-3 lg:p-3 border-t border-gray-med flex gap-3">
                 {editingPurchase && (
                   <button
                     onClick={handleDelete}
                     disabled={deleting}
-                    className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl font-body text-sm flex items-center gap-2"
+                    className="px-4 py-2 text-red-500 hover:bg-red-50 rounded font-body text-sm flex items-center gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
                     {deleting ? 'Deleting...' : 'Delete'}
@@ -362,14 +362,14 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                 <div className="flex-1" />
                 <button
                   onClick={() => { setShowForm(false); resetForm(); }}
-                  className="px-6 py-2 border border-gray-med rounded-xl font-body font-medium text-gray-dark hover:border-[#2D2D2D]"
+                  className="px-3 py-2 border border-gray-med rounded font-body font-medium text-gray-dark hover:border-body"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving || !productName.trim()}
-                  className="px-6 py-2 bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white rounded-xl font-body font-medium flex items-center gap-2"
+                  className="px-3 py-2 bg-body hover:bg-body-hover disabled:bg-gray-med text-white rounded font-body font-medium flex items-center gap-2"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {editingPurchase ? 'Update' : 'Add Purchase'}
@@ -381,12 +381,12 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
 
         {/* Purchases List */}
         {purchases.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-gray-med" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+          <div className="bg-white rounded p-3 text-center border border-gray-med">
             <ShoppingBag className="w-12 h-12 text-gray-med mx-auto mb-4" />
             <p className="font-body text-gray-dark mb-4">No ready-made purchases yet</p>
             <button
               onClick={openNewForm}
-              className="text-[#8A8A8A] hover:text-[#2D2D2D] font-body text-sm font-medium"
+              className="text-gray-dark hover:text-body font-body text-sm font-medium"
             >
               Add the first purchase →
             </button>
@@ -400,19 +400,18 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                 <div
                   key={purchase.id}
                   onClick={() => openEditForm(purchase)}
-                  className="bg-white rounded-2xl border border-gray-med p-5 hover:border-[#2D2D2D] transition-colors cursor-pointer"
-                  style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}
+                  className="bg-white rounded border border-gray-med p-5 hover:border-body transition-colors cursor-pointer"
                 >
-                  <div className="flex items-center gap-5">
+                  <div className="flex items-center gap-2">
                     {/* Category Icon */}
-                    <div className="w-12 h-12 bg-gray-light rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
+                    <div className="w-12 h-12 bg-gray-light rounded flex items-center justify-center text-lg flex-shrink-0">
                       {catInfo.icon}
                     </div>
 
                     {/* Details */}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-body font-medium">
-                        {purchase.brand && <span className="text-[#8A8A8A]">{purchase.brand}</span>}
+                        {purchase.brand && <span className="text-gray-dark">{purchase.brand}</span>}
                         {purchase.brand && ' '}
                         {purchase.product_name}
                       </h3>
@@ -428,7 +427,7 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                     {/* Price and Date */}
                     <div className="text-right flex-shrink-0">
                       {purchase.price && (
-                        <p className="font-heading text-lg font-medium text-[#2D2D2D]">
+                        <p className="font-heading text-lg font-medium text-body">
                           ${purchase.price.toLocaleString()}
                         </p>
                       )}

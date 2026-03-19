@@ -26,7 +26,7 @@ export default function ReferralsPage() {
   const [loading, setLoading] = useState(true)
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const printRef = useRef<HTMLDivElement>(null)
+  const printRef = useRef<HTMLTableElement>(null)
 
   useEffect(() => {
     async function fetchReferrals() {
@@ -73,14 +73,18 @@ export default function ReferralsPage() {
   }, [referrals, sortField, sortDir])
 
   function handlePrint() {
+    function escapeHtml(str: string) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
 
     const rows = sorted.map(r => `
       <tr>
-        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;">${r.first_name} ${r.last_name}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;">${r.phone || '\u2014'}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;">${r.referred_by || '\u2014'}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;">${escapeHtml(r.first_name)} ${escapeHtml(r.last_name)}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;">${r.phone ? escapeHtml(r.phone) : '\u2014'}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;">${r.referred_by ? escapeHtml(r.referred_by) : '\u2014'}</td>
         <td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;">${r.last_contact_date ? new Date(r.last_contact_date).toLocaleDateString() : 'Never'}</td>
       </tr>
     `).join('')
@@ -116,7 +120,11 @@ export default function ReferralsPage() {
   const SortHeader = ({ field, label }: { field: SortField; label: string }) => (
     <th
       onClick={() => toggleSort(field)}
-      className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#8A8A8A] font-medium cursor-pointer hover:text-[#2D2D2D] select-none"
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort(field); } }}
+      tabIndex={0}
+      role="button"
+      aria-sort={sortField === field ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-gray-dark font-medium cursor-pointer hover:text-body select-none"
     >
       <span className="flex items-center gap-1">
         {label}
@@ -128,22 +136,22 @@ export default function ReferralsPage() {
   return (
     <Layout currentPage="referrals">
       <div className="max-w-5xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
           <div>
-            <h1 className="font-heading text-2xl font-medium text-[#2D2D2D]">Referrals</h1>
+            <h1 className="font-heading text-lg font-medium text-body">Referrals</h1>
             <p className="font-body text-gray-dark">{referrals.length} referral{referrals.length !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handlePrint}
-              className="border border-gray-med hover:border-[#2D2D2D] text-gray-dark hover:text-[#2D2D2D] px-4 py-2 rounded-xl font-body text-sm flex items-center gap-2 transition-colors"
+              className="border border-gray-med hover:border-body text-gray-dark hover:text-body px-4 py-2 rounded font-body text-sm flex items-center gap-2 transition-colors"
             >
               <Printer className="w-4 h-4" />
               Print Dialing Sheet
             </button>
             <Link
               href="/clients/new"
-              className="bg-[#2D2D2D] hover:bg-[#404040] text-white px-4 py-2 rounded-xl font-body font-medium text-sm flex items-center gap-2 transition-colors"
+              className="bg-body hover:bg-body-hover text-white px-4 py-2 rounded font-body font-medium text-sm flex items-center gap-2 transition-colors"
             >
               <UserPlus className="w-4 h-4" />
               Add Referral
@@ -152,17 +160,17 @@ export default function ReferralsPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-[#8A8A8A]" />
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-dark" />
           </div>
         ) : referrals.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-gray-med" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+          <div className="bg-white rounded p-3 text-center border border-gray-med">
             <UserPlus className="w-12 h-12 text-gray-med mx-auto mb-4" />
             <h2 className="font-heading text-xl text-gray-dark mb-2">No referrals yet</h2>
             <p className="font-body text-gray-dark">Referrals will appear here when clients are marked with contact type &quot;Referral&quot;.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-med overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+          <div className="bg-white rounded border border-gray-med overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full" ref={printRef}>
                 <thead className="bg-gray-light">
@@ -178,7 +186,7 @@ export default function ReferralsPage() {
                   {sorted.map(referral => (
                     <tr key={referral.id} className="border-t border-gray-med hover:bg-gray-light transition-colors">
                       <td className="px-4 py-4">
-                        <Link href={`/clients/${referral.id}`} className="font-body font-medium text-[#2D2D2D] hover:text-gold">
+                        <Link href={`/clients/${referral.id}`} className="font-body font-medium text-body hover:text-gold">
                           {referral.first_name} {referral.last_name}
                         </Link>
                         {referral.email && (

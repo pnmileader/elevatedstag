@@ -56,14 +56,14 @@ export default function EmailPage() {
   return (
     <Layout currentPage="email">
       <div className="max-w-4xl">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="font-heading text-2xl font-medium text-[#2D2D2D]">Email</h1>
+            <h1 className="font-heading text-lg font-medium text-body">Email</h1>
             <p className="font-body text-gray-dark">Send emails and manage templates</p>
           </div>
           <Link
             href="/email/compose"
-            className="bg-[#2D2D2D] hover:bg-[#404040] text-white px-4 py-2 rounded-xl font-body font-medium text-sm inline-flex items-center gap-2 transition-colors"
+            className="bg-body hover:bg-body-hover text-white px-4 py-2 rounded font-body font-medium text-sm inline-flex items-center gap-2 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Compose Email
@@ -71,35 +71,47 @@ export default function EmailPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-light rounded-xl p-1 mb-6">
+        <div className="flex gap-1 bg-gray-light rounded p-1 mb-3" role="tablist" aria-label="Email sections">
           <button
+            role="tab"
+            id="tab-compose"
+            aria-selected={activeTab === 'compose'}
+            aria-controls="panel-compose"
             onClick={() => setActiveTab('compose')}
-            className={`flex-1 px-4 py-2 rounded-xl font-body text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+            className={`flex-1 px-4 py-2 rounded font-body text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'compose'
-                ? 'bg-white shadow-sm text-[#2D2D2D]'
-                : 'text-gray-dark hover:text-[#2D2D2D]'
+                ? 'bg-white text-body'
+                : 'text-gray-dark hover:text-body'
             }`}
           >
             <Send className="w-4 h-4" />
             Quick Send
           </button>
           <button
+            role="tab"
+            id="tab-templates"
+            aria-selected={activeTab === 'templates'}
+            aria-controls="panel-templates"
             onClick={() => setActiveTab('templates')}
-            className={`flex-1 px-4 py-2 rounded-xl font-body text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+            className={`flex-1 px-4 py-2 rounded font-body text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'templates'
-                ? 'bg-white shadow-sm text-[#2D2D2D]'
-                : 'text-gray-dark hover:text-[#2D2D2D]'
+                ? 'bg-white text-body'
+                : 'text-gray-dark hover:text-body'
             }`}
           >
             <FileText className="w-4 h-4" />
             Templates
           </button>
           <button
+            role="tab"
+            id="tab-sent"
+            aria-selected={activeTab === 'sent'}
+            aria-controls="panel-sent"
             onClick={() => setActiveTab('sent')}
-            className={`flex-1 px-4 py-2 rounded-xl font-body text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+            className={`flex-1 px-4 py-2 rounded font-body text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
               activeTab === 'sent'
-                ? 'bg-white shadow-sm text-[#2D2D2D]'
-                : 'text-gray-dark hover:text-[#2D2D2D]'
+                ? 'bg-white text-body'
+                : 'text-gray-dark hover:text-body'
             }`}
           >
             <Clock className="w-4 h-4" />
@@ -108,19 +120,21 @@ export default function EmailPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-[#8A8A8A]" />
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-dark" />
           </div>
         ) : (
           <>
             {/* Quick Send Tab */}
             {activeTab === 'compose' && (
-              <QuickSendForm templates={templates} />
+              <div role="tabpanel" id="panel-compose" aria-labelledby="tab-compose">
+                <QuickSendForm templates={templates} />
+              </div>
             )}
 
             {/* Templates Tab */}
             {activeTab === 'templates' && (
-              <div className="bg-white rounded-2xl border border-gray-med p-6" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+              <div role="tabpanel" id="panel-templates" aria-labelledby="tab-templates" className="bg-white rounded border border-gray-med p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-body font-medium">Email Templates</h3>
                   <Link
@@ -131,7 +145,7 @@ export default function EmailPage() {
                   </Link>
                 </div>
                 {templates.length === 0 ? (
-                  <div className="text-center py-6">
+                  <div className="text-center py-3">
                     <FileText className="w-12 h-12 text-gray-med mx-auto mb-4" />
                     <p className="font-body text-gray-dark mb-3">No templates yet</p>
                     <Link href="/email/templates" className="text-gold hover:text-gold-light font-body text-sm font-medium">
@@ -147,7 +161,7 @@ export default function EmailPage() {
                           <p className="font-body text-sm text-gray-dark">Subject: {template.subject}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Link href={`/email/templates`} className="text-gray-dark hover:text-[#2D2D2D] font-body text-xs">
+                          <Link href={`/email/templates`} className="text-gray-dark hover:text-body font-body text-xs">
                             Edit
                           </Link>
                           <Link href={`/email/compose?template=${template.id}`} className="text-gold hover:text-gold-light font-body text-sm font-medium">
@@ -163,10 +177,10 @@ export default function EmailPage() {
 
             {/* Sent History Tab */}
             {activeTab === 'sent' && (
-              <div className="bg-white rounded-2xl border border-gray-med overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+              <div role="tabpanel" id="panel-sent" aria-labelledby="tab-sent" className="bg-white rounded border border-gray-med overflow-hidden">
                 <div className="divide-y divide-gray-light">
                   {sentEmails.length === 0 ? (
-                    <div className="p-8 text-center">
+                    <div className="p-3 text-center">
                       <Mail className="w-12 h-12 text-gray-med mx-auto mb-4" />
                       <p className="font-body text-gray-dark">No emails sent yet</p>
                     </div>
@@ -179,7 +193,7 @@ export default function EmailPage() {
                             <p className="font-body text-sm text-gray-dark mt-1">
                               To: {email.to_email}
                               {email.clients && (
-                                <span className="ml-2 text-[#8A8A8A]">
+                                <span className="ml-2 text-gray-dark">
                                   ({email.clients.first_name} {email.clients.last_name})
                                 </span>
                               )}
@@ -307,9 +321,9 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
   }
 
   return (
-    <form onSubmit={handleSend} className="bg-white rounded-2xl border border-gray-med p-6 lg:p-8" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+    <form onSubmit={handleSend} className="bg-white rounded border border-gray-med p-3 lg:p-3">
       {result && (
-        <div className={`mb-4 p-3 rounded-xl font-body text-sm ${
+        <div className={`mb-4 p-3 rounded font-body text-sm ${
           result.success
             ? 'bg-green-50 text-green-700 border border-green-200'
             : 'bg-red-50 text-red-700 border border-red-200'
@@ -318,13 +332,13 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-5 mb-5">
+      <div className="grid grid-cols-2 gap-2 mb-2">
         <div>
           <label className="block font-body font-medium text-sm mb-2">Client</label>
           <select
             value={selectedClient}
             onChange={(e) => setSelectedClient(e.target.value)}
-            className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+            className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
           >
             <option value="">Select a client...</option>
             {clients.map(client => (
@@ -339,7 +353,7 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
           <select
             value={selectedTemplate}
             onChange={(e) => setSelectedTemplate(e.target.value)}
-            className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+            className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
           >
             <option value="">Select a template...</option>
             {templates.map(template => (
@@ -359,7 +373,7 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
           onChange={(e) => setToEmail(e.target.value)}
           required
           placeholder="recipient@email.com"
-          className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+          className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
         />
       </div>
 
@@ -371,7 +385,7 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
           onChange={(e) => setSubject(e.target.value)}
           required
           placeholder="Email subject"
-          className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+          className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
         />
       </div>
 
@@ -383,14 +397,14 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
           required
           rows={8}
           placeholder="Email body..."
-          className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D] resize-none"
+          className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body resize-none"
         />
       </div>
 
       <button
         type="submit"
         disabled={sending}
-        className="w-full bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white py-3 rounded-xl font-body font-medium flex items-center justify-center gap-2 transition-colors"
+        className="w-full bg-body hover:bg-body-hover disabled:bg-gray-med text-white py-3 rounded font-body font-medium flex items-center justify-center gap-2 transition-colors"
       >
         {sending ? (
           <>

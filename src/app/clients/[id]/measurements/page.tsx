@@ -280,13 +280,13 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
             value={v?.whole || ''}
             onChange={(e) => updateMeasurement(category, field.key, 'whole', e.target.value)}
             placeholder="0"
-            className="w-16 px-2 py-1.5 border border-[#F0EEEB] rounded-md font-body text-sm focus:outline-none focus:border-[#2D2D2D] text-center"
+            className="w-16 px-2 py-1.5 border border-gray-med rounded-md font-body text-sm focus:outline-none focus:border-body text-center"
           />
           {field.fraction !== false && (
             <select
               value={v?.fraction || ''}
               onChange={(e) => updateMeasurement(category, field.key, 'fraction', e.target.value)}
-              className="w-[4.5rem] px-1 py-1.5 border border-[#F0EEEB] rounded-md font-body text-sm focus:outline-none focus:border-[#2D2D2D] bg-white"
+              className="w-[4.5rem] px-1 py-1.5 border border-gray-med rounded-md font-body text-sm focus:outline-none focus:border-body bg-white"
             >
               {FRACTIONS.map((f) => (
                 <option key={f} value={f}>
@@ -304,8 +304,8 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
   if (loading) {
     return (
       <Layout currentPage="clients">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-[#8A8A8A]" />
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-dark" />
         </div>
       </Layout>
     )
@@ -318,16 +318,16 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
         {/* Back link */}
         <Link
           href={`/clients/${id}`}
-          className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] mb-6 font-body text-sm"
+          className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to {client?.first_name} {client?.last_name}
         </Link>
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
           <div>
-            <h1 className="font-heading text-2xl font-medium text-[#2D2D2D]">Measurements</h1>
+            <h1 className="font-heading text-lg font-medium text-body">Measurements</h1>
             <p className="font-body text-gray-dark">
               {client?.first_name} {client?.last_name} &mdash; At a Glance
             </p>
@@ -342,7 +342,7 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
             <button
               onClick={handleSave}
               disabled={saving}
-              className="bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white px-5 py-2.5 rounded-xl font-body font-medium text-sm flex items-center gap-2 transition-colors"
+              className="bg-body hover:bg-body-hover disabled:bg-gray-med text-white px-5 py-2.5 rounded font-body font-medium text-sm flex items-center gap-2 transition-colors"
             >
               {saving ? (
                 <>
@@ -362,15 +362,15 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
         {/* ================================================================ */}
         {/* KEY MEASUREMENTS highlight box                                   */}
         {/* ================================================================ */}
-        <div className="bg-gray-light border border-[#F0EEEB] rounded-2xl mb-8 px-8 py-6">
-          <h2 className="font-heading text-sm font-medium text-[#2D2D2D] uppercase tracking-wider mb-4">
+        <div className="bg-gray-light border border-gray-med rounded mb-3 px-3 py-3">
+          <h2 className="font-heading text-sm font-medium text-body uppercase tracking-wider mb-4">
             Key Measurements
           </h2>
-          <div className="flex flex-wrap gap-4 sm:gap-8">
+          <div className="flex flex-wrap gap-4 sm:gap-3">
             {KEY_MEASUREMENTS.map((km) => (
               <div key={`${km.category}-${km.key}`} className="text-center min-w-[100px]">
                 <p className="font-body text-xs text-gray-dark mb-1">{km.label}</p>
-                <p className="font-heading text-2xl font-medium text-[#2D2D2D]">
+                <p className="font-heading text-lg font-medium text-body">
                   {displayValue(measurements[km.category]?.[km.key])}
                 </p>
               </div>
@@ -381,10 +381,10 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
         {/* ================================================================ */}
         {/* Three-column layout: Body | Coat | Pant                          */}
         {/* ================================================================ */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
           {/* --- Left column: Body Description --- */}
-          <div className="bg-white rounded-2xl border border-gray-med p-5" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-            <h3 className="font-heading text-base font-medium text-[#2D2D2D] mb-4 border-b border-gray-med pb-2">
+          <div className="bg-white rounded border border-gray-med p-5">
+            <h3 className="font-heading text-base font-medium text-body mb-4 border-b border-gray-med pb-2">
               Body Description
             </h3>
             <div className="space-y-1">
@@ -395,8 +395,8 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
           </div>
 
           {/* --- Center column: Coat Measurements --- */}
-          <div className="bg-white rounded-2xl border border-gray-med p-5" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-            <h3 className="font-heading text-base font-medium text-[#2D2D2D] mb-4 border-b border-gray-med pb-2">
+          <div className="bg-white rounded border border-gray-med p-5">
+            <h3 className="font-heading text-base font-medium text-body mb-4 border-b border-gray-med pb-2">
               Coat Measurements
             </h3>
             <div className="space-y-1">
@@ -407,8 +407,8 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
           </div>
 
           {/* --- Right column: Pant Measurements --- */}
-          <div className="bg-white rounded-2xl border border-gray-med p-5" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-            <h3 className="font-heading text-base font-medium text-[#2D2D2D] mb-4 border-b border-gray-med pb-2">
+          <div className="bg-white rounded border border-gray-med p-5">
+            <h3 className="font-heading text-base font-medium text-body mb-4 border-b border-gray-med pb-2">
               Pant Measurements
             </h3>
             <div className="space-y-1">
@@ -422,8 +422,8 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
         {/* ================================================================ */}
         {/* Shirt Measurements                                               */}
         {/* ================================================================ */}
-        <div className="bg-white rounded-2xl border border-gray-med p-5 mb-6" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-          <h3 className="font-heading text-base font-medium text-[#2D2D2D] mb-4 border-b border-gray-med pb-2">
+        <div className="bg-white rounded border border-gray-med p-5 mb-3">
+          <h3 className="font-heading text-base font-medium text-body mb-4 border-b border-gray-med pb-2">
             Shirt Measurements
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-1">
@@ -436,8 +436,8 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
         {/* ================================================================ */}
         {/* Fitting Notes                                                    */}
         {/* ================================================================ */}
-        <div className="bg-white rounded-2xl border border-gray-med p-5 mb-8" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-          <h3 className="font-heading text-base font-medium text-[#2D2D2D] mb-4 border-b border-gray-med pb-2">
+        <div className="bg-white rounded border border-gray-med p-5 mb-3">
+          <h3 className="font-heading text-base font-medium text-body mb-4 border-b border-gray-med pb-2">
             Fitting Notes
           </h3>
           <textarea
@@ -445,7 +445,7 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
             onChange={(e) => setFittingNotes(e.target.value)}
             rows={6}
             placeholder="Add any fitting notes, alterations, preferences, or special instructions..."
-            className="w-full px-4 py-3 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D] resize-y"
+            className="w-full px-4 py-3 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body resize-y"
           />
         </div>
       </div>

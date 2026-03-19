@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Clock, Loader2 } from 'lucide-react'
 import Layout from '@/components/Layout'
+import StatusBadge from '@/components/StatusBadge'
 import { createClient } from '@/lib/supabase'
 
 type Client = {
@@ -74,9 +75,9 @@ export default function OrdersPage() {
 
   return (
     <Layout currentPage="orders">
-      <div className="flex flex-col gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-3">
         <div>
-          <h1 className="font-heading text-2xl font-medium text-[#2D2D2D]">Orders</h1>
+          <h1 className="font-heading text-lg font-medium text-body">Orders</h1>
           <p className="font-body text-gray-dark">
             {filteredOrders.length} {activeFilter === 'all' ? 'total' : activeFilter.replace(/_/g, ' ')} order{filteredOrders.length !== 1 ? 's' : ''}
           </p>
@@ -144,13 +145,13 @@ export default function OrdersPage() {
 
       {/* Loading State */}
       {loading ? (
-        <div className="bg-white rounded-2xl p-8 border border-gray-med" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+        <div className="bg-white rounded p-3 border border-gray-med">
           <div className="flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-[#8A8A8A]" />
+            <Loader2 className="w-8 h-8 animate-spin text-gray-dark" />
           </div>
         </div>
       ) : filteredOrders.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-4">
           <Clock className="w-16 h-16 text-gray-med mx-auto mb-4" />
           {orders.length === 0 ? (
             <>
@@ -165,17 +166,17 @@ export default function OrdersPage() {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-med overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+        <div className="bg-white rounded border border-gray-med overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-light">
                 <tr>
-                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#8A8A8A] font-medium">Client</th>
-                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#8A8A8A] font-medium">Garment</th>
-                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#8A8A8A] font-medium hidden md:table-cell">Fabric</th>
-                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#8A8A8A] font-medium">Status</th>
-                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#8A8A8A] font-medium hidden lg:table-cell">ETA / Date</th>
-                  <th className="text-right px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#8A8A8A] font-medium">Price</th>
+                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-gray-dark font-medium">Client</th>
+                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-gray-dark font-medium">Garment</th>
+                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-gray-dark font-medium hidden md:table-cell">Fabric</th>
+                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-gray-dark font-medium">Status</th>
+                  <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-gray-dark font-medium hidden lg:table-cell">ETA / Date</th>
+                  <th className="text-right px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-gray-dark font-medium">Price</th>
                 </tr>
               </thead>
               <tbody>
@@ -207,14 +208,14 @@ function StatusPill({
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-xl font-body text-sm transition-colors flex items-center gap-2 ${
+      className={`px-3 py-1.5 rounded font-body text-sm transition-colors flex items-center gap-2 ${
         active
-          ? 'bg-[#2D2D2D] text-white rounded-xl'
-          : 'bg-white text-gray-dark border border-gray-med hover:border-[#2D2D2D] rounded-xl'
+          ? 'bg-body text-white rounded'
+          : 'bg-white text-gray-dark border border-gray-med hover:border-body rounded'
       }`}
     >
       {color && !active && (
-        <span className={`w-2 h-2 rounded-full ${color}`} />
+        <span className={`w-2 h-2 rounded ${color}`} />
       )}
       {label} ({count})
     </button>
@@ -222,21 +223,12 @@ function StatusPill({
 }
 
 function OrderRow({ order }: { order: CustomOrder }) {
-  const statusColors: Record<string, string> = {
-    ordered: 'bg-gray-200 text-gray-700',
-    blue_pencil: 'bg-purple-100 text-purple-700',
-    cutting: 'bg-blue-100 text-blue-700',
-    sewing: 'bg-orange-100 text-orange-700',
-    shipping: 'bg-green-100 text-green-700',
-    delivered: 'bg-green-500 text-white',
-  }
-
   const isDelivered = order.status === 'delivered'
 
   return (
     <tr className={`border-t border-gray-med hover:bg-gray-light transition-colors ${isDelivered ? 'opacity-60' : ''}`}>
       <td className="px-4 py-4">
-        <Link href={`/clients/${order.client_id}`} className="font-body font-medium text-[#8A8A8A] hover:text-[#2D2D2D]">
+        <Link href={`/clients/${order.client_id}`} className="font-body font-medium text-gray-dark hover:text-body">
           {order.clients.first_name} {order.clients.last_name}
         </Link>
       </td>
@@ -246,9 +238,7 @@ function OrderRow({ order }: { order: CustomOrder }) {
       </td>
       <td className="px-4 py-4">
         <Link href={`/clients/${order.client_id}/orders/${order.id}/edit`}>
-          <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-medium uppercase ${statusColors[order.status] || statusColors.ordered}`}>
-            {order.status.replace(/_/g, ' ')}
-          </span>
+          <StatusBadge status={order.status} />
         </Link>
       </td>
       <td className="px-4 py-4 font-body text-sm hidden lg:table-cell">

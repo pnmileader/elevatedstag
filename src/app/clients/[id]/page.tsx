@@ -6,6 +6,8 @@ import CareItemsCard from '@/components/CareItemsCard'
 import ActivityTimeline from '@/components/ActivityTimeline'
 import FinancialSummary from '@/components/FinancialSummary'
 import ClientPhotosGallery from '@/components/ClientPhotosGallery'
+import StatusBadge from '@/components/StatusBadge'
+import Layout from '@/components/Layout'
 
 type UpcomingEvent = { event: string; date: string }
 
@@ -149,45 +151,23 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
   }
 
   return (
-    <div className="min-h-screen bg-gray-light">
-      {/* Header */}
-      <header className="bg-white border-b border-[#F0EEEB] px-6 py-4 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gold rounded-full flex items-center justify-center">
-            <span className="text-white font-heading font-semibold text-sm">ES</span>
-          </div>
-          <span className="font-heading text-[#2D2D2D] text-base font-medium tracking-wide">
-            THE ELEVATED STAG
-          </span>
-        </div>
-
-        <a
-          href="https://workflow.trinity-apparel.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-transparent border border-[#F0EEEB] text-[#8A8A8A] hover:text-[#2D2D2D] hover:border-gold px-4 py-2 rounded-xl font-body text-sm flex items-center gap-2 transition-colors"
-        >
-          <ExternalLink className="w-4 h-4" />
-          Open Trinity
-        </a>
-      </header>
-
+    <Layout currentPage="clients" showSearch={true} showNewClient={true} showTrinity={true}>
       {/* Back Button & Profile Header */}
-      <div className="bg-white border-b border-[#F0EEEB]">
-        <div className="max-w-6xl mx-auto px-6 py-4 pb-6">
-          <Link href="/clients" className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] mb-4 font-body text-sm">
+      <div className="bg-white border-b border-gray-med">
+        <div className="max-w-6xl mx-auto px-3 py-4 pb-6">
+          <Link href="/clients" className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-4 font-body text-sm">
             <ArrowLeft className="w-4 h-4" />
             Back to Clients
           </Link>
 
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div className="flex items-center gap-5">
-              <div className="w-20 h-20 bg-gold rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-20 h-20 bg-gold rounded flex items-center justify-center flex-shrink-0">
                 <span className="text-white font-heading font-bold text-3xl">{initials}</span>
               </div>
               <div>
-                <h1 className="font-heading text-2xl font-medium text-[#2D2D2D]">{fullName}</h1>
-                <div className="flex items-center gap-4 mt-2 text-[#8A8A8A] font-body text-sm">
+                <h1 className="font-heading text-lg font-medium text-body">{fullName}</h1>
+                <div className="flex items-center gap-4 mt-2 text-gray-dark font-body text-sm">
                   {client.email && (
                     <span className="flex items-center gap-1">
                       <Mail className="w-4 h-4" />
@@ -201,14 +181,14 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                     </span>
                   )}
                   {client.communication_preference && (
-                    <span className="flex items-center gap-1 text-[#8A8A8A]">
+                    <span className="flex items-center gap-1 text-gray-dark">
                       <MessageCircle className="w-3.5 h-3.5" />
                       Prefers {client.communication_preference}
                     </span>
                   )}
                 </div>
                 {client.billing_address && (
-                  <div className="flex items-center gap-1 mt-1 text-[#8A8A8A] font-body text-sm">
+                  <div className="flex items-center gap-1 mt-1 text-gray-dark font-body text-sm">
                     <MapPin className="w-4 h-4" />
                     {[client.billing_address.street, client.billing_address.city, client.billing_address.state].filter(Boolean).join(', ')}
                   </div>
@@ -219,23 +199,23 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                   </p>
                 )}
                 <div className="flex items-center gap-3 mt-3">
-                  <span className={`inline-block px-3 py-1 rounded-lg text-[11px] font-medium uppercase tracking-wide text-white whitespace-nowrap ${stageColors[client.stage]}`}>
+                  <span className={`inline-block px-3 py-1 rounded text-[11px] font-medium uppercase tracking-wide text-white whitespace-nowrap ${stageColors[client.stage]}`}>
                     {client.stage} Client
                   </span>
                   {client.contact_type === 'referral' && (
-                    <span className="inline-block px-3 py-1 rounded-lg text-[11px] font-medium uppercase tracking-wide text-white whitespace-nowrap bg-purple-500">
+                    <span className="inline-block px-3 py-1 rounded text-[11px] font-medium uppercase tracking-wide text-white whitespace-nowrap bg-purple-500">
                       Referral
                     </span>
                   )}
                   {client.spouse_partner && (
-                    <span className="text-[#8A8A8A] font-body text-xs flex items-center gap-1">
-                      <Heart className="w-3 h-3 text-[#8A8A8A]" />
+                    <span className="text-gray-dark font-body text-xs flex items-center gap-1">
+                      <Heart className="w-3 h-3 text-gray-dark" />
                       {client.spouse_partner}
                     </span>
                   )}
                   {client.birthday_month && (
-                    <span className="text-[#8A8A8A] font-body text-xs flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-[#8A8A8A]" />
+                    <span className="text-gray-dark font-body text-xs flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-gray-dark" />
                       {client.birthday_month}
                     </span>
                   )}
@@ -245,7 +225,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
 
             <Link
               href={`/clients/${client.id}/edit`}
-              className="w-full sm:w-auto border border-[#F0EEEB] text-[#2D2D2D] hover:border-gold px-4 py-2 rounded-xl font-body text-sm flex items-center justify-center gap-2 transition-colors"
+              className="w-full sm:w-auto border border-gray-med text-body hover:border-gold px-4 py-2 rounded font-body text-sm flex items-center justify-center gap-2 transition-colors"
             >
               <Edit className="w-4 h-4" />
               Edit Client
@@ -256,21 +236,21 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
           <div className="flex items-center gap-2 mt-5 pb-2 overflow-x-auto">
             <Link
               href={`/calendar/new?client=${client.id}`}
-              className="flex items-center gap-2 px-4 py-2 border border-[#F0EEEB] text-[#2D2D2D] hover:border-gold hover:text-gold rounded-xl font-body text-xs font-semibold transition-colors whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-med text-body hover:border-gold hover:text-gold rounded font-body text-xs font-semibold transition-colors whitespace-nowrap"
             >
               <CalendarPlus className="w-3.5 h-3.5" />
               Schedule
             </Link>
             <Link
               href={`/email?client=${client.id}`}
-              className="flex items-center gap-2 px-4 py-2 border border-[#F0EEEB] text-[#2D2D2D] hover:border-gold hover:text-gold rounded-xl font-body text-xs font-semibold transition-colors whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-med text-body hover:border-gold hover:text-gold rounded font-body text-xs font-semibold transition-colors whitespace-nowrap"
             >
               <Mail className="w-3.5 h-3.5" />
               Email
             </Link>
             <Link
               href={`/clients/${client.id}/edit#notes`}
-              className="flex items-center gap-2 px-4 py-2 border border-[#F0EEEB] text-[#2D2D2D] hover:border-gold hover:text-gold rounded-xl font-body text-xs font-semibold transition-colors whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-med text-body hover:border-gold hover:text-gold rounded font-body text-xs font-semibold transition-colors whitespace-nowrap"
             >
               <StickyNote className="w-3.5 h-3.5" />
               Add Note
@@ -280,7 +260,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                 href={`https://app.qbo.intuit.com/app/customerdetail?nameId=${client.quickbooks_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 border border-[#F0EEEB] text-[#2D2D2D] hover:border-gold hover:text-gold rounded-xl font-body text-xs font-semibold transition-colors whitespace-nowrap"
+                className="flex items-center gap-2 px-4 py-2 border border-gray-med text-body hover:border-gold hover:text-gold rounded font-body text-xs font-semibold transition-colors whitespace-nowrap"
               >
                 <Receipt className="w-3.5 h-3.5" />
                 QuickBooks
@@ -291,14 +271,14 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                 href={`https://dealer.trinity-apparel.com/clients/${client.trinity_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 border border-[#F0EEEB] text-[#2D2D2D] hover:border-gold hover:text-gold rounded-xl font-body text-xs font-semibold transition-colors whitespace-nowrap"
+                className="flex items-center gap-2 px-4 py-2 border border-gray-med text-body hover:border-gold hover:text-gold rounded font-body text-xs font-semibold transition-colors whitespace-nowrap"
               >
                 <Shirt className="w-3.5 h-3.5" />
                 View in Trinity
               </a>
             ) : (
               <span
-                className="flex items-center gap-2 px-4 py-2 border border-[#F0EEEB] text-[#C0C0C0] rounded-xl font-body text-xs font-semibold cursor-not-allowed whitespace-nowrap"
+                className="flex items-center gap-2 px-4 py-2 border border-gray-med text-muted rounded font-body text-xs font-semibold cursor-not-allowed whitespace-nowrap"
                 title="Add Trinity ID in client settings"
               >
                 <Shirt className="w-3.5 h-3.5" />
@@ -310,30 +290,30 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="max-w-6xl mx-auto px-3 py-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
           {/* Left Column */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-3">
 
             {/* Financial Summary */}
-            <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-              <h2 className="font-heading text-sm font-medium text-[#2D2D2D] mb-5">Financial Summary</h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
-                <div className="text-center p-3 lg:p-4 bg-gray-light rounded-lg">
-                  <p className="font-heading text-xl lg:text-2xl font-light text-[#2D2D2D]">${totalSpend.toLocaleString()}</p>
+            <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
+              <h2 className="font-heading text-sm font-medium text-body mb-2">Financial Summary</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-2">
+                <div className="text-center p-3 lg:p-4 bg-gray-light rounded">
+                  <p className="font-heading text-xl lg:text-lg font-light text-body">${totalSpend.toLocaleString()}</p>
                   <p className="font-body text-xs lg:text-sm text-gray-dark mt-1">In CRM</p>
                 </div>
-                <div className="text-center p-3 lg:p-4 bg-gray-light rounded-lg">
-                  <p className="font-heading text-xl lg:text-2xl font-light text-[#2D2D2D]">{orders.length + purchases.length}</p>
+                <div className="text-center p-3 lg:p-4 bg-gray-light rounded">
+                  <p className="font-heading text-xl lg:text-lg font-light text-body">{orders.length + purchases.length}</p>
                   <p className="font-body text-xs lg:text-sm text-gray-dark mt-1">Total Items</p>
                 </div>
-                <div className="text-center p-3 lg:p-4 bg-gray-light rounded-lg">
-                  <p className="font-heading text-xl lg:text-2xl font-light text-[#2D2D2D]">{ordersInProgress}</p>
+                <div className="text-center p-3 lg:p-4 bg-gray-light rounded">
+                  <p className="font-heading text-xl lg:text-lg font-light text-body">{ordersInProgress}</p>
                   <p className="font-body text-xs lg:text-sm text-gray-dark mt-1">In Progress</p>
                 </div>
-                <div className="text-center p-3 lg:p-4 bg-gray-light rounded-lg">
-                  <p className="font-heading text-xl lg:text-2xl font-light text-[#2D2D2D]">{orders.length}</p>
+                <div className="text-center p-3 lg:p-4 bg-gray-light rounded">
+                  <p className="font-heading text-xl lg:text-lg font-light text-body">{orders.length}</p>
                   <p className="font-body text-xs lg:text-sm text-gray-dark mt-1">Custom Orders</p>
                 </div>
               </div>
@@ -341,9 +321,9 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
 
             {/* Recent Order Summary */}
             {(recentOrders.length > 0 || recentPurchases.length > 0) && (
-              <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+              <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-heading text-sm font-medium text-[#2D2D2D] flex items-center gap-2">
+                  <h2 className="font-heading text-sm font-medium text-body flex items-center gap-2">
                     <Package className="w-5 h-5 text-gold" />
                     Most Recent Order
                   </h2>
@@ -356,9 +336,9 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                 <div className="space-y-3">
                   {recentOrders.map((order) => (
                     <Link key={order.id} href={`/clients/${client.id}/orders/${order.id}/edit`}>
-                      <div className="flex items-center justify-between p-4 bg-gray-light rounded-xl hover:bg-gray-light transition-colors">
+                      <div className="flex items-center justify-between p-4 bg-gray-light rounded hover:bg-gray-med transition-colors">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-stone-700 to-stone-900 flex items-center justify-center flex-shrink-0">
+                          <div className="w-12 h-12 rounded bg-gradient-to-br from-stone-700 to-stone-900 flex items-center justify-center flex-shrink-0">
                             <span className="text-white font-body text-[9px] font-bold text-center leading-tight">
                               {order.fabric_code || order.garment_type.slice(0, 4).toUpperCase()}
                             </span>
@@ -379,9 +359,9 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                   ))}
                   {recentPurchases.map((purchase) => (
                     <Link key={purchase.id} href={`/clients/${client.id}/purchases/${purchase.id}/edit`}>
-                      <div className="flex items-center justify-between p-4 bg-gray-light rounded-xl hover:bg-gray-light transition-colors">
+                      <div className="flex items-center justify-between p-4 bg-gray-light rounded hover:bg-gray-med transition-colors">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-zinc-500 to-zinc-700 flex items-center justify-center flex-shrink-0">
+                          <div className="w-12 h-12 rounded bg-gradient-to-br from-zinc-500 to-zinc-700 flex items-center justify-center flex-shrink-0">
                             <ShoppingBag className="w-5 h-5 text-white" />
                           </div>
                           <div>
@@ -394,7 +374,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                          <span className="inline-block px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700">
                             Ready-Made
                           </span>
                           {purchase.price && (
@@ -408,7 +388,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                     <span className="font-body text-sm text-gray-dark">
                       {recentOrders.length + recentPurchases.length} item{recentOrders.length + recentPurchases.length !== 1 ? 's' : ''} in this order
                     </span>
-                    <span className="font-heading text-lg font-medium text-[#2D2D2D]">
+                    <span className="font-heading text-lg font-medium text-body">
                       ${(recentOrders.reduce((s, o) => s + (o.price || 0), 0) + recentPurchases.reduce((s, p) => s + ((p.price || 0) * (p.quantity || 1)), 0)).toLocaleString()}
                     </span>
                   </div>
@@ -417,12 +397,12 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
             )}
 
             {/* Measurements Preview */}
-            <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+            <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-heading text-sm font-medium text-[#2D2D2D]">Measurements</h2>
+                <h2 className="font-heading text-sm font-medium text-body">Measurements</h2>
                 <Link
                   href={`/clients/${client.id}/measurements`}
-                  className="text-[#8A8A8A] hover:text-[#2D2D2D] font-body text-sm font-medium"
+                  className="text-gray-dark hover:text-body font-body text-sm font-medium"
                 >
                   View All / Edit
                 </Link>
@@ -440,8 +420,8 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                       { label: 'Waist', value: pantMeasurements?.measurements?.waist },
                       { label: 'Seat', value: pantMeasurements?.measurements?.seat },
                     ].map(({ label, value }) => (
-                      <div key={label} className="text-center p-2 bg-gray-light border border-[#F0EEEB] rounded-lg">
-                        <p className="font-heading text-lg font-medium text-[#2D2D2D]">{value || '—'}</p>
+                      <div key={label} className="text-center p-2 bg-gray-light border border-gray-med rounded">
+                        <p className="font-heading text-lg font-medium text-body">{value || '\u2014'}</p>
                         <p className="font-body text-[10px] text-gray-dark uppercase tracking-wide">{label}</p>
                       </div>
                     ))}
@@ -451,7 +431,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                       const entries = Object.entries(m.measurements).slice(0, 3)
                       return (
                         <Link key={m.id} href={`/clients/${client.id}/measurements`}>
-                          <div className="hover:bg-gray-light rounded-lg p-2 transition-colors cursor-pointer">
+                          <div className="hover:bg-gray-med rounded p-2 transition-colors cursor-pointer">
                             <h3 className="font-heading font-semibold capitalize text-gold text-sm mb-1">{m.category}</h3>
                             {entries.map(([key, value]) => (
                               <p key={key} className="font-body text-xs text-gray-dark">
@@ -459,7 +439,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                               </p>
                             ))}
                             {Object.entries(m.measurements).length > 3 && (
-                              <p className="font-body text-xs text-[#8A8A8A] mt-1">+{Object.entries(m.measurements).length - 3} more</p>
+                              <p className="font-body text-xs text-gray-dark mt-1">+{Object.entries(m.measurements).length - 3} more</p>
                             )}
                           </div>
                         </Link>
@@ -471,19 +451,19 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
             </div>
 
             {/* Orders */}
-            <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+            <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-heading text-sm font-medium text-[#2D2D2D]">Custom Orders</h2>
+                <h2 className="font-heading text-sm font-medium text-body">Custom Orders</h2>
                 <div className="flex items-center gap-3">
                   <Link
                     href={`/clients/${client.id}/swatches`}
-                    className="text-[#8A8A8A] hover:text-[#2D2D2D] font-body text-sm font-medium"
+                    className="text-gray-dark hover:text-body font-body text-sm font-medium"
                   >
                     Swatch Gallery
                   </Link>
                   <Link
                     href={`/clients/${client.id}/orders`}
-                    className="text-[#8A8A8A] hover:text-[#2D2D2D] font-body text-sm font-medium"
+                    className="text-gray-dark hover:text-body font-body text-sm font-medium"
                   >
                     + Add Order
                   </Link>
@@ -501,12 +481,12 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
             </div>
 
             {/* Ready-Made Purchases */}
-            <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+            <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-heading text-sm font-medium text-[#2D2D2D]">Ready-Made Purchases</h2>
+                <h2 className="font-heading text-sm font-medium text-body">Ready-Made Purchases</h2>
                 <Link
                   href={`/clients/${client.id}/purchases/new`}
-                  className="text-[#8A8A8A] hover:text-[#2D2D2D] font-body text-sm font-medium"
+                  className="text-gray-dark hover:text-body font-body text-sm font-medium"
                 >
                   + Add Purchase
                 </Link>
@@ -527,60 +507,60 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
           </div>
 
           {/* Right Column */}
-          <div className="space-y-6">
+          <div className="space-y-3">
 
             {/* Personal Details Card */}
             {(client.spouse_partner || client.children || client.pets || client.birthday_month || client.shopping_habits || client.upcoming_events?.length) && (
-              <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-                <h2 className="font-heading text-sm font-medium text-[#2D2D2D] mb-4 flex items-center gap-2">
+              <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
+                <h2 className="font-heading text-sm font-medium text-body mb-4 flex items-center gap-2">
                   <Heart className="w-4 h-4 text-gold" />
                   Personal Details
                 </h2>
                 <div className="space-y-3 font-body text-sm">
                   {client.spouse_partner && (
                     <div className="flex items-start gap-3">
-                      <Heart className="w-4 h-4 text-[#8A8A8A] mt-0.5 flex-shrink-0" />
+                      <Heart className="w-4 h-4 text-gray-dark mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-[#8A8A8A] text-[11px] uppercase tracking-[0.05em]">Spouse/Partner</p>
+                        <p className="text-gray-dark text-[11px] uppercase tracking-[0.05em]">Spouse/Partner</p>
                         <p className="font-semibold">{client.spouse_partner}</p>
                       </div>
                     </div>
                   )}
                   {client.children && (
                     <div className="flex items-start gap-3">
-                      <UsersIcon className="w-4 h-4 text-[#8A8A8A] mt-0.5 flex-shrink-0" />
+                      <UsersIcon className="w-4 h-4 text-gray-dark mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-[#8A8A8A] text-[11px] uppercase tracking-[0.05em]">Children</p>
+                        <p className="text-gray-dark text-[11px] uppercase tracking-[0.05em]">Children</p>
                         <p className="font-semibold">{client.children}</p>
                       </div>
                     </div>
                   )}
                   {client.pets && (
                     <div className="flex items-start gap-3">
-                      <PawPrint className="w-4 h-4 text-[#8A8A8A] mt-0.5 flex-shrink-0" />
+                      <PawPrint className="w-4 h-4 text-gray-dark mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-[#8A8A8A] text-[11px] uppercase tracking-[0.05em]">Pets</p>
+                        <p className="text-gray-dark text-[11px] uppercase tracking-[0.05em]">Pets</p>
                         <p className="font-semibold">{client.pets}</p>
                       </div>
                     </div>
                   )}
                   {client.shopping_habits && (
                     <div className="flex items-start gap-3">
-                      <ShoppingBag className="w-4 h-4 text-[#8A8A8A] mt-0.5 flex-shrink-0" />
+                      <ShoppingBag className="w-4 h-4 text-gray-dark mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-[#8A8A8A] text-[11px] uppercase tracking-[0.05em]">Shopping</p>
+                        <p className="text-gray-dark text-[11px] uppercase tracking-[0.05em]">Shopping</p>
                         <p className="font-semibold capitalize">{client.shopping_habits.replace(/_/g, ' ')}</p>
                       </div>
                     </div>
                   )}
                   {client.upcoming_events && client.upcoming_events.length > 0 && (
                     <div className="pt-3 border-t border-gray-light">
-                      <p className="text-[#8A8A8A] text-[11px] uppercase tracking-[0.05em] mb-2 font-semibold">Upcoming Events</p>
+                      <p className="text-gray-dark text-[11px] uppercase tracking-[0.05em] mb-2 font-semibold">Upcoming Events</p>
                       {client.upcoming_events.map((evt, i) => (
                         <div key={i} className="flex items-center justify-between py-1.5">
                           <span>{evt.event}</span>
                           {evt.date && (
-                            <span className="text-[#8A8A8A] text-xs font-medium">
+                            <span className="text-gray-dark text-xs font-medium">
                               {new Date(evt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </span>
                           )}
@@ -594,8 +574,8 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
 
             {/* Style Preferences Card */}
             {(client.general_style || client.style_likes || client.style_dislikes || client.brand_preferences) && (
-              <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-                <h2 className="font-heading text-sm font-medium text-[#2D2D2D] mb-4">Style Profile</h2>
+              <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
+                <h2 className="font-heading text-sm font-medium text-body mb-4">Style Profile</h2>
                 <div className="space-y-3">
                   {client.general_style && (
                     <div>
@@ -626,7 +606,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
             )}
 
             {/* QuickBooks Financial Data */}
-            <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+            <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
               <FinancialSummary clientId={client.id} />
             </div>
 
@@ -635,8 +615,8 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
 
             {/* Notes */}
             {(client.notes || client.preferences) && (
-              <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-                <h2 className="font-heading text-sm font-medium text-[#2D2D2D] mb-4">Notes & Preferences</h2>
+              <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
+                <h2 className="font-heading text-sm font-medium text-body mb-4">Notes & Preferences</h2>
                 {client.notes && (
                   <div className="mb-4">
                     <h3 className="font-body text-sm font-semibold text-gray-dark mb-2">Notes</h3>
@@ -653,29 +633,29 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
             )}
 
             {/* Quick Links */}
-            <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-              <h3 className="font-heading text-sm font-medium text-[#2D2D2D] mb-4">Quick Links</h3>
+            <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
+              <h3 className="font-heading text-sm font-medium text-body mb-4">Quick Links</h3>
               <div className="space-y-3">
-                <Link href={`/clients/${client.id}/measurements`} className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-light transition-colors group">
-                  <div className="w-8 h-8 bg-gray-light rounded-lg flex items-center justify-center">
+                <Link href={`/clients/${client.id}/measurements`} className="flex items-center gap-4 p-3 rounded hover:bg-gray-med transition-colors group">
+                  <div className="w-8 h-8 bg-gray-light rounded flex items-center justify-center">
                     <Ruler className="w-4 h-4 text-gold" />
                   </div>
                   <span className="font-body text-sm group-hover:text-gold transition-colors">Edit Measurements</span>
                 </Link>
-                <Link href={`/clients/${client.id}/swatches`} className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-light transition-colors group">
-                  <div className="w-8 h-8 bg-gray-light rounded-lg flex items-center justify-center">
+                <Link href={`/clients/${client.id}/swatches`} className="flex items-center gap-4 p-3 rounded hover:bg-gray-med transition-colors group">
+                  <div className="w-8 h-8 bg-gray-light rounded flex items-center justify-center">
                     <Shirt className="w-4 h-4 text-gold" />
                   </div>
                   <span className="font-body text-sm group-hover:text-gold transition-colors">Fabric Swatches</span>
                 </Link>
-                <Link href={`/clients/${client.id}/orders`} className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-light transition-colors group">
-                  <div className="w-8 h-8 bg-gray-light rounded-lg flex items-center justify-center">
+                <Link href={`/clients/${client.id}/orders`} className="flex items-center gap-4 p-3 rounded hover:bg-gray-med transition-colors group">
+                  <div className="w-8 h-8 bg-gray-light rounded flex items-center justify-center">
                     <Package className="w-4 h-4 text-gold" />
                   </div>
                   <span className="font-body text-sm group-hover:text-gold transition-colors">Manage Custom Orders</span>
                 </Link>
-                <Link href={`/clients/${client.id}/purchases`} className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-light transition-colors group">
-                  <div className="w-8 h-8 bg-gray-light rounded-lg flex items-center justify-center">
+                <Link href={`/clients/${client.id}/purchases`} className="flex items-center gap-4 p-3 rounded hover:bg-gray-med transition-colors group">
+                  <div className="w-8 h-8 bg-gray-light rounded flex items-center justify-center">
                     <ShoppingBag className="w-4 h-4 text-gold" />
                   </div>
                   <span className="font-body text-sm group-hover:text-gold transition-colors">Ready-Made Purchases</span>
@@ -684,8 +664,8 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
             </div>
 
             {/* Quick Info */}
-            <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-              <h2 className="font-heading text-sm font-medium text-[#2D2D2D] mb-5">Quick Info</h2>
+            <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
+              <h2 className="font-heading text-sm font-medium text-body mb-2">Quick Info</h2>
               <div className="space-y-3 font-body text-sm">
                 {client.source && (
                   <div className="flex justify-between items-center">
@@ -716,7 +696,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                     <span className="text-gray-dark">Need By</span>
                     <span className="font-semibold">
                       {new Date(client.need_by_date).toLocaleDateString()}
-                      {client.need_by_description && ` — ${client.need_by_description}`}
+                      {client.need_by_description && ` \u2014 ${client.need_by_description}`}
                     </span>
                   </div>
                 )}
@@ -731,7 +711,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                     <span className="text-gray-dark">Locations</span>
                     <div className="flex flex-wrap gap-1 justify-end">
                       {client.location_tags.map(tag => (
-                        <span key={tag} className="px-2 py-0.5 bg-gray-light text-[#2D2D2D] rounded-full text-xs font-medium">{tag}</span>
+                        <span key={tag} className="px-2 py-0.5 bg-gray-light text-body rounded text-xs font-medium">{tag}</span>
                       ))}
                     </div>
                   </div>
@@ -744,26 +724,10 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const statusColors: Record<string, string> = {
-    ordered: 'bg-gray-200 text-gray-700',
-    blue_pencil: 'bg-purple-100 text-purple-700',
-    cutting: 'bg-blue-100 text-blue-700',
-    sewing: 'bg-orange-100 text-orange-700',
-    shipping: 'bg-cyan-100 text-cyan-700',
-    delivered: 'bg-green-100 text-green-700',
-  }
-
-  return (
-    <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold capitalize ${statusColors[status] || statusColors.ordered}`}>
-      {status.replace(/_/g, ' ')}
-    </span>
-  )
-}
 
 function OrderRow({ order, clientId }: { order: CustomOrder; clientId: string }) {
   const statusColors: Record<string, string> = {
@@ -777,14 +741,14 @@ function OrderRow({ order, clientId }: { order: CustomOrder; clientId: string })
 
   return (
     <Link href={`/clients/${clientId}/orders/${order.id}/edit`}>
-      <div className="flex items-center justify-between p-4 bg-gray-light rounded-xl hover:bg-[#F0EEEB] transition-colors cursor-pointer">
+      <div className="flex items-center justify-between p-4 bg-gray-light rounded hover:bg-gray-med transition-colors cursor-pointer">
         <div className="min-w-0 flex-1 pr-4">
           <p className="font-body font-semibold">{order.garment_type}</p>
           <p className="font-body text-sm text-gray-dark">{order.fabric_name || 'No fabric specified'}</p>
           <p className="font-body text-xs text-gray-dark mt-1">{new Date(order.order_date).toLocaleDateString()}</p>
         </div>
         <div className="text-right flex-shrink-0">
-          <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-semibold uppercase ${statusColors[order.status] || statusColors.ordered}`}>
+          <span className={`inline-block px-3 py-1.5 rounded text-xs font-semibold uppercase ${statusColors[order.status] || statusColors.ordered}`}>
             {order.status.replace(/_/g, ' ')}
           </span>
           {order.price && (
@@ -812,9 +776,9 @@ function PurchaseRow({ purchase, clientId }: { purchase: ReadyMadePurchase; clie
 
   return (
     <Link href={`/clients/${clientId}/purchases/${purchase.id}/edit`}>
-      <div className="flex items-center justify-between p-4 bg-gray-light rounded-xl hover:bg-[#F0EEEB] transition-colors cursor-pointer">
+      <div className="flex items-center justify-between p-4 bg-gray-light rounded hover:bg-gray-med transition-colors cursor-pointer">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <span className="text-2xl flex-shrink-0">{categoryIcons[purchase.category] || '\u{1F4E6}'}</span>
+          <span className="text-lg flex-shrink-0">{categoryIcons[purchase.category] || '\u{1F4E6}'}</span>
           <div className="min-w-0">
             <p className="font-body font-semibold truncate">
               {purchase.brand && `${purchase.brand} `}{purchase.product_name}

@@ -1,111 +1,323 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 @import "tailwindcss";
 
 @theme {
-  /* Brand Colors */
+  /* Brand — warm-tinted, never pure */
   --color-gold: #826D3C;
   --color-gold-light: #A89060;
+  --color-gold-muted: rgba(130, 109, 60, 0.08);
+
+  /* Surfaces */
   --color-cream: #F0EDE6;
-  --color-ivory: #F7F6F3;
+  --color-ivory: #F7F5F0;
+  --color-warm-white: #FEFDFB;
+  --color-gray-light: #FAF9F6;
+  --color-gray-med: #ECEAE4;
 
-  /* Neutral Colors */
-  --color-gray-light: #FAFAF8;
-  --color-gray-med: #F0EEEB;
-  --color-gray-dark: #8A8A8A;
+  /* Charcoal range */
+  --color-charcoal: #1C1B19;
+  --color-charcoal-light: #2A2926;
+  --color-charcoal-mid: #3D3B37;
 
-  /* Status Colors */
-  --color-success: #34C759;
-  --color-warning: #FF9F0A;
-  --color-error: #FF3B30;
-  --color-info: #007AFF;
+  /* Text */
+  --color-body: #2C2A26;
+  --color-body-secondary: #5C5955;
+  --color-gray-dark: #6B6560;
+  --color-muted: #A8A49E;
 
-  /* Font Families */
-  --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Status */
+  --color-success: #2D8C4E;
+  --color-warning: #C47F17;
+  --color-error: #C4392E;
+  --color-info: #2E6BC4;
+
+  /* Row states */
+  --color-row-hover: #F5F4F0;
+  --color-row-alt: #FAF9F6;
+
+  /* Typography */
+  --font-heading: 'Cormorant Garamond', 'Georgia', serif;
+  --font-body: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+/* === RESET === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: 13px;
+  scroll-behavior: smooth;
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
 }
 
-html,
 body {
-  max-width: 100vw;
-  overflow-x: hidden;
   font-family: var(--font-body);
   background: var(--color-gray-light);
-  color: #2D2D2D;
+  color: var(--color-body);
+  line-height: 1.35;
+  overflow-x: hidden;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 *:focus-visible {
   outline: 2px solid var(--color-gold);
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
-/* Layout spacing fixes */
-.page-container {
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-}
-
-/* Base spacing improvements */
-@layer base {
-  body {
-    @apply text-base leading-relaxed;
-  }
-
-  input, select, textarea {
-    @apply px-4 py-3;
-  }
-
-  button {
-    @apply px-4 py-2;
-  }
-}
-
+/* === DENSITY DESIGN SYSTEM === */
 @layer components {
+
+  /* --- Sections --- */
+  .ds-section {
+    padding: 12px;
+    border: 1px solid var(--color-gray-med);
+    background: var(--color-warm-white);
+  }
+  .ds-section-tinted {
+    padding: 12px;
+    border: 1px solid var(--color-gray-med);
+    background: var(--color-ivory);
+  }
+
+  /* --- Section header: 11px uppercase --- */
+  .ds-section-header {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-gray-dark);
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--color-gray-med);
+  }
+
+  /* --- Page title: 18px/600 serif --- */
+  .ds-page-title {
+    font-family: var(--font-heading);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-body);
+    line-height: 1.2;
+  }
+
+  /* --- Section title: 15px/600 --- */
+  .ds-section-title {
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-body);
+    line-height: 1.2;
+  }
+
+  /* --- Card title: 14px/600 --- */
+  .ds-card-title {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-body);
+  }
+
+  /* --- Metric: heading font, 1.5rem --- */
+  .ds-metric {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-body);
+    line-height: 1;
+  }
+
+  /* --- Label: 11px/500 uppercase --- */
+  .ds-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-gray-dark);
+  }
+
+  /* --- Metadata: 12px/400 secondary --- */
+  .ds-meta {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-body-secondary);
+  }
+
+  /* --- Row: 32px min-height --- */
+  .ds-row {
+    display: flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 4px 8px;
+    gap: 8px;
+    font-size: 13px;
+    transition: background-color 80ms;
+  }
+  .ds-row:hover {
+    background: var(--color-row-hover);
+  }
+
+  /* --- Table: sticky headers, 32-36px rows, alternating bg --- */
+  .ds-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .ds-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .ds-table th {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-gray-dark);
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--color-gray-med);
+    background: var(--color-gray-light);
+    white-space: nowrap;
+  }
+  .ds-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--color-gray-med);
+    vertical-align: middle;
+  }
+  .ds-table tbody tr:nth-child(even) td {
+    background: var(--color-row-alt);
+  }
+  .ds-table tbody tr:hover td {
+    background: var(--color-row-hover);
+  }
+
+  /* --- Buttons: 32px height, 4px radius --- */
+  .ds-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 80ms;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+  }
+  .ds-btn-sm {
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+  .ds-btn-primary {
+    background: var(--color-charcoal);
+    color: var(--color-cream);
+  }
+  .ds-btn-primary:hover {
+    background: var(--color-charcoal-mid);
+  }
+  .ds-btn-secondary {
+    background: transparent;
+    color: var(--color-body);
+    border: 1px solid var(--color-gray-med);
+  }
+  .ds-btn-secondary:hover {
+    border-color: var(--color-charcoal);
+  }
+  .ds-btn-ghost {
+    background: transparent;
+    color: var(--color-gold);
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .ds-btn-ghost:hover {
+    color: var(--color-gold-light);
+  }
+
+  /* --- Status badge: 2px left border, no rounding --- */
+  .ds-status {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-left: 2px solid currentColor;
+    background: var(--color-ivory);
+  }
+
+  /* --- Avatar: 28px square --- */
+  .ds-avatar {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    border-radius: 4px;
+  }
+
+  /* --- Form input: 32px height, 4px radius --- */
+  .ds-input {
+    height: 32px;
+    padding: 0 8px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    border: 1px solid var(--color-gray-med);
+    background: var(--color-warm-white);
+    color: var(--color-body);
+    width: 100%;
+    border-radius: 4px;
+    transition: border-color 80ms;
+  }
+  .ds-input:focus {
+    outline: none;
+    border-color: var(--color-gold);
+  }
+  .ds-input::placeholder {
+    color: var(--color-muted);
+  }
+
+  /* --- Card: 12px padding, 1px border, 4px radius, NO shadow --- */
+  .ds-card {
+    padding: 12px;
+    border: 1px solid var(--color-gray-med);
+    background: var(--color-warm-white);
+    border-radius: 4px;
+  }
+
+  /* legacy compat */
   .card {
-    @apply bg-white rounded-2xl p-6 lg:p-8 border border-gray-med;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  }
-
-  .section-title {
-    @apply font-body text-[11px] font-medium uppercase tracking-[0.08em] text-gray-dark mb-5;
-  }
-
-  .form-group {
-    @apply mb-6;
-  }
-
-  .form-label {
-    @apply block font-body text-sm font-medium text-gray-dark mb-2;
-  }
-
-  .form-input {
-    @apply w-full px-4 py-3 border border-gray-med rounded-xl font-body focus:outline-none focus:border-gold transition-colors;
+    padding: 12px;
+    border: 1px solid var(--color-gray-med);
+    background: var(--color-warm-white);
+    border-radius: 4px;
   }
 }
+
+/* === ANTI-PATTERN OVERRIDES === */
+/* Kill any remaining rounded-lg, rounded-xl, rounded-2xl */
+.rounded-lg, .rounded-xl, .rounded-2xl, .rounded-full { border-radius: 4px !important; }
+/* Kill any remaining shadows on cards */
+.shadow-sm, .shadow-md, .shadow-lg { box-shadow: none !important; }
 
 @media print {
-  header, nav {
-    display: none !important;
-  }
-  main {
-    padding: 0 !important;
-  }
-  .min-h-screen {
-    min-height: auto !important;
-  }
+  header, nav, .no-print { display: none !important; }
+  main { padding: 0 !important; }
+  body { background: white !important; }
 }

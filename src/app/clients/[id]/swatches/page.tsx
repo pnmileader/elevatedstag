@@ -144,12 +144,12 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
 
   return (
     <Layout currentPage="clients" showSearch={false} showNewClient={false}>
-      <div className="max-w-[1400px] mx-auto px-4 lg:px-6 py-6">
+      <div className="max-w-[1400px] mx-auto px-4 lg:px-3 py-3">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-3">
           <Link
             href={`/clients/${id}`}
-            className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] font-body text-sm mb-3 transition-colors"
+            className="inline-flex items-center gap-2 text-gray-dark hover:text-body font-body text-sm mb-3 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Client
@@ -157,8 +157,8 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className="font-heading text-2xl lg:text-2xl font-medium text-[#2D2D2D] flex items-center gap-3">
-                <Grid className="w-7 h-7 text-[#8A8A8A]" />
+              <h1 className="font-heading text-lg lg:text-lg font-medium text-body flex items-center gap-3">
+                <Grid className="w-7 h-7 text-gray-dark" />
                 Fabric Swatches
               </h1>
               {client && (
@@ -170,7 +170,7 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
 
             <button
               onClick={handleUploadClick}
-              className="inline-flex items-center gap-2 bg-[#2D2D2D] hover:bg-[#404040] text-white px-4 py-2 rounded-xl font-body text-sm transition-colors self-start"
+              className="inline-flex items-center gap-2 bg-body hover:bg-body-hover text-white px-4 py-2 rounded font-body text-sm transition-colors self-start"
             >
               <Upload className="w-4 h-4" />
               Upload Swatch
@@ -185,10 +185,10 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
               <button
                 key={tab}
                 onClick={() => setGarmentFilter(tab)}
-                className={`px-4 py-1.5 rounded-xl font-body text-sm font-medium transition-colors ${
+                className={`px-4 py-1.5 rounded font-body text-sm font-medium transition-colors ${
                   garmentFilter === tab
-                    ? 'bg-[#2D2D2D] text-white'
-                    : 'bg-white text-gray-dark border border-gray-med hover:border-[#2D2D2D] hover:text-[#2D2D2D]'
+                    ? 'bg-body text-white'
+                    : 'bg-white text-gray-dark border border-gray-med hover:border-body hover:text-body'
                 }`}
               >
                 {tab}
@@ -198,16 +198,16 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Status Filter Tabs */}
-        <div className="mb-6 flex items-center gap-2">
+        <div className="mb-3 flex items-center gap-2">
           <Filter className="w-4 h-4 text-gray-dark" />
           {STATUS_FILTER_TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setStatusFilter(tab)}
-              className={`px-3 py-1 rounded-xl font-body text-xs font-medium transition-colors ${
+              className={`px-3 py-1 rounded font-body text-xs font-medium transition-colors ${
                 statusFilter === tab
-                  ? 'bg-[#2D2D2D] text-white'
-                  : 'bg-white text-gray-dark border border-gray-med hover:border-[#2D2D2D]'
+                  ? 'bg-body text-white'
+                  : 'bg-white text-gray-dark border border-gray-med hover:border-body'
               }`}
             >
               {tab}
@@ -218,7 +218,7 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-[#8A8A8A] animate-spin" />
+            <Loader2 className="w-8 h-8 text-gray-dark animate-spin" />
           </div>
         )}
 
@@ -239,7 +239,7 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
         {!loading && filteredOrders.length > 0 && (
           garmentFilter === 'All' ? (
             // Grouped by garment type with section headers
-            <div className="space-y-8">
+            <div className="space-y-3">
               {(['Suits', 'Sportcoats', 'Trousers', 'Shirts', 'Readymade'] as const).map(category => {
                 const categoryOrders = filteredOrders.filter(
                   order => getGarmentCategory(order.garment_type) === category.toLowerCase()
@@ -249,7 +249,7 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
                 return (
                   <div key={category}>
                     <div className="flex items-center gap-4 mb-4">
-                      <h2 className="font-heading text-lg font-medium text-[#2D2D2D]">{displayName}</h2>
+                      <h2 className="font-heading text-lg font-medium text-body">{displayName}</h2>
                       <div className="flex-1 h-px bg-gray-med" />
                       <span className="font-body text-sm text-gray-dark">{categoryOrders.length}</span>
                     </div>
@@ -291,8 +291,8 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
 
         {/* Toast Notification */}
         {toastMessage && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-gray-dark text-white px-6 py-3 rounded-xl shadow-lg font-body text-sm flex items-center gap-2 animate-fade-in">
-            <Image className="w-4 h-4 text-[#8A8A8A]" />
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-gray-dark text-white px-3 py-3 rounded  font-body text-sm flex items-center gap-2 animate-fade-in">
+            <Image className="w-4 h-4 text-gray-dark" />
             {toastMessage}
           </div>
         )}
@@ -319,8 +319,7 @@ function SwatchCard({
   return (
     <button
       onClick={onClick}
-      className="bg-white rounded-2xl border border-gray-med hover:border-[#2D2D2D] hover:shadow-md transition-all text-left group focus:outline-none focus:ring-2 focus:ring-[#2D2D2D] focus:ring-offset-2"
-      style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}
+      className="bg-white rounded border border-gray-med hover:border-body hover: transition-all text-left group focus:outline-none focus:ring-2 focus:ring-body focus:ring-offset-2"
     >
       {/* Image / Placeholder */}
       <div className="relative aspect-square rounded-t-2xl overflow-hidden">
@@ -350,14 +349,14 @@ function SwatchCard({
 
         {/* Status dot */}
         <div className="absolute top-2 right-2">
-          <span className={`block w-3 h-3 rounded-full ${dotColor} ring-2 ring-white`} />
+          <span className={`block w-3 h-3 rounded ${dotColor} ring-2 ring-white`} />
         </div>
       </div>
 
       {/* Details */}
       <div className="p-3">
         {order.fabric_code && (
-          <p className="font-heading text-xs font-medium text-[#8A8A8A] tracking-wide flex items-center gap-1 mb-0.5">
+          <p className="font-heading text-xs font-medium text-gray-dark tracking-wide flex items-center gap-1 mb-0.5">
             <Hash className="w-3 h-3" />
             {order.fabric_code}
           </p>
@@ -371,7 +370,7 @@ function SwatchCard({
         </p>
         <div className="mt-2">
           <span
-            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide ${statusColor}`}
+            className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide ${statusColor}`}
           >
             {order.status.replace(/_/g, ' ')}
           </span>
@@ -415,7 +414,7 @@ function SwatchDetailModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Modal Image */}
         <div className="relative aspect-[4/3] rounded-t-2xl overflow-hidden">
           {order.swatch_image_url ? (
@@ -430,7 +429,7 @@ function SwatchDetailModal({
             >
               <Image className="w-16 h-16 text-white/30" />
               {order.fabric_code && (
-                <span className="font-heading text-white/60 text-2xl font-bold tracking-wider">
+                <span className="font-heading text-white/60 text-lg font-bold tracking-wider">
                   {order.fabric_code}
                 </span>
               )}
@@ -441,7 +440,7 @@ function SwatchDetailModal({
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors"
+            className="absolute top-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded flex items-center justify-center transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -452,20 +451,20 @@ function SwatchDetailModal({
           {/* Title row */}
           <div className="flex items-start justify-between gap-3 mb-4">
             <div>
-              <h2 className="font-heading text-xl font-medium text-[#2D2D2D]">
+              <h2 className="font-heading text-xl font-medium text-body">
                 {order.garment_type}
               </h2>
               <p className="font-body text-sm text-gray-dark mt-0.5">{clientName}</p>
             </div>
             <span
-              className={`inline-block px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide flex-shrink-0 ${statusColor}`}
+              className={`inline-block px-3 py-1 rounded text-xs font-medium uppercase tracking-wide flex-shrink-0 ${statusColor}`}
             >
               {order.status.replace(/_/g, ' ')}
             </span>
           </div>
 
           {/* Details grid */}
-          <div className="grid grid-cols-2 gap-4 mb-5">
+          <div className="grid grid-cols-2 gap-4 mb-2">
             {order.fabric_name && (
               <div>
                 <p className="font-body text-xs text-gray-dark uppercase tracking-wide mb-0.5">Fabric</p>
@@ -513,13 +512,13 @@ function SwatchDetailModal({
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-med">
             <Link
               href={`/clients/${clientId}/orders/${order.id}/edit`}
-              className="flex-1 bg-[#2D2D2D] hover:bg-[#404040] text-white text-center px-4 py-2.5 rounded-xl font-body text-sm font-medium transition-colors"
+              className="flex-1 bg-body hover:bg-body-hover text-white text-center px-4 py-2.5 rounded font-body text-sm font-medium transition-colors"
             >
               Edit Order
             </Link>
             <button
               onClick={onClose}
-              className="flex-1 bg-white hover:bg-gray-light text-gray-dark border border-gray-med text-center px-4 py-2.5 rounded-xl font-body text-sm font-medium transition-colors"
+              className="flex-1 bg-white hover:bg-gray-light text-gray-dark border border-gray-med text-center px-4 py-2.5 rounded font-body text-sm font-medium transition-colors"
             >
               Close
             </button>

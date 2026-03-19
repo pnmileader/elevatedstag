@@ -65,9 +65,9 @@ export default function ActivityTimeline({ clientId }: { clientId: string }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl p-6 lg:p-8 border border-gray-med" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-        <h2 className="font-heading text-sm font-medium text-[#2D2D2D] mb-5">Recent Activity</h2>
-        <div className="flex items-center justify-center py-8">
+      <div className="ds-card">
+        <h2 className="font-heading text-sm font-medium text-body mb-2">Recent Activity</h2>
+        <div className="flex items-center justify-center py-3">
           <Loader2 className="w-6 h-6 animate-spin text-gold" />
         </div>
       </div>
@@ -75,8 +75,8 @@ export default function ActivityTimeline({ clientId }: { clientId: string }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 lg:p-8 border border-gray-med" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-      <h2 className="font-heading text-sm font-medium text-[#2D2D2D] mb-5">Recent Activity</h2>
+    <div className="ds-card">
+      <h2 className="font-heading text-sm font-medium text-body mb-2">Recent Activity</h2>
 
       {activities.length === 0 ? (
         <p className="font-body text-sm text-gray-dark">No activity recorded yet.</p>
@@ -85,11 +85,11 @@ export default function ActivityTimeline({ clientId }: { clientId: string }) {
           {/* Timeline line */}
           <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-gray-med" />
 
-          <div className="space-y-5">
+          <div className="space-y-2">
             {activities.map((activity) => (
-              <div key={activity.id} className="flex gap-5 relative">
+              <div key={activity.id} className="flex gap-2 relative">
                 {/* Icon */}
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10 text-white ${activityColors[activity.activity_type] || 'bg-gray-500'}`}>
+                <div className={`w-8 h-8 rounded flex items-center justify-center flex-shrink-0 z-10 text-white ${activityColors[activity.activity_type] || 'bg-gray-500'}`}>
                   {activityIcons[activity.activity_type] || <Clock className="w-4 h-4" />}
                 </div>
 

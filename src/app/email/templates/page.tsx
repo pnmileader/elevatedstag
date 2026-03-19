@@ -107,19 +107,19 @@ export default function TemplatesPage() {
   return (
     <Layout currentPage="email">
       <div className="max-w-4xl">
-        <Link href="/email" className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] mb-6 font-body text-sm">
+        <Link href="/email" className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm">
           <ArrowLeft className="w-4 h-4" />
           Back to Email
         </Link>
 
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="font-heading text-2xl font-medium text-[#2D2D2D]">Email Templates</h1>
+            <h1 className="font-heading text-lg font-medium text-body">Email Templates</h1>
             <p className="font-body text-gray-dark">Create and manage email templates with variable placeholders</p>
           </div>
           <button
             onClick={openNew}
-            className="bg-[#2D2D2D] hover:bg-[#404040] text-white px-4 py-2 rounded-xl font-body font-medium text-sm flex items-center gap-2 transition-colors"
+            className="bg-body hover:bg-body-hover text-white px-4 py-2 rounded font-body font-medium text-sm flex items-center gap-2 transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Template
@@ -129,17 +129,17 @@ export default function TemplatesPage() {
         {/* Template Editor Modal */}
         {showEditor && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-med flex items-center justify-between">
-                <h2 className="font-heading text-base font-medium text-[#2D2D2D]">
+            <div className="bg-white rounded max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-3 border-b border-gray-med flex items-center justify-between">
+                <h2 className="font-heading text-base font-medium text-body">
                   {editingTemplate ? 'Edit Template' : 'New Template'}
                 </h2>
-                <button onClick={() => { setShowEditor(false); resetForm(); }} className="p-2 hover:bg-gray-light rounded-xl">
+                <button onClick={() => { setShowEditor(false); resetForm(); }} className="p-2 hover:bg-gray-light rounded">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="p-6 space-y-5">
+              <div className="p-3 space-y-2">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block font-body font-medium text-sm mb-2">Template Name *</label>
@@ -148,7 +148,7 @@ export default function TemplatesPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g., Post-Fitting Follow Up"
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                     />
                   </div>
                   <div>
@@ -156,7 +156,7 @@ export default function TemplatesPage() {
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D] bg-white"
+                      className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body bg-white"
                     >
                       {CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>{cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
@@ -172,7 +172,7 @@ export default function TemplatesPage() {
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="e.g., Great seeing you today, {FIRST_NAME}!"
-                    className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D]"
+                    className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
                   />
                 </div>
 
@@ -183,11 +183,11 @@ export default function TemplatesPage() {
                     onChange={(e) => setBody(e.target.value)}
                     rows={12}
                     placeholder="Hi {FIRST_NAME},&#10;&#10;Thank you for visiting The Elevated Stag today..."
-                    className="w-full px-3 py-2 border border-[#F0EEEB] rounded-xl font-body text-sm focus:outline-none focus:border-[#2D2D2D] resize-y"
+                    className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body resize-y"
                   />
                 </div>
 
-                <div className="bg-gray-light rounded-xl p-4">
+                <div className="bg-gray-light rounded p-4">
                   <p className="font-body text-xs text-gray-dark font-medium mb-2">Available Variables:</p>
                   <div className="flex flex-wrap gap-2">
                     {['{FIRST_NAME}', '{LAST_NAME}'].map(v => (
@@ -195,7 +195,7 @@ export default function TemplatesPage() {
                         key={v}
                         type="button"
                         onClick={() => setBody(prev => prev + v)}
-                        className="px-2 py-1 bg-white border border-gray-med rounded-lg font-body text-xs text-[#2D2D2D] hover:border-gold transition-colors"
+                        className="px-2 py-1 bg-white border border-gray-med rounded font-body text-xs text-body hover:border-gold transition-colors"
                       >
                         {v}
                       </button>
@@ -204,18 +204,18 @@ export default function TemplatesPage() {
                 </div>
               </div>
 
-              <div className="p-6 border-t border-gray-med flex gap-3">
+              <div className="p-3 border-t border-gray-med flex gap-3">
                 <button
                   onClick={handleSave}
                   disabled={saving || !name.trim() || !subject.trim() || !body.trim()}
-                  className="flex-1 bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white py-2 rounded-xl font-body font-medium flex items-center justify-center gap-2"
+                  className="flex-1 bg-body hover:bg-body-hover disabled:bg-gray-med text-white py-2 rounded font-body font-medium flex items-center justify-center gap-2"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {editingTemplate ? 'Update Template' : 'Save Template'}
                 </button>
                 <button
                   onClick={() => { setShowEditor(false); resetForm(); }}
-                  className="px-6 py-2 border border-gray-med rounded-xl font-body font-medium text-gray-dark hover:border-[#2D2D2D]"
+                  className="px-3 py-2 border border-gray-med rounded font-body font-medium text-gray-dark hover:border-body"
                 >
                   Cancel
                 </button>
@@ -226,11 +226,11 @@ export default function TemplatesPage() {
 
         {/* Templates List */}
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-[#8A8A8A]" />
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-dark" />
           </div>
         ) : templates.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-gray-med" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+          <div className="bg-white rounded p-3 text-center border border-gray-med">
             <FileText className="w-12 h-12 text-gray-med mx-auto mb-4" />
             <h2 className="font-heading text-xl text-gray-dark mb-2">No templates yet</h2>
             <p className="font-body text-gray-dark mb-4">Create your first email template to get started.</p>
@@ -243,32 +243,31 @@ export default function TemplatesPage() {
             {templates.map(template => (
               <div
                 key={template.id}
-                className="bg-white rounded-2xl border border-gray-med p-5 hover:border-[#2D2D2D] transition-colors"
-                style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}
+                className="bg-white rounded border border-gray-med p-5 hover:border-body transition-colors"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-body font-medium text-[#2D2D2D]">{template.name}</h3>
+                    <h3 className="font-body font-medium text-body">{template.name}</h3>
                     <p className="font-body text-sm text-gray-dark mt-1 truncate">
                       Subject: {template.subject}
                     </p>
                     <p className="font-body text-xs text-gray-dark mt-2 line-clamp-2">
                       {template.body.substring(0, 150)}...
                     </p>
-                    <span className="inline-block mt-2 px-2 py-0.5 bg-gray-light text-[#8A8A8A] text-xs font-body font-medium rounded capitalize">
+                    <span className="inline-block mt-2 px-2 py-0.5 bg-gray-light text-gray-dark text-xs font-body font-medium rounded capitalize">
                       {(template.category || 'general').replace(/_/g, ' ')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={() => openEdit(template)}
-                      className="p-2 text-gray-dark hover:text-[#2D2D2D] hover:bg-gray-light rounded-xl transition-colors"
+                      className="p-2 text-gray-dark hover:text-body hover:bg-gray-light rounded transition-colors"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(template.id)}
-                      className="p-2 text-gray-dark hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                      className="p-2 text-gray-dark hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

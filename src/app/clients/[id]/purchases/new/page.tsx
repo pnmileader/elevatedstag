@@ -104,37 +104,37 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
   return (
     <div className="min-h-screen bg-gray-light">
       {/* Header */}
-      <header className="bg-white px-4 lg:px-8 py-4 flex items-center justify-between sticky top-0 z-50 border-b border-[#F0EEEB]">
+      <header className="bg-white px-4 lg:px-3 py-4 flex items-center justify-between sticky top-0 z-50 border-b border-gray-med">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gold rounded-full flex items-center justify-center">
+          <div className="w-9 h-9 bg-gold rounded flex items-center justify-center">
             <span className="text-white font-heading font-semibold text-sm">ES</span>
           </div>
-          <span className="font-heading text-[#2D2D2D] text-base font-medium tracking-wide hidden sm:block">
+          <span className="font-heading text-body text-base font-medium tracking-wide hidden sm:block">
             THE ELEVATED STAG
           </span>
         </div>
       </header>
 
       {/* Content */}
-      <div className="max-w-2xl mx-auto px-4 lg:px-6 py-8">
-        <Link href={`/clients/${clientId}`} className="inline-flex items-center gap-2 text-[#8A8A8A] hover:text-[#2D2D2D] mb-6 font-body text-sm">
+      <div className="max-w-2xl mx-auto px-4 lg:px-3 py-3">
+        <Link href={`/clients/${clientId}`} className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm">
           <ArrowLeft className="w-4 h-4" />
           Back to Client
         </Link>
 
-        <div className="bg-white rounded-2xl p-6 lg:p-8 border border-[#F0EEEB]" style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-          <h1 className="font-heading text-xl font-medium text-[#2D2D2D] mb-6">Add Ready-Made Purchase</h1>
+        <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
+          <h1 className="font-heading text-xl font-medium text-body mb-3">Add Ready-Made Purchase</h1>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 font-body text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-3 font-body text-sm">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-3">
             {/* Category */}
             <div>
-              <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-2">
+              <label className="block font-body text-sm font-medium text-gray-dark mb-2">
                 Category *
               </label>
               <div className="flex flex-wrap gap-2">
@@ -143,10 +143,10 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
                     key={cat.value}
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, category: cat.value }))}
-                    className={`px-4 py-2 rounded-xl font-body text-sm font-semibold transition-colors ${
+                    className={`px-4 py-2 rounded font-body text-sm font-semibold transition-colors ${
                       formData.category === cat.value
-                        ? 'bg-[#2D2D2D] text-white'
-                        : 'bg-gray-light text-[#8A8A8A] hover:bg-[#F0EEEB]'
+                        ? 'bg-body text-white'
+                        : 'bg-gray-light text-gray-dark hover:bg-gray-med'
                     }`}
                   >
                     {cat.label}
@@ -158,7 +158,7 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
             {/* Brand and Product Name */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   Brand
                 </label>
                 <input
@@ -167,7 +167,7 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
                   value={formData.brand}
                   onChange={handleChange}
                   list="brand-suggestions"
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                   placeholder="Magnanni"
                 />
                 <datalist id="brand-suggestions">
@@ -177,7 +177,7 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
                 </datalist>
               </div>
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   Product Name *
                 </label>
                 <input
@@ -185,7 +185,7 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
                   name="product_name"
                   value={formData.product_name}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                   placeholder="Oxford Dress Shoe"
                   required
                 />
@@ -194,7 +194,7 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
 
             {/* Description */}
             <div>
-              <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+              <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                 Description / Color
               </label>
               <input
@@ -202,7 +202,7 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                 placeholder="Black, Brown, Cherry"
               />
             </div>
@@ -210,7 +210,7 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
             {/* Size, Quantity, Price */}
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   Size
                 </label>
                 <input
@@ -218,12 +218,12 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
                   name="size"
                   value={formData.size}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                   placeholder="9.5 or 34x32"
                 />
               </div>
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   Quantity
                 </label>
                 <input
@@ -232,11 +232,11 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
                   value={formData.quantity}
                   onChange={handleChange}
                   min="1"
-                  className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                  className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                 />
               </div>
               <div>
-                <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+                <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                   Price
                 </label>
                 <div className="relative">
@@ -248,7 +248,7 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
                     onChange={handleChange}
                     step="0.01"
                     min="0"
-                    className="w-full pl-8 pr-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                    className="w-full pl-8 pr-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
                     placeholder="450.00"
                   />
                 </div>
@@ -257,7 +257,7 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
 
             {/* Purchase Date */}
             <div>
-              <label className="block font-body text-sm font-medium text-[#8A8A8A] mb-1">
+              <label className="block font-body text-sm font-medium text-gray-dark mb-1">
                 Purchase Date
               </label>
               <input
@@ -265,7 +265,7 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
                 name="purchase_date"
                 value={formData.purchase_date}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-[#F0EEEB] rounded-xl font-body focus:outline-none focus:border-gold"
+                className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold"
               />
             </div>
 
@@ -273,14 +273,14 @@ export default function NewPurchasePage({ params }: { params: Promise<{ id: stri
             <div className="flex gap-4 pt-4">
               <Link
                 href={`/clients/${clientId}`}
-                className="flex-1 px-6 py-3 border border-[#F0EEEB] rounded-xl font-body font-semibold text-gray-dark text-center hover:bg-gray-light transition-colors"
+                className="flex-1 px-3 py-3 border border-gray-med rounded font-body font-semibold text-gray-dark text-center hover:bg-gray-light transition-colors"
               >
                 Cancel
               </Link>
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 bg-[#2D2D2D] hover:bg-[#404040] disabled:bg-gray-med text-white px-6 py-3 rounded-xl font-body font-semibold flex items-center justify-center gap-2 transition-colors"
+                className="flex-1 bg-body hover:bg-body-hover disabled:bg-gray-med text-white px-3 py-3 rounded font-body font-semibold flex items-center justify-center gap-2 transition-colors"
               >
                 {saving ? (
                   <>
