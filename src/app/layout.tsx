@@ -1,25 +1,38 @@
-import type { Metadata } from "next";
-import { Cormorant_Garamond, DM_Sans } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Libre_Baskerville, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-const cormorant = Cormorant_Garamond({
+const libreBaskerville = Libre_Baskerville({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-heading',
+  weight: ['400', '700'],
+  variable: '--font-serif',
   display: 'swap',
 });
 
-const dmSans = DM_Sans({
+const sourceSans = Source_Sans_3({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-body',
+  variable: '--font-sans',
   display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "The Elevated Stag CRM",
-  description: "Luxury men's custom clothier client management",
+  title: "The Elevated Stag",
+  description: "Client management for luxury custom clothiers",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Elevated Stag',
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -29,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${cormorant.variable} ${dmSans.variable} antialiased`}>
+      <body className={`${libreBaskerville.variable} ${sourceSans.variable}`}>
         <ErrorBoundary>
           {children}
         </ErrorBoundary>

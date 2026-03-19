@@ -173,9 +173,9 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <Layout currentPage="dashboard">
-        <div className="flex items-center justify-center" style={{ paddingTop: '80px' }}>
-          <Loader2 className="animate-spin text-gold" style={{ width: '24px', height: '24px' }} />
+      <Layout currentPage="dashboard" title="Dashboard">
+        <div className="flex items-center justify-center" style={{ height: '60vh' }}>
+          <Loader2 className="w-6 h-6 animate-spin text-gold" />
         </div>
       </Layout>
     )
@@ -190,177 +190,150 @@ export default function DashboardPage() {
   const revenueUp = stats.revenueThisMonth >= stats.revenueLastMonth
 
   return (
-    <Layout currentPage="dashboard">
-      <div className="flex flex-col" style={{ gap: '12px' }}>
+    <Layout currentPage="dashboard" title="Dashboard">
+      <div className="flex flex-col gap-4 p-4">
 
-        {/* Header */}
-        <div>
-          <span className="ds-label">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-          </span>
-          <h1 className="ds-page-title">Dashboard</h1>
-        </div>
-
-        {/* KPI Strip */}
-        <div className="bg-warm-white border border-gray-med flex" style={{ height: '56px' }}>
-          <Link href="/clients" className="flex-1 flex flex-col justify-center px-3">
-            <span className="ds-label">Total Clients</span>
-            <span className="ds-metric">{stats.totalClients}</span>
-          </Link>
-          <div className="w-px bg-gray-med" />
-          <Link href="/orders" className="flex-1 flex flex-col justify-center px-3">
-            <span className="ds-label">In Progress</span>
-            <span className={`ds-metric ${stats.ordersInProgress > 0 ? 'text-gold' : ''}`}>{stats.ordersInProgress}</span>
-          </Link>
-          <div className="w-px bg-gray-med" />
-          <Link href="/clients?stage=vip" className="flex-1 flex flex-col justify-center px-3">
-            <span className="ds-label">VIP Clients</span>
-            <span className="ds-metric">{stats.vipClients}</span>
-          </Link>
-          <div className="w-px bg-gray-med" />
-          <Link href="/clients?stage=active" className="flex-1 flex flex-col justify-center px-3">
-            <span className="ds-label">Active</span>
-            <span className="ds-metric">{stats.activeClients}</span>
-          </Link>
-        </div>
-
-        {/* Revenue Section */}
-        <div className="ds-section-tinted">
-          <div className="ds-section-header">Revenue</div>
-          <div className="grid grid-cols-3" style={{ gap: '12px' }}>
-            <div>
-              <span className="ds-label">This Month</span>
-              <div className="ds-metric">${stats.revenueThisMonth.toLocaleString()}</div>
-              <span className="text-muted" style={{ fontSize: '11px' }}>{stats.ordersThisMonth} order{stats.ordersThisMonth !== 1 ? 's' : ''}</span>
+        {/* ===== REVENUE — first thing she looks at ===== */}
+        <section>
+          <div className="es-section-header">Revenue</div>
+          <div className="grid grid-cols-3 gap-px bg-rule">
+            <div className="bg-surface" style={{ padding: '16px 20px' }}>
+              <div className="es-label mb-1">This Month</div>
+              <div className="es-metric">${stats.revenueThisMonth.toLocaleString()}</div>
+              <div className="text-ink-muted text-[12px] mt-1">{stats.ordersThisMonth} order{stats.ordersThisMonth !== 1 ? 's' : ''}</div>
             </div>
-            <div>
-              <span className="ds-label">Last Month</span>
-              <div className="ds-metric">${stats.revenueLastMonth.toLocaleString()}</div>
-              <span className="text-muted" style={{ fontSize: '11px' }}>{stats.ordersLastMonth} order{stats.ordersLastMonth !== 1 ? 's' : ''}</span>
+            <div className="bg-surface" style={{ padding: '16px 20px' }}>
+              <div className="es-label mb-1">Last Month</div>
+              <div className="es-metric">${stats.revenueLastMonth.toLocaleString()}</div>
+              <div className="text-ink-muted text-[12px] mt-1">{stats.ordersLastMonth} order{stats.ordersLastMonth !== 1 ? 's' : ''}</div>
             </div>
-            <div>
-              <span className="ds-label">Change</span>
-              <div className={`ds-metric ${revenueUp ? 'text-success' : 'text-error'}`}>
+            <div className="bg-surface" style={{ padding: '16px 20px' }}>
+              <div className="es-label mb-1">Change</div>
+              <div className={`es-metric ${revenueUp ? 'text-success' : 'text-error'}`}>
                 {revenueUp ? '+' : ''}{revenueChange}%
               </div>
-              <span className="text-muted" style={{ fontSize: '11px' }}>vs last month</span>
+              <div className="text-ink-muted text-[12px] mt-1">vs last month</div>
             </div>
           </div>
+        </section>
+
+        {/* ===== QUICK STATS ===== */}
+        <div className="grid grid-cols-4 gap-px bg-rule border border-rule">
+          <Link href="/clients" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
+            <div className="es-label mb-0.5">Clients</div>
+            <div className="es-metric-sm">{stats.totalClients}</div>
+          </Link>
+          <Link href="/orders" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
+            <div className="es-label mb-0.5">In Progress</div>
+            <div className={`es-metric-sm ${stats.ordersInProgress > 0 ? 'text-gold' : ''}`}>{stats.ordersInProgress}</div>
+          </Link>
+          <Link href="/clients?stage=vip" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
+            <div className="es-label mb-0.5">VIP</div>
+            <div className="es-metric-sm">{stats.vipClients}</div>
+          </Link>
+          <Link href="/clients?stage=active" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
+            <div className="es-label mb-0.5">Active</div>
+            <div className="es-metric-sm">{stats.activeClients}</div>
+          </Link>
         </div>
 
-        {/* Two-column grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: '12px' }}>
-
-          {/* LEFT column */}
-          <div className="flex flex-col" style={{ gap: '12px' }}>
-            {/* Deadlines */}
-            <div className="ds-section">
-              <div className="ds-section-header">Deadlines</div>
-              {stats.upcomingDeadlines.length === 0 ? (
-                <p className="text-muted" style={{ fontSize: '13px', padding: '8px 0' }}>No upcoming deadlines.</p>
-              ) : (
-                stats.upcomingDeadlines.map(client => {
-                  const daysLeft = Math.ceil((new Date(client.need_by_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-                  const isUrgent = daysLeft <= 14
-                  return (
-                    <Link key={client.id} href={`/clients/${client.id}`} className="block">
-                      <div className="ds-row" style={{ justifyContent: 'space-between' }}>
-                        <div className="min-w-0 mr-4" style={{ overflow: 'hidden' }}>
-                          <span className="truncate block" style={{ fontWeight: 500 }}>{client.first_name} {client.last_name}</span>
-                          <span className="truncate block text-muted" style={{ fontSize: '11px' }}>{client.need_by_description || 'Deadline'}</span>
-                        </div>
-                        <span className={`flex-shrink-0 whitespace-nowrap font-semibold ${isUrgent ? 'text-error' : 'text-gold'}`} style={{ fontSize: '13px' }}>
-                          {daysLeft}d — {new Date(client.need_by_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                    </Link>
-                  )
-                })
-              )}
+        {/* ===== DEADLINES ===== */}
+        {stats.upcomingDeadlines.length > 0 && (
+          <section>
+            <div className="es-section-header">
+              Deadlines <span className="text-error ml-1 normal-case tracking-normal">{stats.upcomingDeadlines.length}</span>
             </div>
-
-            {/* Care Items */}
-            <div className="ds-section-tinted">
-              <div className="ds-section-header">Care Items</div>
-              {stats.careItemsDue.length === 0 ? (
-                <p className="text-muted" style={{ fontSize: '13px', padding: '8px 0' }}>No care items due soon.</p>
-              ) : (
-                stats.careItemsDue.map(item => {
-                  const isOverdue = new Date(item.due_date) < new Date()
-                  return (
-                    <Link key={item.id} href={`/clients/${item.client?.id}`} className="block">
-                      <div className="ds-row" style={{ justifyContent: 'space-between' }}>
-                        <div className="min-w-0 mr-4" style={{ overflow: 'hidden' }}>
-                          <span className="truncate block" style={{ fontWeight: 500 }}>{item.title}</span>
-                          <span className="truncate block text-muted" style={{ fontSize: '11px' }}>{item.client?.first_name} {item.client?.last_name}</span>
-                        </div>
-                        <span className={`flex-shrink-0 whitespace-nowrap font-semibold ${isOverdue ? 'text-error' : 'text-gold'}`} style={{ fontSize: '13px' }}>
-                          {isOverdue ? 'Overdue' : new Date(item.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                    </Link>
-                  )
-                })
-              )}
-            </div>
-          </div>
-
-          {/* RIGHT column */}
-          <div className="flex flex-col" style={{ gap: '12px' }}>
-            {/* Follow-Up */}
-            <div className="ds-section">
-              <div className="ds-section-header">Follow-Up</div>
-              {stats.clientsNeedingFollowUp.length === 0 ? (
-                <p className="text-muted" style={{ fontSize: '13px', padding: '8px 0' }}>All clients are up to date.</p>
-              ) : (
-                stats.clientsNeedingFollowUp.map(client => (
-                  <Link key={client.id} href={`/clients/${client.id}`} className="block">
-                    <div className="ds-row" style={{ justifyContent: 'space-between' }}>
-                      <div className="flex items-center min-w-0 mr-4" style={{ gap: '8px' }}>
-                        <div className="ds-avatar bg-charcoal text-cream">{client.first_name[0]}{client.last_name[0]}</div>
-                        <div className="min-w-0" style={{ overflow: 'hidden' }}>
-                          <span className="truncate block" style={{ fontWeight: 500 }}>{client.first_name} {client.last_name}</span>
-                          <span className="truncate block text-muted capitalize" style={{ fontSize: '11px' }}>{client.stage}</span>
-                        </div>
-                      </div>
-                      <span className="flex-shrink-0 whitespace-nowrap font-semibold text-warning" style={{ fontSize: '13px' }}>
-                        {client.daysSinceContact === 999 ? 'Never' : `${client.daysSinceContact}d`}
-                      </span>
+            {stats.upcomingDeadlines.map(client => {
+              const daysLeft = Math.ceil((new Date(client.need_by_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+              const urgent = daysLeft <= 14
+              return (
+                <Link key={client.id} href={`/clients/${client.id}`}>
+                  <div className="es-row justify-between">
+                    <div className="min-w-0 mr-4">
+                      <div className="font-semibold truncate">{client.first_name} {client.last_name}</div>
+                      <div className="text-ink-muted text-[12px] truncate">{client.need_by_description || 'Deadline'}</div>
                     </div>
-                  </Link>
-                ))
-              )}
-            </div>
+                    <div className={`flex-shrink-0 font-semibold ${urgent ? 'text-error' : 'text-gold'}`}>{daysLeft}d</div>
+                  </div>
+                </Link>
+              )
+            })}
+          </section>
+        )}
 
-            {/* Recent Orders */}
-            <div className="ds-section-tinted">
-              <div className="ds-section-header flex items-center justify-between">
-                <span>Recent Orders</span>
-                <Link href="/orders" className="ds-btn-ghost">View All</Link>
-              </div>
-              {stats.recentOrders.length === 0 ? (
-                <p className="text-muted" style={{ fontSize: '13px', padding: '8px 0' }}>No recent orders.</p>
-              ) : (
-                stats.recentOrders.map(order => (
-                  <Link key={order.id} href={`/clients/${order.client?.id}`} className="block">
-                    <div className="ds-row" style={{ justifyContent: 'space-between' }}>
-                      <div className="min-w-0 mr-4" style={{ overflow: 'hidden' }}>
-                        <span className="truncate block" style={{ fontWeight: 500 }}>{order.client?.first_name} {order.client?.last_name}</span>
-                        <span className="truncate block text-muted" style={{ fontSize: '11px' }}>{order.garment_type}</span>
-                      </div>
-                      <div className="flex items-center flex-shrink-0 whitespace-nowrap" style={{ gap: '8px' }}>
-                        <StatusBadge status={order.status} size="sm" />
-                        {order.price && <span className="font-semibold">${order.price.toLocaleString()}</span>}
-                        <span className="text-muted" style={{ fontSize: '11px' }}>{new Date(order.order_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                      </div>
+        {/* ===== FOLLOW-UP ===== */}
+        {stats.clientsNeedingFollowUp.length > 0 && (
+          <section>
+            <div className="es-section-header">
+              Follow-Up <span className="text-warning ml-1 normal-case tracking-normal">{stats.clientsNeedingFollowUp.length}</span>
+            </div>
+            {stats.clientsNeedingFollowUp.map(client => (
+              <Link key={client.id} href={`/clients/${client.id}`}>
+                <div className="es-row justify-between">
+                  <div className="flex items-center gap-3 min-w-0 mr-4">
+                    <div className="es-avatar">{client.first_name[0]}{client.last_name[0]}</div>
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate">{client.first_name} {client.last_name}</div>
+                      <div className="text-ink-muted text-[12px] capitalize">{client.stage}</div>
                     </div>
-                  </Link>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+                  </div>
+                  <div className="flex-shrink-0 font-semibold text-warning">
+                    {client.daysSinceContact === 999 ? 'Never' : `${client.daysSinceContact}d`}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </section>
+        )}
 
+        {/* ===== RECENT ORDERS ===== */}
+        <section>
+          <div className="es-section-header flex items-center justify-between">
+            <span>Recent Orders</span>
+            <Link href="/orders" className="es-btn-ghost normal-case tracking-normal">View All</Link>
+          </div>
+          {stats.recentOrders.length === 0 ? (
+            <div className="py-4 text-ink-muted text-[13px]">No recent orders.</div>
+          ) : (
+            stats.recentOrders.map(order => (
+              <Link key={order.id} href={`/clients/${order.client?.id}`}>
+                <div className="es-row justify-between">
+                  <div className="min-w-0 mr-4">
+                    <div className="font-semibold truncate">{order.client?.first_name} {order.client?.last_name}</div>
+                    <div className="text-ink-muted text-[12px]">{order.garment_type}</div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <StatusBadge status={order.status} size="sm" />
+                    {order.price && <span className="font-semibold">${order.price.toLocaleString()}</span>}
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
+        </section>
+
+        {/* ===== CARE ITEMS ===== */}
+        {stats.careItemsDue.length > 0 && (
+          <section>
+            <div className="es-section-header">Care Items Due</div>
+            {stats.careItemsDue.map(item => {
+              const overdue = new Date(item.due_date) < new Date()
+              return (
+                <Link key={item.id} href={`/clients/${item.client?.id}`}>
+                  <div className="es-row justify-between">
+                    <div className="min-w-0 mr-4">
+                      <div className="font-semibold truncate">{item.title}</div>
+                      <div className="text-ink-muted text-[12px] truncate">{item.client?.first_name} {item.client?.last_name}</div>
+                    </div>
+                    <div className={`flex-shrink-0 font-semibold ${overdue ? 'text-error' : 'text-ink-secondary'}`}>
+                      {overdue ? 'Overdue' : new Date(item.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+          </section>
+        )}
       </div>
     </Layout>
   )
