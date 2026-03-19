@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import { createClient } from '@/lib/supabase'
 
@@ -49,6 +50,7 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default function ClientsPage() {
+  const router = useRouter()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<StageFilter>('all')
@@ -310,23 +312,35 @@ export default function ClientsPage() {
           <table className="ds-table">
             <thead>
               <tr>
-                <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
-                  Name{sortIndicator('name')}
+                <th aria-sort={sortField === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('name')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
+                    Name{sortIndicator('name')}
+                  </button>
                 </th>
-                <th onClick={() => handleSort('email')} style={{ cursor: 'pointer' }} className="hidden md:table-cell">
-                  Email{sortIndicator('email')}
+                <th aria-sort={sortField === 'email' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="hidden md:table-cell">
+                  <button type="button" onClick={() => handleSort('email')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
+                    Email{sortIndicator('email')}
+                  </button>
                 </th>
-                <th onClick={() => handleSort('phone')} style={{ cursor: 'pointer' }}>
-                  Phone{sortIndicator('phone')}
+                <th aria-sort={sortField === 'phone' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('phone')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
+                    Phone{sortIndicator('phone')}
+                  </button>
                 </th>
-                <th onClick={() => handleSort('city')} style={{ cursor: 'pointer' }} className="hidden md:table-cell">
-                  City{sortIndicator('city')}
+                <th aria-sort={sortField === 'city' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="hidden md:table-cell">
+                  <button type="button" onClick={() => handleSort('city')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
+                    City{sortIndicator('city')}
+                  </button>
                 </th>
-                <th onClick={() => handleSort('stage')} style={{ cursor: 'pointer' }}>
-                  Stage{sortIndicator('stage')}
+                <th aria-sort={sortField === 'stage' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('stage')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
+                    Stage{sortIndicator('stage')}
+                  </button>
                 </th>
-                <th onClick={() => handleSort('last_contact')} style={{ cursor: 'pointer' }}>
-                  Last Contact{sortIndicator('last_contact')}
+                <th aria-sort={sortField === 'last_contact' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('last_contact')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
+                    Last Contact{sortIndicator('last_contact')}
+                  </button>
                 </th>
               </tr>
             </thead>
@@ -337,13 +351,14 @@ export default function ClientsPage() {
                 const rowBg = idx % 2 === 1 ? 'var(--color-ivory)' : 'var(--color-warm-white)'
 
                 return (
-                  <Link
-                    key={client.id}
-                    href={`/clients/${client.id}`}
-                    style={{ display: 'contents' }}
-                  >
                     <tr
-                      style={{ background: rowBg, cursor: 'pointer', height: 32 }}
+                      key={client.id}
+                      onClick={() => router.push(`/clients/${client.id}`)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/clients/${client.id}`) } }}
+                      className="cursor-pointer"
+                      tabIndex={0}
+                      role="link"
+                      style={{ background: rowBg, height: 32 }}
                     >
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -388,7 +403,6 @@ export default function ClientsPage() {
                         )}
                       </td>
                     </tr>
-                  </Link>
                 )
               })}
             </tbody>

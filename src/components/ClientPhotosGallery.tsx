@@ -265,7 +265,7 @@ export default function ClientPhotosGallery({ clientId }: { clientId: string }) 
                   >
                     <Image
                       src={photo.image_url}
-                      alt={photo.caption || photo.photo_type}
+                      alt={photo.caption || photo.photo_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       fill
                       sizes="(max-width: 768px) 33vw, 200px"
                       className="object-cover"
@@ -295,7 +295,7 @@ export default function ClientPhotosGallery({ clientId }: { clientId: string }) 
                   >
                     <Image
                       src={photo.image_url}
-                      alt={photo.caption || photo.photo_type}
+                      alt={photo.caption || photo.photo_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       fill
                       sizes="(max-width: 768px) 33vw, 200px"
                       className="object-cover"
@@ -318,7 +318,7 @@ export default function ClientPhotosGallery({ clientId }: { clientId: string }) 
       {selectedPhoto && (
         <div
           className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-          onClick={() => { setSelectedPhoto(null); setConfirmingDelete(false) }}
+          onClick={() => { if (!confirmingDelete) setSelectedPhoto(null) }}
           role="dialog"
           aria-modal="true"
           aria-label="Photo detail"
@@ -331,7 +331,7 @@ export default function ClientPhotosGallery({ clientId }: { clientId: string }) 
             <div className="relative">
               <Image
                 src={selectedPhoto.image_url}
-                alt={selectedPhoto.caption || ''}
+                alt={selectedPhoto.caption || selectedPhoto.photo_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                 width={800}
                 height={600}
                 className="w-full rounded-t-2xl"

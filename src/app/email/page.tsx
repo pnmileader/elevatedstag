@@ -126,94 +126,96 @@ export default function EmailPage() {
         ) : (
           <>
             {/* Quick Send Tab */}
-            {activeTab === 'compose' && (
-              <div role="tabpanel" id="panel-compose" aria-labelledby="tab-compose">
-                <QuickSendForm templates={templates} />
-              </div>
-            )}
+            <div role="tabpanel" id="panel-compose" aria-labelledby="tab-compose" hidden={activeTab !== 'compose'}>
+              {activeTab === 'compose' && <QuickSendForm templates={templates} />}
+            </div>
 
             {/* Templates Tab */}
-            {activeTab === 'templates' && (
-              <div role="tabpanel" id="panel-templates" aria-labelledby="tab-templates" className="bg-white rounded border border-gray-med p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-body font-medium">Email Templates</h3>
-                  <Link
-                    href="/email/templates"
-                    className="text-gold hover:text-gold-light font-body text-sm font-medium"
-                  >
-                    Manage Templates →
-                  </Link>
-                </div>
-                {templates.length === 0 ? (
-                  <div className="text-center py-3">
-                    <FileText className="w-12 h-12 text-gray-med mx-auto mb-4" />
-                    <p className="font-body text-gray-dark mb-3">No templates yet</p>
-                    <Link href="/email/templates" className="text-gold hover:text-gold-light font-body text-sm font-medium">
-                      Create your first template →
+            <div role="tabpanel" id="panel-templates" aria-labelledby="tab-templates" hidden={activeTab !== 'templates'}>
+              {activeTab === 'templates' && (
+                <div className="bg-white rounded border border-gray-med p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-body font-medium">Email Templates</h3>
+                    <Link
+                      href="/email/templates"
+                      className="text-gold hover:text-gold-light font-body text-sm font-medium"
+                    >
+                      Manage Templates →
                     </Link>
                   </div>
-                ) : (
-                  <div className="divide-y divide-gray-light">
-                    {templates.map(template => (
-                      <div key={template.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between">
-                        <div>
-                          <h4 className="font-body font-medium">{template.name}</h4>
-                          <p className="font-body text-sm text-gray-dark">Subject: {template.subject}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Link href={`/email/templates`} className="text-gray-dark hover:text-body font-body text-xs">
-                            Edit
-                          </Link>
-                          <Link href={`/email/compose?template=${template.id}`} className="text-gold hover:text-gold-light font-body text-sm font-medium">
-                            Use →
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Sent History Tab */}
-            {activeTab === 'sent' && (
-              <div role="tabpanel" id="panel-sent" aria-labelledby="tab-sent" className="bg-white rounded border border-gray-med overflow-hidden">
-                <div className="divide-y divide-gray-light">
-                  {sentEmails.length === 0 ? (
-                    <div className="p-3 text-center">
-                      <Mail className="w-12 h-12 text-gray-med mx-auto mb-4" />
-                      <p className="font-body text-gray-dark">No emails sent yet</p>
+                  {templates.length === 0 ? (
+                    <div className="text-center py-3">
+                      <FileText className="w-12 h-12 text-gray-med mx-auto mb-4" />
+                      <p className="font-body text-gray-dark mb-3">No templates yet</p>
+                      <Link href="/email/templates" className="text-gold hover:text-gold-light font-body text-sm font-medium">
+                        Create your first template →
+                      </Link>
                     </div>
                   ) : (
-                    sentEmails.map(email => (
-                      <div key={email.id} className="p-5">
-                        <div className="flex items-start justify-between">
+                    <div className="divide-y divide-gray-light">
+                      {templates.map(template => (
+                        <div key={template.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between">
                           <div>
-                            <h3 className="font-body font-medium">{email.subject}</h3>
-                            <p className="font-body text-sm text-gray-dark mt-1">
-                              To: {email.to_email}
-                              {email.clients && (
-                                <span className="ml-2 text-gray-dark">
-                                  ({email.clients.first_name} {email.clients.last_name})
-                                </span>
-                              )}
-                            </p>
+                            <h4 className="font-body font-medium">{template.name}</h4>
+                            <p className="font-body text-sm text-gray-dark">Subject: {template.subject}</p>
                           </div>
-                          <span className="font-body text-xs text-gray-dark">
-                            {new Date(email.sent_at).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                            })}
-                          </span>
+                          <div className="flex items-center gap-3">
+                            <Link href={`/email/templates`} className="text-gray-dark hover:text-body font-body text-xs">
+                              Edit
+                            </Link>
+                            <Link href={`/email/compose?template=${template.id}`} className="text-gold hover:text-gold-light font-body text-sm font-medium">
+                              Use →
+                            </Link>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Sent History Tab */}
+            <div role="tabpanel" id="panel-sent" aria-labelledby="tab-sent" hidden={activeTab !== 'sent'}>
+              {activeTab === 'sent' && (
+                <div className="bg-white rounded border border-gray-med overflow-hidden">
+                  <div className="divide-y divide-gray-light">
+                    {sentEmails.length === 0 ? (
+                      <div className="p-3 text-center">
+                        <Mail className="w-12 h-12 text-gray-med mx-auto mb-4" />
+                        <p className="font-body text-gray-dark">No emails sent yet</p>
+                      </div>
+                    ) : (
+                      sentEmails.map(email => (
+                        <div key={email.id} className="p-5">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="font-body font-medium">{email.subject}</h3>
+                              <p className="font-body text-sm text-gray-dark mt-1">
+                                To: {email.to_email}
+                                {email.clients && (
+                                  <span className="ml-2 text-gray-dark">
+                                    ({email.clients.first_name} {email.clients.last_name})
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                            <span className="font-body text-xs text-gray-dark">
+                              {new Date(email.sent_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>

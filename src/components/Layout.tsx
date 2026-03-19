@@ -44,7 +44,7 @@ export default function Layout({
 
         {/* Right: action button */}
         <div className="flex items-center gap-2">
-          <Link href="/clients" className="w-10 h-10 flex items-center justify-center text-ink-muted">
+          <Link href="/clients" aria-label="Search clients" className="w-11 h-11 flex items-center justify-center text-ink-muted">
             <Search className="w-5 h-5" />
           </Link>
           {action ? action : showNewClient && (
@@ -92,7 +92,7 @@ function TabItem({
     <Link
       href={href}
       className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
-        active ? 'text-gold' : 'text-paper/40'
+        active ? 'text-gold' : 'text-paper/60'
       }`}
     >
       <span className="w-5 h-5">{icon}</span>

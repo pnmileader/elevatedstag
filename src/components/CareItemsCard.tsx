@@ -218,6 +218,7 @@ function CareItemRow({
         disabled={toggling}
         role="checkbox"
         aria-checked={item.completed}
+        aria-labelledby={`care-title-${item.id}`}
         aria-label={`Mark "${item.title}" as ${item.completed ? 'incomplete' : 'complete'}`}
         className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
           item.completed
@@ -233,7 +234,7 @@ function CareItemRow({
       </button>
 
       <div className="flex-1 min-w-0">
-        <p className={`font-body text-sm leading-relaxed ${item.completed ? 'line-through text-gray-dark' : ''}`}>
+        <p id={`care-title-${item.id}`} className={`font-body text-sm leading-relaxed ${item.completed ? 'line-through text-gray-dark' : ''}`}>
           {item.title}
         </p>
         {item.due_date && !item.completed && (
@@ -249,7 +250,7 @@ function CareItemRow({
       </div>
 
       {confirmingDelete ? (
-        <span className="flex items-center gap-1 font-body text-xs text-gray-dark">
+        <span role="alertdialog" aria-label="Confirm deletion" className="flex items-center gap-1 font-body text-xs text-gray-dark">
           Delete?
           <button
             onClick={onDeleteConfirm}
@@ -270,7 +271,7 @@ function CareItemRow({
         <button
           onClick={onDeleteRequest}
           aria-label={`Delete "${item.title}"`}
-          className="opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:opacity-100 text-gray-dark hover:text-red-500 transition-opacity p-1"
+          className="text-ink-muted focus:text-error focus-visible:text-error active:text-error focus:opacity-100 focus-visible:opacity-100 transition-colors p-1"
         >
           <span className="text-xs">&#10005;</span>
         </button>

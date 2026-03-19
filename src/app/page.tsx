@@ -196,7 +196,7 @@ export default function DashboardPage() {
         {/* ===== REVENUE — first thing she looks at ===== */}
         <section>
           <div className="es-section-header">Revenue</div>
-          <div className="grid grid-cols-3 gap-px bg-rule">
+          <div className="grid grid-cols-3 gap-px bg-rule border border-rule">
             <div className="bg-surface" style={{ padding: '16px 20px' }}>
               <div className="es-label mb-1">This Month</div>
               <div className="es-metric">${stats.revenueThisMonth.toLocaleString()}</div>
@@ -222,18 +222,22 @@ export default function DashboardPage() {
           <Link href="/clients" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
             <div className="es-label mb-0.5">Clients</div>
             <div className="es-metric-sm">{stats.totalClients}</div>
+            <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
           </Link>
           <Link href="/orders" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
             <div className="es-label mb-0.5">In Progress</div>
             <div className={`es-metric-sm ${stats.ordersInProgress > 0 ? 'text-gold' : ''}`}>{stats.ordersInProgress}</div>
+            <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
           </Link>
           <Link href="/clients?stage=vip" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
             <div className="es-label mb-0.5">VIP</div>
             <div className="es-metric-sm">{stats.vipClients}</div>
+            <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
           </Link>
           <Link href="/clients?stage=active" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
             <div className="es-label mb-0.5">Active</div>
             <div className="es-metric-sm">{stats.activeClients}</div>
+            <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
           </Link>
         </div>
 

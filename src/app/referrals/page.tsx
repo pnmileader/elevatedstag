@@ -73,63 +73,93 @@ export default function ReferralsPage() {
   }, [referrals, sortField, sortDir])
 
   function handlePrint() {
-    function escapeHtml(str: string) {
-      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
 
-    const rows = sorted.map(r => `
-      <tr>
-        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;">${escapeHtml(r.first_name)} ${escapeHtml(r.last_name)}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;">${r.phone ? escapeHtml(r.phone) : '\u2014'}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;">${r.referred_by ? escapeHtml(r.referred_by) : '\u2014'}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;">${r.last_contact_date ? new Date(r.last_contact_date).toLocaleDateString() : 'Never'}</td>
-      </tr>
-    `).join('')
-
     const doc = printWindow.document
-    doc.open()
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-      <head><title>Referral List</title></head>
-      <body style="font-family:Inter,system-ui,sans-serif;padding:40px;max-width:800px;margin:0 auto;">
-        <h1 style="font-size:18px;margin-bottom:4px;">The Elevated Stag \u2014 Referral List</h1>
-        <p style="font-size:12px;color:#888;margin-bottom:24px;">${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="background:#f5f5f5;">
-              <th style="text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#888;">Name</th>
-              <th style="text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#888;">Phone</th>
-              <th style="text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#888;">Referred By</th>
-              <th style="text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#888;">Last Contact</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <p style="font-size:10px;color:#aaa;margin-top:24px;">${sorted.length} referrals</p>
-      </body>
-      </html>
-    `)
-    doc.close()
+    const cellStyle = 'padding:6px 12px;border-bottom:1px solid #eee;font-size:13px;'
+    const thStyle = 'text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#888;'
+
+    // Set title
+    doc.title = 'Referral List'
+
+    // Style the body
+    const body = doc.body
+    body.style.cssText = 'font-family:Inter,system-ui,sans-serif;padding:40px;max-width:800px;margin:0 auto;'
+
+    // Create heading
+    const h1 = doc.createElement('h1')
+    h1.style.cssText = 'font-size:18px;margin-bottom:4px;'
+    h1.textContent = 'The Elevated Stag \u2014 Referral List'
+    body.appendChild(h1)
+
+    // Create date paragraph
+    const datePara = doc.createElement('p')
+    datePara.style.cssText = 'font-size:12px;color:#888;margin-bottom:24px;'
+    datePara.textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    body.appendChild(datePara)
+
+    // Create table
+    const table = doc.createElement('table')
+    table.style.cssText = 'width:100%;border-collapse:collapse;'
+
+    // Create thead
+    const thead = doc.createElement('thead')
+    const headerRow = doc.createElement('tr')
+    headerRow.style.cssText = 'background:#f5f5f5;'
+    const headers = ['Name', 'Phone', 'Referred By', 'Last Contact']
+    headers.forEach(text => {
+      const th = doc.createElement('th')
+      th.style.cssText = thStyle
+      th.textContent = text
+      headerRow.appendChild(th)
+    })
+    thead.appendChild(headerRow)
+    table.appendChild(thead)
+
+    // Create tbody
+    const tbody = doc.createElement('tbody')
+    sorted.forEach(r => {
+      const tr = doc.createElement('tr')
+      const values = [
+        `${r.first_name} ${r.last_name}`,
+        r.phone || '\u2014',
+        r.referred_by || '\u2014',
+        r.last_contact_date ? new Date(r.last_contact_date).toLocaleDateString() : 'Never',
+      ]
+      values.forEach(val => {
+        const td = doc.createElement('td')
+        td.style.cssText = cellStyle
+        td.textContent = val
+        tr.appendChild(td)
+      })
+      tbody.appendChild(tr)
+    })
+    table.appendChild(tbody)
+    body.appendChild(table)
+
+    // Create footer
+    const footer = doc.createElement('p')
+    footer.style.cssText = 'font-size:10px;color:#aaa;margin-top:24px;'
+    footer.textContent = `${sorted.length} referrals`
+    body.appendChild(footer)
+
     printWindow.print()
   }
 
   const SortHeader = ({ field, label }: { field: SortField; label: string }) => (
     <th
-      onClick={() => toggleSort(field)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort(field); } }}
-      tabIndex={0}
-      role="button"
       aria-sort={sortField === field ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-      className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-gray-dark font-medium cursor-pointer hover:text-body select-none"
+      className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-gray-dark font-medium"
     >
-      <span className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => toggleSort(field)}
+        className="flex items-center gap-1 bg-transparent border-none cursor-pointer text-inherit font-inherit p-0"
+      >
         {label}
         <ArrowUpDown className="w-3 h-3" />
-      </span>
+      </button>
     </th>
   )
 

@@ -22,6 +22,8 @@
   --color-warning: #B8860B;
   --color-error: #A63D2F;
   --color-info: #4A7FB5;
+  --color-status-pencil: #7C5CBF;
+  --color-status-ship: #2D8C8C;
   --font-serif: 'Libre Baskerville', 'Georgia', serif;
   --font-sans: 'Source Sans 3', system-ui, -apple-system, sans-serif;
 }
@@ -161,7 +163,7 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; }
   transition: opacity 100ms;
 }
 .es-btn:active { opacity: 0.7; }
-.es-btn-primary { background: var(--color-charcoal); color: #F8F6F1; }
+.es-btn-primary { background: var(--color-charcoal); color: var(--color-paper); }
 .es-btn-secondary { background: transparent; color: var(--color-ink); border: 1px solid var(--color-rule); }
 .es-btn-ghost {
   background: transparent;
@@ -191,10 +193,10 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; }
   flex-shrink: 0;
 }
 .es-status-ordered::before { background: var(--color-ink-muted); }
-.es-status-blue_pencil::before { background: #7C5CBF; }
+.es-status-blue_pencil::before { background: var(--color-status-pencil); }
 .es-status-cutting::before { background: var(--color-info); }
 .es-status-sewing::before { background: var(--color-warning); }
-.es-status-shipping::before { background: #2D8C8C; }
+.es-status-shipping::before { background: var(--color-status-ship); }
 .es-status-delivered::before { background: var(--color-success); }
 
 /* Avatar */
@@ -225,7 +227,7 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; }
   color: var(--color-ink);
   width: 100%;
 }
-.es-input:focus { outline: none; border-color: var(--color-gold); }
+.es-input:focus { outline: none; border-color: var(--color-gold); box-shadow: 0 0 0 2px rgba(130, 109, 60, 0.2); }
 .es-input::placeholder { color: var(--color-ink-muted); }
 
 /* Divider */

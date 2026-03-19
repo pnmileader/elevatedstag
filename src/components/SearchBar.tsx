@@ -134,6 +134,7 @@ export default function SearchBar() {
           aria-expanded={showResults && query.trim().length > 0}
           aria-autocomplete="list"
           aria-controls="search-results-listbox"
+          aria-owns="search-results-listbox"
           aria-activedescendant={highlightedIndex >= 0 ? `search-result-${highlightedIndex}` : undefined}
           aria-label="Search clients, orders, fabrics"
           value={query}
@@ -154,7 +155,7 @@ export default function SearchBar() {
               setHighlightedIndex(-1)
             }}
             aria-label="Clear search"
-            className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-dark hover:text-body"
+            className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-gray-dark hover:text-body"
           >
             <X className="w-4 h-4" />
           </button>
