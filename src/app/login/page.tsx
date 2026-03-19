@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
 
 const MAX_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
@@ -30,7 +29,12 @@ function getStoredLockout(): number | null {
 
 export default function LoginPage() {
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useMemo(() => {
+    // Dynamic import to prevent SSR prerender from failing when env vars aren't available
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createClient } = require('@/lib/supabase')
+    return createClient()
+  }, [])
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
