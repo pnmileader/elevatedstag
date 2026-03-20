@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { quickBooksRequest, getValidAccessToken } from '@/lib/quickbooks'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { id } = await params
-  const supabase = createClient()
 
   try {
     // Get the client's QuickBooks ID
@@ -41,8 +46,9 @@ export async function GET(
     }
 
     // Fetch invoices for this customer
+    const sanitizedQbId = client.quickbooks_id.replace(/[^a-zA-Z0-9-]/g, '')
     const invoicesResponse = await quickBooksRequest(
-      `/query?query=SELECT * FROM Invoice WHERE CustomerRef = '${client.quickbooks_id}'`
+      `/query?query=SELECT * FROM Invoice WHERE CustomerRef = '${sanitizedQbId}'`
     )
 
     const invoices = invoicesResponse.QueryResponse?.Invoice || []

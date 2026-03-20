@@ -6,9 +6,12 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const error = searchParams.get('error')
 
-  console.log('Google callback received')
-  console.log('Code:', code ? 'present' : 'missing')
-  console.log('Error:', error)
+  // Validate OAuth state to prevent CSRF
+  const state = searchParams.get('state')
+  const storedState = request.cookies.get('google_oauth_state')?.value
+  if (!state || !storedState || state !== storedState) {
+    return NextResponse.redirect(new URL('/settings?google_error=invalid_state', request.url))
+  }
 
   if (error) {
     console.error('Google OAuth error:', error)
@@ -30,7 +33,6 @@ export async function GET(request: NextRequest) {
 
   try {
     // Exchange code for tokens
-    console.log('Exchanging code for tokens...')
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -46,18 +48,15 @@ export async function GET(request: NextRequest) {
     })
 
     const tokenText = await tokenResponse.text()
-    console.log('Token response status:', tokenResponse.status)
-    console.log('Token response:', tokenText)
 
     if (!tokenResponse.ok) {
-      console.error('Token exchange failed:', tokenText)
+      console.error('Token exchange failed:', tokenResponse.status)
       return NextResponse.redirect(new URL('/settings?google_error=token_exchange_failed', request.url))
     }
 
     const tokenData = JSON.parse(tokenText)
 
     // Get user email
-    console.log('Fetching user info...')
     const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
@@ -65,9 +64,7 @@ export async function GET(request: NextRequest) {
     })
 
     const userInfo = await userInfoResponse.json()
-    console.log('User info response:', userInfo)
     const email = userInfo.email
-    console.log('User email:', email)
 
     if (!email) {
       console.error('No email in user info response')
@@ -80,7 +77,7 @@ export async function GET(request: NextRequest) {
 
     // Check if we have a refresh token (Google only sends it on first auth or when prompt=consent)
     const refreshToken = tokenData.refresh_token || null
-    
+
     if (!refreshToken) {
       // Try to get existing refresh token from database
       const { data: existingToken } = await supabase
@@ -88,7 +85,7 @@ export async function GET(request: NextRequest) {
         .select('refresh_token')
         .eq('email', email)
         .single()
-      
+
       if (existingToken?.refresh_token) {
         // Update with new access token but keep existing refresh token
         const { error: updateError } = await supabase
@@ -128,8 +125,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log('Google tokens stored successfully!')
-    return NextResponse.redirect(new URL('/settings?google_connected=true', request.url))
+    const successResponse = NextResponse.redirect(new URL('/settings?google_connected=true', request.url))
+    successResponse.cookies.delete('google_oauth_state')
+    return successResponse
 
   } catch (err) {
     console.error('Google OAuth callback error:', err)

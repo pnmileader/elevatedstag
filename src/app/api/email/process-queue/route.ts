@@ -3,14 +3,11 @@ import { createClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/gmail'
 
 export async function POST(request: Request) {
-  // Optional: Add a secret key check for security
   const { searchParams } = new URL(request.url)
   const secret = searchParams.get('secret')
-  
-  // In production, check against an environment variable
-  // if (secret !== process.env.CRON_SECRET) {
-  //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  // }
+  if (secret !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const supabase = createClient()
   

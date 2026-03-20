@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/gmail'
-import { createClient } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { clientId, to, subject, emailBody, templateId } = body
 
@@ -22,7 +28,6 @@ export async function POST(request: NextRequest) {
     })
 
     // Log the sent email
-    const supabase = createClient()
     await supabase.from('sent_emails').insert({
       client_id: clientId || null,
       to_email: to,

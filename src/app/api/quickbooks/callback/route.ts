@@ -8,13 +8,12 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error')
   const errorDescription = searchParams.get('error_description')
 
-  // Log everything we receive for debugging
-  console.log('QuickBooks callback received:')
-  console.log('- code:', code ? 'present' : 'missing')
-  console.log('- realmId:', realmId)
-  console.log('- error:', error)
-  console.log('- errorDescription:', errorDescription)
-  console.log('- Full URL:', request.url)
+  // Validate OAuth state to prevent CSRF
+  const state = searchParams.get('state')
+  const storedState = request.cookies.get('quickbooks_oauth_state')?.value
+  if (!state || !storedState || state !== storedState) {
+    return NextResponse.redirect(new URL('/settings?qb_error=invalid_state', request.url))
+  }
 
   if (error) {
     console.error('QuickBooks OAuth error:', error, errorDescription)
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!code || !realmId) {
-    console.error('Missing params - code:', !!code, 'realmId:', !!realmId)
+    console.error('Missing required OAuth params')
     return NextResponse.redirect(new URL('/settings?qb_error=missing_params', request.url))
   }
 
@@ -37,13 +36,9 @@ export async function GET(request: NextRequest) {
   try {
     // Exchange authorization code for tokens
     const tokenUrl = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer'
-    
+
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-    
-    console.log('Exchanging code for tokens...')
-    console.log('- Token URL:', tokenUrl)
-    console.log('- Redirect URI:', redirectUri)
-    
+
     const tokenResponse = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
@@ -59,11 +54,9 @@ export async function GET(request: NextRequest) {
     })
 
     const responseText = await tokenResponse.text()
-    console.log('Token response status:', tokenResponse.status)
-    console.log('Token response:', responseText)
 
     if (!tokenResponse.ok) {
-      console.error('Token exchange failed:', responseText)
+      console.error('Token exchange failed:', tokenResponse.status)
       return NextResponse.redirect(new URL('/settings?qb_error=token_exchange_failed', request.url))
     }
 
@@ -76,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     // Store tokens in Supabase
     const supabase = createClient()
-    
+
     const { error: dbError } = await supabase
       .from('quickbooks_tokens')
       .upsert({
@@ -95,8 +88,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/settings?qb_error=storage_failed', request.url))
     }
 
-    console.log('QuickBooks connected successfully!')
-    return NextResponse.redirect(new URL('/settings?qb_connected=true', request.url))
+    const successResponse = NextResponse.redirect(new URL('/settings?qb_connected=true', request.url))
+    successResponse.cookies.delete('quickbooks_oauth_state')
+    return successResponse
 
   } catch (err) {
     console.error('OAuth callback error:', err)

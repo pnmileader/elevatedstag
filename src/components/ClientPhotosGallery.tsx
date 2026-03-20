@@ -96,11 +96,34 @@ export default function ClientPhotosGallery({ clientId }: { clientId: string }) 
 
     setUploading(true)
     setUploadError(null)
+
+    // Validate file
+    const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic']
+
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError('File too large. Maximum size is 10MB.')
+      setUploading(false)
+      return
+    }
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setUploadError('Invalid file type. Please upload a JPEG, PNG, or WebP image.')
+      setUploading(false)
+      return
+    }
+
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'heic']
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || ''
+    if (!allowedExts.includes(fileExt)) {
+      setUploadError('Invalid file extension.')
+      setUploading(false)
+      return
+    }
+
     const supabase = createClient()
 
     try {
       // Upload to Supabase Storage
-      const fileExt = file.name.split('.').pop()
       const fileName = `${clientId}/${Date.now()}.${fileExt}`
 
       const { data: uploadData, error: storageError } = await supabase
