@@ -103,13 +103,13 @@ function SettingsContent() {
         {googleSuccess && (
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-3 font-body flex items-center gap-2">
             <CheckCircle className="w-5 h-5" />
-            Successfully connected to Google Calendar!
+            Successfully connected to Google (Calendar & Email)!
           </div>
         )}
         {googleError && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-3 font-body flex items-center gap-2">
             <XCircle className="w-5 h-5" />
-            Failed to connect to Google Calendar: {googleError}
+            Failed to connect to Google: {googleError}
           </div>
         )}
 
@@ -212,9 +212,9 @@ function SettingsContent() {
                 <Calendar className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="font-heading text-base font-medium text-body">Google Calendar</h2>
+                <h2 className="font-heading text-base font-medium text-body">Google (Calendar & Email)</h2>
                 <p className="font-body text-sm text-gray-dark">
-                  Sync appointments and schedule fittings
+                  Sync appointments, schedule fittings, and send emails
                 </p>
               </div>
             </div>
@@ -233,7 +233,7 @@ function SettingsContent() {
                 href="/api/google/connect"
                 className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded font-body font-medium text-sm flex items-center gap-2 transition-colors"
               >
-                Connect Google Calendar
+                Connect Google
               </a>
             )}
           </div>
