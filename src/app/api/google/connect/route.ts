@@ -8,11 +8,11 @@ export async function GET() {
     return NextResponse.json({ error: 'Google not configured' }, { status: 500 })
   }
 
-  // Calendar scopes only — gmail.send is a restricted scope that
-  // requires Google verification. Will add back after verification.
+  // Calendar + Gmail scopes
   const scopes = [
     'https://www.googleapis.com/auth/calendar',
     'https://www.googleapis.com/auth/calendar.events',
+    'https://www.googleapis.com/auth/gmail.send',
     'https://www.googleapis.com/auth/userinfo.email',
   ]
 
