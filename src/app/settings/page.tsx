@@ -212,9 +212,9 @@ function SettingsContent() {
                 <Calendar className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="font-heading text-base font-medium text-body">Google (Calendar & Email)</h2>
+                <h2 className="font-heading text-base font-medium text-body">Google Calendar</h2>
                 <p className="font-body text-sm text-gray-dark">
-                  Sync appointments, schedule fittings, and send emails
+                  Sync appointments and schedule fittings
                 </p>
               </div>
             </div>
