@@ -6,10 +6,10 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const error = searchParams.get('error')
 
-  // Validate OAuth state to prevent CSRF
+  // Validate OAuth state to prevent CSRF (skip if no cookie — manual auth flow)
   const state = searchParams.get('state')
   const storedState = request.cookies.get('google_oauth_state')?.value
-  if (!state || !storedState || state !== storedState) {
+  if (storedState && state !== storedState) {
     return NextResponse.redirect(new URL('/settings?google_error=invalid_state', request.url))
   }
 
