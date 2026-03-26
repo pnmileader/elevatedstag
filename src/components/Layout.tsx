@@ -1,8 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Plus, Users, Clock, TrendingUp, Calendar, Settings, Search, LogOut } from 'lucide-react'
+import { Plus, Users, Clock, TrendingUp, Calendar, Settings, Search, LogOut, Mail, UserPlus, X } from 'lucide-react'
 
 type LayoutProps = {
   children: React.ReactNode
@@ -10,9 +11,7 @@ type LayoutProps = {
   showSearch?: boolean
   showNewClient?: boolean
   showTrinity?: boolean
-  /** Override the right-side action button */
   action?: React.ReactNode
-  /** Page title shown in top bar */
   title?: string
 }
 
@@ -24,15 +23,16 @@ export default function Layout({
   title,
 }: LayoutProps) {
   const pathname = usePathname()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   return (
     <div className="h-[100dvh] flex flex-col bg-paper">
 
-      {/* ===== TOP BAR — 52px ===== */}
+      {/* ===== TOP BAR ===== */}
       <header className="flex-shrink-0 h-[52px] flex items-center justify-between px-4 border-b border-rule bg-surface">
-        {/* Left: brand mark + optional title */}
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2">
+        {/* Left: brand + title */}
+        <div className="flex items-center gap-3 min-w-0">
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <div className="w-8 h-8 bg-charcoal flex items-center justify-center rounded-sm">
               <span className="font-serif text-paper text-[11px] font-bold tracking-wider">ES</span>
             </div>
@@ -42,19 +42,14 @@ export default function Layout({
           )}
         </div>
 
-        {/* Right: action button */}
-        <div className="flex items-center gap-2">
+        {/* Right: settings gear, search, action, logout */}
+        <div className="flex items-center gap-1 flex-shrink-0">
           <button
-            onClick={async () => {
-              const { createClient } = await import('@/lib/supabase')
-              const supabase = createClient()
-              await supabase.auth.signOut()
-              window.location.href = '/login'
-            }}
+            onClick={() => setMenuOpen(!menuOpen)}
             className="w-11 h-11 flex items-center justify-center text-ink-muted"
-            aria-label="Sign out"
+            aria-label="Settings menu"
           >
-            <LogOut className="w-5 h-5" />
+            <Settings className="w-5 h-5" />
           </button>
           <Link href="/clients" aria-label="Search clients" className="w-11 h-11 flex items-center justify-center text-ink-muted">
             <Search className="w-5 h-5" />
@@ -68,21 +63,59 @@ export default function Layout({
         </div>
       </header>
 
-      {/* ===== MAIN CONTENT — scrollable ===== */}
+      {/* ===== SETTINGS/MORE DROPDOWN ===== */}
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+          <div className="absolute right-4 top-[52px] z-50 bg-surface border border-rule shadow-md" style={{ minWidth: 200 }}>
+            <Link
+              href="/referrals"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-ink hover:bg-paper border-b border-rule"
+            >
+              <UserPlus className="w-4 h-4 text-ink-muted" />
+              <span className="font-sans text-[14px]">Referrals</span>
+            </Link>
+            <Link
+              href="/settings"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-ink hover:bg-paper border-b border-rule"
+            >
+              <Settings className="w-4 h-4 text-ink-muted" />
+              <span className="font-sans text-[14px]">Settings</span>
+            </Link>
+            <button
+              onClick={async () => {
+                setMenuOpen(false)
+                const { createClient } = await import('@/lib/supabase')
+                const supabase = createClient()
+                await supabase.auth.signOut()
+                window.location.href = '/login'
+              }}
+              className="flex items-center gap-3 px-4 py-3 text-ink hover:bg-paper w-full text-left"
+            >
+              <LogOut className="w-4 h-4 text-ink-muted" />
+              <span className="font-sans text-[14px]">Sign Out</span>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ===== MAIN CONTENT ===== */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 20px' }}>
           {children}
         </div>
       </main>
 
-      {/* ===== BOTTOM TAB BAR — iOS style ===== */}
+      {/* ===== BOTTOM TAB BAR ===== */}
       <nav className="es-tab-bar flex-shrink-0 bg-charcoal border-t border-charcoal-light" role="navigation" aria-label="Main navigation">
         <div className="flex items-stretch h-[56px]">
           <TabItem href="/" icon={<TrendingUp />} label="Dashboard" active={currentPage === 'dashboard' || pathname === '/'} />
           <TabItem href="/clients" icon={<Users />} label="Clients" active={currentPage === 'clients' || pathname?.startsWith('/clients')} />
           <TabItem href="/orders" icon={<Clock />} label="Orders" active={currentPage === 'orders' || pathname?.startsWith('/orders')} />
           <TabItem href="/calendar" icon={<Calendar />} label="Calendar" active={currentPage === 'calendar' || pathname?.startsWith('/calendar')} />
-          <TabItem href="/settings" icon={<Settings />} label="More" active={currentPage === 'settings' || currentPage === 'email' || currentPage === 'referrals'} />
+          <TabItem href="/email" icon={<Mail />} label="Email" active={currentPage === 'email' || pathname?.startsWith('/email')} />
         </div>
       </nav>
     </div>
