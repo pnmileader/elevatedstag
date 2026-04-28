@@ -22,6 +22,6 @@ export async function GET() {
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`
 
   const response = NextResponse.redirect(authUrl)
-  response.cookies.set('google_oauth_state', state, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 600 })
+  response.cookies.set('google_oauth_state', state, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 600 })
   return response
 }

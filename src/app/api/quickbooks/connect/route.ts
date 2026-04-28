@@ -15,6 +15,6 @@ export async function GET() {
   const authUrl = `https://appcenter.intuit.com/connect/oauth2?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent('com.intuit.quickbooks.accounting')}&state=${state}`
 
   const response = NextResponse.redirect(authUrl)
-  response.cookies.set('quickbooks_oauth_state', state, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 600 })
+  response.cookies.set('quickbooks_oauth_state', state, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 600 })
   return response
 }
