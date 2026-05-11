@@ -1,5 +1,125 @@
 import { createClient } from '@/lib/supabase'
 
+export type LineItemCategory = 'custom' | 'ready_made' | 'service' | 'discount' | 'unknown'
+export type GarmentType = 'suit' | 'jacket' | 'pant' | 'shirt' | 'vest' | 'sport_coat' | 'other'
+
+export interface ParsedLineItem {
+  category: LineItemCategory
+  brand?: string
+  garment_type?: GarmentType
+  size?: string
+  code?: string
+}
+
+const CUSTOM_CODE_MAP: Array<{ code: string; garment: GarmentType }> = [
+  { code: 'CCVP', garment: 'suit' },
+  { code: 'COVP', garment: 'suit' },
+  { code: 'CCP',  garment: 'suit' },
+  { code: 'COP',  garment: 'suit' },
+  { code: 'CSC',  garment: 'sport_coat' },
+  { code: 'CSHT', garment: 'shirt' },
+  { code: 'CSH',  garment: 'shirt' },
+  { code: 'COF',  garment: 'other' },
+  { code: 'CT',   garment: 'pant' },
+  { code: 'CV',   garment: 'vest' },
+  { code: 'CC',   garment: 'jacket' },
+]
+
+const GENERIC_GARMENT_WORDS: Array<{ pattern: RegExp; garment: GarmentType }> = [
+  { pattern: /\bsuit\b/i,        garment: 'suit' },
+  { pattern: /\bsport[\s-]?coat\b/i, garment: 'sport_coat' },
+  { pattern: /\bjacket\b/i,      garment: 'jacket' },
+  { pattern: /\bcoat\b/i,        garment: 'jacket' },
+  { pattern: /\b(pant|trouser)s?\b/i, garment: 'pant' },
+  { pattern: /\bvest\b/i,        garment: 'vest' },
+  { pattern: /\bshirt\b/i,       garment: 'shirt' },
+  { pattern: /\bshorts?\b/i,     garment: 'pant' },
+]
+
+const READY_MADE_BRANDS: Array<{ pattern: RegExp; brand: string }> = [
+  { pattern: /magnann?i/i,        brand: 'Magnanni' },
+  { pattern: /34\s*heritage/i,    brand: '34 Heritage' },
+  { pattern: /7\s*diamonds/i,     brand: '7Diamonds' },
+]
+
+function parseSize(description: string): string | undefined {
+  if (!description) return undefined
+  const patterns: RegExp[] = [
+    /\bsize\s+([0-9]+(?:\.[0-9]+)?(?:\s*[x\/]\s*[0-9]+(?:\.[0-9]+)?)?)/i,
+    /\b([0-9]+\s*[x\/]\s*[0-9]+)\b/,
+    /\b([0-9]+\.[0-9]+)\b/,
+    /\b([0-9]{2,3})\b/,
+    /\b(XXL|XLarge|XL|XS|Small|Medium|Large)\b/i,
+  ]
+  for (const re of patterns) {
+    const m = description.match(re)
+    if (m) return m[1].replace(/\s+/g, '')
+  }
+  return undefined
+}
+
+export function parseInvoiceLineItem(productName: string, description: string = ''): ParsedLineItem {
+  const name = (productName || '').trim()
+  const desc = (description || '').trim()
+
+  if (!name) return { category: 'unknown' }
+
+  if (/\b(discount|friends\s*&?\s*family|adjustment|refund)\b/i.test(name)) {
+    return { category: 'discount' }
+  }
+
+  if (/\b(alterations?|styling\s*fee|service|consultation)\b/i.test(name)) {
+    return { category: 'service' }
+  }
+
+  for (const { pattern, brand } of READY_MADE_BRANDS) {
+    if (pattern.test(name)) {
+      return { category: 'ready_made', brand, size: parseSize(desc) }
+    }
+  }
+
+  if (/\bready[\s-]?made\b/i.test(name)) {
+    let brand: string | undefined
+    if (desc) {
+      const first = desc.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(' ')
+      brand = first || 'Unknown'
+    } else {
+      brand = 'Unknown'
+    }
+    return { category: 'ready_made', brand, size: parseSize(desc) }
+  }
+
+  for (const { code, garment } of CUSTOM_CODE_MAP) {
+    const re = new RegExp(`\\b${code}\\b`)
+    if (re.test(name)) {
+      return { category: 'custom', garment_type: garment, code, size: parseSize(desc) }
+    }
+  }
+
+  if (/\bcustom\b/i.test(name)) {
+    for (const { pattern, garment } of GENERIC_GARMENT_WORDS) {
+      if (pattern.test(name)) return { category: 'custom', garment_type: garment, size: parseSize(desc) }
+    }
+    return { category: 'custom', garment_type: 'other', size: parseSize(desc) }
+  }
+
+  for (const { pattern, garment } of GENERIC_GARMENT_WORDS) {
+    if (pattern.test(name)) {
+      const brandLeadingPattern = /^(wardrobe\s+styling\s+)?(magnann?i|34\s*heritage|7\s*diamonds|peter\s+millar|canali|zegna)/i
+      if (brandLeadingPattern.test(name)) {
+        return { category: 'ready_made', brand: name.replace(/wardrobe\s+styling\s+/i, '').trim(), size: parseSize(desc) }
+      }
+      return { category: 'custom', garment_type: garment, size: parseSize(desc) }
+    }
+  }
+
+  if (/\b(belt|socks?|tie|pocket\s*square|cufflinks?|accessor(y|ies))\b/i.test(name)) {
+    return { category: 'ready_made', size: parseSize(desc) }
+  }
+
+  return { category: 'unknown' }
+}
+
 const QB_API_BASE_SANDBOX = 'https://sandbox-quickbooks.api.intuit.com'
 const QB_API_BASE_PRODUCTION = 'https://quickbooks.api.intuit.com'
 
