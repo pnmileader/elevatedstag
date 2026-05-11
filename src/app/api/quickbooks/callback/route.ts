@@ -1,3 +1,6 @@
+// DEPRECATED: This OAuth flow is not used. Email is sent via Resend (see src/lib/email.ts).
+// QuickBooks data is imported via CSV (see /settings/import).
+// Keeping this code in place for potential future use.
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase'
 

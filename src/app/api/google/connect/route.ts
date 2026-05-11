@@ -1,3 +1,6 @@
+// DEPRECATED: Gmail OAuth is no longer the active email path.
+// Email sending now goes through Resend (see src/lib/email.ts).
+// This file is kept on disk for potential future re-enablement.
 import { NextResponse } from 'next/server'
 
 export async function GET() {
