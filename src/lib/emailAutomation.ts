@@ -1,5 +1,23 @@
 import { createClient } from '@/lib/supabase'
-import { renderTemplate } from '@/lib/gmail'
+
+export function renderTemplate(
+  template: string,
+  variables: Record<string, string>,
+): string {
+  const unknownVars = new Set<string>()
+  const rendered = template.replace(/\{([A-Za-z0-9_]+)\}/g, (full, key: string) => {
+    const value = variables[key] ?? variables[key.toLowerCase()] ?? variables[key.toUpperCase()]
+    if (value === undefined || value === null || value === '') {
+      unknownVars.add(key)
+      return full
+    }
+    return value
+  })
+  for (const key of unknownVars) {
+    console.warn(`[email] Template variable {${key}} had no value; leaving literal in output`)
+  }
+  return rendered
+}
 
 interface Client {
   id: string
