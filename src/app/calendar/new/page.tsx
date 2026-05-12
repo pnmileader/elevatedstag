@@ -54,75 +54,36 @@ export default function NewAppointmentPage() {
     setError(null)
 
     try {
-      // Find selected client name
       const selectedClient = clients.find(c => c.id === clientId)
       const clientName = selectedClient
         ? `${selectedClient.first_name} ${selectedClient.last_name}`
         : ''
 
-      // Build event title
       const title = appointmentType === 'wardrobe'
         ? `Wardrobe Appointment${clientName ? ` - ${clientName}` : ''}`
         : `Fitting${clientName ? ` - ${clientName}` : ''}`
 
-      // Calculate start and end times
       const startDateTime = new Date(`${date}T${startTime}:00`)
       const endDateTime = new Date(startDateTime.getTime() + parseInt(duration) * 60 * 1000)
 
-      // Build description with client link
-      let description = ''
-      if (clientId && selectedClient) {
-        description = `Client: ${clientName}\nCRM Link: ${window.location.origin}/clients/${clientId}`
-      }
-      if (notes) {
-        description += description ? `\n\nNotes: ${notes}` : `Notes: ${notes}`
-      }
-
-      const response = await fetch('/api/calendar/events', {
+      const response = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          summary: title,
-          description,
-          location,
-          start: {
-            dateTime: startDateTime.toISOString(),
-            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-          end: {
-            dateTime: endDateTime.toISOString(),
-            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-        }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to create appointment')
-      }
-
-      // Also create an appointment record in our database
-      if (clientId) {
-        const supabase = createClient()
-        const eventData = await response.json()
-
-        await supabase.from('appointments').insert({
-          client_id: clientId,
-          google_event_id: eventData.id,
-          title,
+          client_id: clientId || null,
           appointment_type: appointmentType,
+          title,
           start_time: startDateTime.toISOString(),
           end_time: endDateTime.toISOString(),
           location: location || null,
           notes: notes || null,
           status: 'scheduled',
-        })
+        }),
+      })
 
-        // Update client's last_contact_date
-        await supabase
-          .from('clients')
-          .update({ last_contact_date: new Date().toISOString() })
-          .eq('id', clientId)
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to create appointment')
       }
 
       router.push('/calendar')

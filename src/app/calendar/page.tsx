@@ -1,39 +1,50 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, MapPin, User, Loader2, Calendar } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, MapPin, User, Loader2, Calendar, Download } from 'lucide-react'
 import Layout from '@/components/Layout'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase'
 
-interface CalendarEvent {
+interface AppointmentRow {
   id: string
-  summary: string
-  description?: string
-  location?: string
-  start: { dateTime?: string; date?: string }
-  end: { dateTime?: string; date?: string }
+  title: string | null
+  appointment_type: string | null
+  start_time: string
+  end_time: string
+  location: string | null
+  notes: string | null
+  status: string | null
+  client_id: string | null
+  client?: { first_name: string | null; last_name: string | null; email: string | null } | null
+}
+
+function prettyType(type: string | null | undefined): string {
+  if (!type) return 'Appointment'
+  if (type.toLowerCase() === 'wardrobe') return 'Wardrobe Appointment'
+  if (type.toLowerCase() === 'fitting') return 'Fitting'
+  return type.charAt(0).toUpperCase() + type.slice(1)
 }
 
 export default function CalendarPage() {
-  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [appointments, setAppointments] = useState<AppointmentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<'week' | 'month'>('week')
 
-  // Get start and end of current week/month
   const getDateRange = useCallback(() => {
     const start = new Date(currentDate)
     const end = new Date(currentDate)
 
     if (view === 'week') {
       const day = start.getDay()
-      start.setDate(start.getDate() - day) // Start of week (Sunday)
-      end.setDate(start.getDate() + 6) // End of week (Saturday)
+      start.setDate(start.getDate() - day)
+      end.setDate(start.getDate() + 6)
     } else {
-      start.setDate(1) // Start of month
+      start.setDate(1)
       end.setMonth(end.getMonth() + 1)
-      end.setDate(0) // End of month
+      end.setDate(0)
     }
 
     start.setHours(0, 0, 0, 0)
@@ -43,32 +54,40 @@ export default function CalendarPage() {
   }, [currentDate, view])
 
   useEffect(() => {
-    async function fetchEvents() {
+    async function fetchAppointments() {
       setLoading(true)
       setError(null)
-
       const { start, end } = getDateRange()
 
       try {
-        const response = await fetch(
-          `/api/calendar/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}`
-        )
+        const supabase = createClient()
+        const { data, error: queryError } = await supabase
+          .from('appointments')
+          .select('id, title, appointment_type, start_time, end_time, location, notes, status, client_id, client:clients(first_name, last_name, email)')
+          .gte('start_time', start.toISOString())
+          .lte('start_time', end.toISOString())
+          .order('start_time', { ascending: true })
 
-        if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.error || 'Failed to fetch events')
-        }
+        if (queryError) throw new Error(queryError.message)
 
-        const data = await response.json()
-        setEvents(data.items || [])
+        const rows: AppointmentRow[] = (data || []).map((row) => {
+          const r = row as unknown as AppointmentRow & {
+            client: AppointmentRow['client'] | Array<NonNullable<AppointmentRow['client']>>
+          }
+          return {
+            ...r,
+            client: Array.isArray(r.client) ? r.client[0] : r.client,
+          }
+        })
+        setAppointments(rows)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load calendar')
+        setError(err instanceof Error ? err.message : 'Failed to load appointments')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchEvents()
+    fetchAppointments()
   }, [getDateRange])
 
   function navigatePrev() {
@@ -106,53 +125,27 @@ export default function CalendarPage() {
     }
   }
 
-  function formatEventTime(event: CalendarEvent) {
-    const startDate = event.start.dateTime ? new Date(event.start.dateTime) : null
-    if (!startDate) return 'All day'
-
-    return startDate.toLocaleTimeString('en-US', {
+  function formatAppointmentTime(iso: string) {
+    return new Date(iso).toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
     })
   }
 
-  // Group events by date
-  function groupEventsByDate() {
-    const grouped: Record<string, CalendarEvent[]> = {}
-
-    events.forEach(event => {
-      const dateStr = event.start.dateTime
-        ? new Date(event.start.dateTime).toDateString()
-        : event.start.date
-          ? new Date(event.start.date).toDateString()
-          : 'Unknown'
-
-      if (!grouped[dateStr]) {
-        grouped[dateStr] = []
-      }
-      grouped[dateStr].push(event)
-    })
-
-    // Sort by date
-    const sorted = Object.entries(grouped).sort(([a], [b]) =>
-      new Date(a).getTime() - new Date(b).getTime()
-    )
-
-    return sorted
-  }
-
-  // Parse client name from event description
-  function parseClientFromDescription(description?: string): string | null {
-    if (!description) return null
-    const match = description.match(/Client:\s*(.+?)(?:\n|$)/i)
-    return match ? match[1].trim() : null
+  function groupByDate(): Array<[string, AppointmentRow[]]> {
+    const grouped: Record<string, AppointmentRow[]> = {}
+    for (const apt of appointments) {
+      const dateStr = new Date(apt.start_time).toDateString()
+      if (!grouped[dateStr]) grouped[dateStr] = []
+      grouped[dateStr].push(apt)
+    }
+    return Object.entries(grouped).sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
   }
 
   return (
     <Layout currentPage="calendar">
       <div className="max-w-4xl">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
           <div>
             <h1 className="font-heading text-lg font-medium text-body">Calendar</h1>
@@ -168,19 +161,20 @@ export default function CalendarPage() {
           </Link>
         </div>
 
-        {/* Navigation */}
         <div className="bg-white rounded p-5 border border-gray-med mb-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <button
                 onClick={navigatePrev}
                 className="p-2 hover:bg-gray-light rounded transition-colors"
+                aria-label="Previous"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={navigateNext}
                 className="p-2 hover:bg-gray-light rounded transition-colors"
+                aria-label="Next"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -215,7 +209,6 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        {/* Events List */}
         <div className="bg-white rounded border border-gray-med overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-4">
@@ -223,15 +216,9 @@ export default function CalendarPage() {
             </div>
           ) : error ? (
             <div className="p-3 text-center">
-              <p className="text-red-500 font-body mb-4">{error}</p>
-              <Link
-                href="/settings"
-                className="text-gray-dark hover:text-body font-body text-sm font-medium"
-              >
-                Connect Google Calendar →
-              </Link>
+              <p className="text-red-500 font-body mb-2">{error}</p>
             </div>
-          ) : events.length === 0 ? (
+          ) : appointments.length === 0 ? (
             <div className="p-3 text-center">
               <Calendar className="w-12 h-12 text-gray-med mx-auto mb-4" />
               <p className="font-body text-gray-dark mb-4">No appointments scheduled for this period</p>
@@ -244,52 +231,62 @@ export default function CalendarPage() {
             </div>
           ) : (
             <div className="divide-y divide-gray-med">
-              {groupEventsByDate().map(([dateStr, dayEvents]) => (
+              {groupByDate().map(([dateStr, dayAppointments]) => (
                 <div key={dateStr}>
                   <div className="bg-gray-light px-4 py-2">
                     <h3 className="font-body font-medium text-sm text-gray-dark">
                       {new Date(dateStr).toLocaleDateString('en-US', {
                         weekday: 'long',
                         month: 'long',
-                        day: 'numeric'
+                        day: 'numeric',
                       })}
                     </h3>
                   </div>
                   <div className="divide-y divide-gray-light">
-                    {dayEvents.map(event => {
-                      const clientName = parseClientFromDescription(event.description)
-
+                    {dayAppointments.map((apt) => {
+                      const fullName = apt.client
+                        ? `${apt.client.first_name ?? ''} ${apt.client.last_name ?? ''}`.trim()
+                        : ''
+                      const titleDisplay = apt.title || prettyType(apt.appointment_type)
                       return (
-                        <Link
-                          key={event.id}
-                          href={`/calendar/${event.id}`}
-                          className="block p-5 hover:bg-gray-light/50 transition-colors"
-                        >
-                          <div className="flex items-start gap-2">
-                            <div className="w-20 flex-shrink-0 text-right">
-                              <span className="font-body text-sm font-medium text-body">
-                                {formatEventTime(event)}
-                              </span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-body font-medium text-body truncate">
-                                {event.summary}
-                              </h4>
-                              {clientName && (
-                                <p className="font-body text-sm text-gray-dark flex items-center gap-1 mt-1">
-                                  <User className="w-3 h-3" />
-                                  {clientName}
-                                </p>
-                              )}
-                              {event.location && (
-                                <p className="font-body text-sm text-gray-dark flex items-center gap-1 mt-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {event.location}
-                                </p>
-                              )}
-                            </div>
+                        <div key={apt.id} className="p-5 flex items-start gap-2">
+                          <div className="w-20 flex-shrink-0 text-right">
+                            <span className="font-body text-sm font-medium text-body">
+                              {formatAppointmentTime(apt.start_time)}
+                            </span>
                           </div>
-                        </Link>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-body font-medium text-body truncate">
+                              {titleDisplay}
+                            </h4>
+                            {fullName && (
+                              <p className="font-body text-sm text-gray-dark flex items-center gap-1 mt-1">
+                                <User className="w-3 h-3" />
+                                {apt.client_id ? (
+                                  <Link href={`/clients/${apt.client_id}`} className="hover:text-body underline-offset-2 hover:underline">
+                                    {fullName}
+                                  </Link>
+                                ) : (
+                                  fullName
+                                )}
+                              </p>
+                            )}
+                            {apt.location && (
+                              <p className="font-body text-sm text-gray-dark flex items-center gap-1 mt-1">
+                                <MapPin className="w-3 h-3" />
+                                {apt.location}
+                              </p>
+                            )}
+                          </div>
+                          <a
+                            href={`/api/appointments/${apt.id}/ics`}
+                            className="flex items-center gap-1 px-2 py-1 text-xs font-body text-gray-dark hover:text-body border border-gray-med hover:border-body rounded transition-colors"
+                            title="Download .ics file"
+                          >
+                            <Download className="w-3 h-3" />
+                            .ics
+                          </a>
+                        </div>
                       )
                     })}
                   </div>
