@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, X, User, ShoppingBag, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { clientDisplayName } from '@/lib/clientDisplay'
 
 type SearchResult = {
   type: 'client' | 'order'
@@ -58,7 +59,7 @@ export default function SearchBar() {
           searchResults.push({
             type: 'client',
             id: client.id,
-            title: `${client.first_name} ${client.last_name}`,
+            title: clientDisplayName(client),
             subtitle: client.email || client.phone || 'No contact info',
           })
         })
@@ -78,7 +79,7 @@ export default function SearchBar() {
             id: order.id,
             clientId: order.client_id,
             title: `${order.garment_type} - ${order.fabric_name || 'No fabric'}`,
-            subtitle: `${order.clients?.first_name} ${order.clients?.last_name}`,
+            subtitle: clientDisplayName(order.clients),
           })
         })
       }

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import { createClient } from '@/lib/supabase'
+import { clientDisplayName, clientInitials } from '@/lib/clientDisplay'
 
 type BillingAddress = {
   street?: string
@@ -346,7 +347,8 @@ export default function ClientsPage() {
             </thead>
             <tbody>
               {sortedClients.map((client, idx) => {
-                const initials = `${client.first_name[0]}${client.last_name[0]}`
+                const initials = clientInitials(client)
+                const displayName = clientDisplayName(client)
                 const city = client.billing_address?.city?.trim() || ''
                 const rowBg = idx % 2 === 1 ? 'var(--color-ivory)' : 'var(--color-warm-white)'
 
@@ -365,8 +367,8 @@ export default function ClientsPage() {
                           <div
                             className="ds-avatar"
                             style={{
-                              background: 'var(--color-charcoal)',
-                              color: 'var(--color-cream)',
+                              background: 'var(--color-gold)',
+                              color: '#FFFFFF',
                               width: 28,
                               height: 28,
                             }}
@@ -374,7 +376,7 @@ export default function ClientsPage() {
                             {initials}
                           </div>
                           <span style={{ fontWeight: 500 }}>
-                            {client.first_name} {client.last_name}
+                            {displayName}
                           </span>
                         </div>
                       </td>

@@ -208,8 +208,8 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-charcoal);
-  color: var(--color-paper);
+  background: var(--color-gold);
+  color: #FFFFFF;
   font-family: var(--font-serif);
   font-size: 13px;
   font-weight: 700;

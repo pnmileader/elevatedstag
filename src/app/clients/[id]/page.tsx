@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { clientDisplayName, clientInitials } from '@/lib/clientDisplay'
 import Link from 'next/link'
 import { ArrowLeft, Mail, Phone, MapPin, Calendar, Edit, ExternalLink, CalendarPlus, StickyNote, Receipt, Shirt, Ruler, Package, ShoppingBag, Camera, Heart, Users as UsersIcon, PawPrint, MessageCircle } from 'lucide-react'
 import { notFound } from 'next/navigation'
@@ -115,8 +116,8 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
     notFound()
   }
 
-  const initials = `${client.first_name[0]}${client.last_name[0]}`
-  const fullName = `${client.first_name} ${client.last_name}`
+  const initials = clientInitials(client)
+  const fullName = clientDisplayName(client)
 
   const stageColors = {
     vip: 'bg-gold',

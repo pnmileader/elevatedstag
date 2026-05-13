@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react'
 import Layout from '@/components/Layout'
 import StatusBadge from '@/components/StatusBadge'
 import { createClient } from '@/lib/supabase'
+import { clientDisplayName, clientInitials } from '@/lib/clientDisplay'
 
 interface ClientDeadline {
   id: string
@@ -275,9 +276,9 @@ export default function DashboardPage() {
               <Link key={client.id} href={`/clients/${client.id}`}>
                 <div className="es-row justify-between">
                   <div className="flex items-center gap-3 min-w-0 mr-4">
-                    <div className="es-avatar">{client.first_name[0]}{client.last_name[0]}</div>
+                    <div className="es-avatar">{clientInitials(client)}</div>
                     <div className="min-w-0">
-                      <div className="font-semibold truncate">{client.first_name} {client.last_name}</div>
+                      <div className="font-semibold truncate">{clientDisplayName(client)}</div>
                       <div className="text-ink-muted text-[12px] capitalize">{client.stage}</div>
                     </div>
                   </div>
