@@ -133,6 +133,7 @@ export async function POST(req: Request) {
   let discountLines = 0
   let outOfScopeLines = 0
   let refundLines = 0
+  let insertErrors = 0
   let deduped = 0
   const unmatched: Array<{ row: number; customer: string }> = []
   const needsReview: Array<{ row: number; customer: string; product: string; description: string }> = []
@@ -244,10 +245,10 @@ export async function POST(req: Request) {
             order_date: txDate || new Date().toISOString().split('T')[0],
             status: 'ordered',
             quickbooks_invoice_id: invoiceId,
-            quickbooks_line_id: lineId ? `${invoiceId || ''}-${lineId}` : null,
           })
         if (insertErr) {
           errors.push({ row: i + 1, error: insertErr.message })
+          insertErrors++
           skipped++
           continue
         }
@@ -272,6 +273,7 @@ export async function POST(req: Request) {
           })
         if (insertErr) {
           errors.push({ row: i + 1, error: insertErr.message })
+          insertErrors++
           skipped++
           continue
         }
@@ -284,6 +286,7 @@ export async function POST(req: Request) {
       }
     } catch (err) {
       errors.push({ row: i + 1, error: err instanceof Error ? err.message : 'unknown error' })
+      insertErrors++
       skipped++
     }
   }
@@ -305,9 +308,11 @@ export async function POST(req: Request) {
     discountLines,
     outOfScopeLines,
     refundLines,
+    insertErrors,
     total: rows.length,
     unmatched,
     needsReview,
     errors: errors.slice(0, 50),
+    errorsTruncated: errors.length > 50 ? errors.length - 50 : 0,
   })
 }

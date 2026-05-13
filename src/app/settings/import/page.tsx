@@ -124,10 +124,13 @@ type PurchasesResult = {
   serviceLines: number
   discountLines: number
   outOfScopeLines?: number
+  refundLines?: number
+  insertErrors?: number
   total: number
   unmatched: Array<{ row: number; customer: string }>
   needsReview: Array<{ row: number; customer: string; product: string; description: string }>
   errors: Array<{ row: number; error: string }>
+  errorsTruncated?: number
 } | { error: string }
 
 function extensionOf(fileName: string): 'csv' | 'xls' | 'xlsx' | 'unknown' {
@@ -604,6 +607,8 @@ function PurchasesSummary({
           {result.skipped} lines skipped total (
           {result.serviceLines} service, {result.discountLines} discount,
           {result.outOfScopeLines !== undefined ? ` ${result.outOfScopeLines} out-of-scope,` : ''}
+          {result.refundLines !== undefined ? ` ${result.refundLines} refund,` : ''}
+          {result.insertErrors !== undefined ? ` ${result.insertErrors} insert error${result.insertErrors === 1 ? '' : 's'},` : ''}
           {' '}{result.unmatched.length} unmatched, {result.needsReview.length} needs review)
         </p>
       </div>
@@ -646,7 +651,8 @@ function PurchasesSummary({
       {result.errors.length > 0 && (
         <details className="mt-3">
           <summary className="font-body text-sm text-red-700 cursor-pointer">
-            {result.errors.length} error{result.errors.length === 1 ? '' : 's'}
+            {result.errors.length} error{result.errors.length === 1 ? '' : 's'} shown
+            {result.errorsTruncated ? ` (${result.errorsTruncated} more truncated)` : ''}
           </summary>
           <ul className="mt-1 text-xs font-body text-gray-dark space-y-1">
             {result.errors.map((e, i) => (
