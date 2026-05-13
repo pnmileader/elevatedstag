@@ -291,7 +291,7 @@ export async function POST(req: Request) {
   for (const [clientId, date] of purchaseDateByClient.entries()) {
     await supabase
       .from('clients')
-      .update({ last_purchase_date: date, last_contact_date: new Date().toISOString().split('T')[0] })
+      .update({ last_purchase_date: date, last_contact_date: date })
       .eq('id', clientId)
   }
 

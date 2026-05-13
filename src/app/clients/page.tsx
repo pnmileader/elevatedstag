@@ -23,6 +23,7 @@ type Client = {
   stage: 'lead' | 'active' | 'vip' | 'dormant'
   notes: string | null
   last_contact_date: string | null
+  last_purchase_date: string | null
   billing_address: BillingAddress
   location_tags: string[] | null
   birthday_month: string | null
@@ -32,7 +33,7 @@ type Client = {
 
 type StageFilter = 'all' | 'vip' | 'active' | 'lead' | 'dormant'
 
-type SortField = 'name' | 'email' | 'phone' | 'city' | 'stage' | 'last_contact'
+type SortField = 'name' | 'email' | 'phone' | 'city' | 'stage' | 'last_purchase'
 type SortDir = 'asc' | 'desc'
 
 const stageOrder: Record<string, number> = { vip: 0, active: 1, lead: 2, dormant: 3 }
@@ -147,8 +148,8 @@ export default function ClientsPage() {
         case 'stage':
           cmp = (stageOrder[a.stage] ?? 9) - (stageOrder[b.stage] ?? 9)
           break
-        case 'last_contact':
-          cmp = (a.last_contact_date || '').localeCompare(b.last_contact_date || '')
+        case 'last_purchase':
+          cmp = (a.last_purchase_date || '').localeCompare(b.last_purchase_date || '')
           break
       }
       return cmp * dir
@@ -218,8 +219,8 @@ export default function ClientsPage() {
             className="ds-btn"
             style={
               activeFilter === sf.key
-                ? { background: 'var(--color-charcoal)', color: 'var(--color-cream)' }
-                : { background: 'transparent', color: 'var(--color-body)', border: '1px solid var(--color-gray-med)' }
+                ? { background: 'var(--color-gold)', color: '#FFFFFF', border: '1px solid var(--color-gold)', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
+                : { background: 'transparent', color: '#222', border: '1px solid var(--color-rule)' }
             }
           >
             {sf.label} ({stageCounts[sf.key]})
@@ -338,9 +339,9 @@ export default function ClientsPage() {
                     Stage{sortIndicator('stage')}
                   </button>
                 </th>
-                <th aria-sort={sortField === 'last_contact' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                  <button type="button" onClick={() => handleSort('last_contact')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
-                    Last Contact{sortIndicator('last_contact')}
+                <th aria-sort={sortField === 'last_purchase' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ whiteSpace: 'nowrap', minWidth: 120 }}>
+                  <button type="button" onClick={() => handleSort('last_purchase')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit" style={{ whiteSpace: 'nowrap' }}>
+                    Last Purchase{sortIndicator('last_purchase')}
                   </button>
                 </th>
               </tr>
@@ -389,19 +390,19 @@ export default function ClientsPage() {
                       <td className="hidden md:table-cell" style={{ color: city ? 'var(--color-body)' : 'var(--color-muted)' }}>
                         {city || '\u2014'}
                       </td>
-                      <td>
+                      <td style={{ verticalAlign: 'middle' }}>
                         <span
                           className="ds-status"
-                          style={{ borderLeftColor: stageBorderColors[client.stage] || 'var(--color-muted)' }}
+                          style={{ borderLeftColor: stageBorderColors[client.stage] || 'var(--color-muted)', verticalAlign: 'middle' }}
                         >
                           {client.stage.toUpperCase()}
                         </span>
                       </td>
-                      <td>
-                        {client.last_contact_date ? (
-                          <span>{formatDate(client.last_contact_date)}</span>
+                      <td style={{ verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                        {client.last_purchase_date ? (
+                          <span>{formatDate(client.last_purchase_date)}</span>
                         ) : (
-                          <span style={{ color: 'var(--color-muted)' }}>Never</span>
+                          <span style={{ color: 'var(--color-muted)' }}>—</span>
                         )}
                       </td>
                     </tr>

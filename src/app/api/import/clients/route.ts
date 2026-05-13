@@ -204,7 +204,6 @@ export async function POST(req: Request) {
           continue
         }
 
-        updateData.last_contact_date = today
         updateData.updated_at = new Date().toISOString()
 
         const { error: updateErr } = await supabase
@@ -232,7 +231,8 @@ export async function POST(req: Request) {
         stage: 'active',
         source: 'quickbooks_import',
         first_contact_date: today,
-        last_contact_date: today,
+        // last_contact_date intentionally left null — populated by the purchases
+        // import or by real activity (sent emails, appointments, etc.).
       }
       if (customerType) {
         insertPayload.location_tags = [customerType]
