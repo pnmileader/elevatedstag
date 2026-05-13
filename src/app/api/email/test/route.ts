@@ -2,10 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { parseJson, TestEmailSchema } from '@/lib/validation'
+import { rateLimit, ipKey } from '@/lib/rateLimit'
 
 export async function POST(request: NextRequest) {
-  // Always require auth, even in development. (Previously this was open in
-  // dev for one-shot terminal testing; the audit closes that hole.)
+  // Rate-limit before auth so an unauthenticated attacker can't even probe
+  // for accounts. 10 attempts per IP per hour is generous for a legitimate
+  // developer testing the integration.
+  const limit = rateLimit(ipKey(request, 'email-test'), {
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+  })
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { success: false, error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(limit.retryAfterMs / 1000)) } },
+    )
+  }
+
+  // Always require auth, even in development.
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
