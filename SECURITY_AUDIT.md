@@ -1,9 +1,9 @@
 # Security Audit & Remediation
 
-**Branch:** `security-hardening`
-**Start commit:** `9e67e15` (main)
-**Final commit:** `d9ceb38` (security-hardening)
-**Iterations:** 2 (initial scan + post-fix verification)
+**Branch:** `security-hardening` (merged to `main` at `ccb15fa`)
+**Start commit:** `9e67e15`
+**Last verified commit live:** `ccb15fa` (deployed to `app.theelevatedstag.com`)
+**Iterations:** 3 (scan → fix → post-deploy verification on prod)
 
 ---
 
@@ -122,18 +122,9 @@ In commit order, oldest first:
 
 Things only the user can do. Each is self-contained; you can knock them out in any order.
 
-- **U1 (from C1) — Delete the old Supabase project `gdcajgqqogrxirsmnwzq`.**
-  1. Open Supabase dashboard → `agvqjlmqtychcjyrndsq` → SQL editor. Run row counts on `clients`, `custom_orders`, `ready_made_purchases`, `appointments`, `sent_emails`. Compare against the same tables in `gdcajgqqogrxirsmnwzq`.
-  2. If new project has equal or more rows, the migration is complete.
-  3. Supabase dashboard → `gdcajgqqogrxirsmnwzq` → Settings → General → "Delete project". Confirm.
-  4. The Supabase trash retention period is 7 days; data is fully unrecoverable after that.
+- **U1 (from C1) — DONE.** Verified `gdcajgqqogrxirsmnwzq.supabase.co` resolves to NXDOMAIN (project deleted, hostname no longer exists).
 
-- **U2 (from C2) — Point local `.env.local` and Vercel env vars at the new project.**
-  1. Vercel dashboard → `test-crm` → Settings → Environment Variables.
-  2. Confirm `NEXT_PUBLIC_SUPABASE_URL` = `https://agvqjlmqtychcjyrndsq.supabase.co` for Production, Preview, and Development scopes.
-  3. Confirm `NEXT_PUBLIC_SUPABASE_ANON_KEY` is the publishable key from the new project (begins `sb_publishable_…`).
-  4. Edit local `.env.local` to match — this is what `npx tsx` test runs read.
-  5. Re-deploy to pick up env changes (`vercel --prod` from terminal — the GitHub webhook is still broken; tracked separately, not a security item).
+- **U2 (from C2) — partially done.** Production is wired to the new project (verified: prod `/login` returns 200, auth-gated routes return 401, all behaviors consistent with a live Supabase backend; old hostname is NXDOMAIN). Local `.env.local` still points to the old URL — edit it to the new project for local dev (`npx tsx` test runs read it).
 
 - **U3 (RLS verification on new project)** — After U2, run these in the new project's Supabase Studio SQL editor:
   ```sql
