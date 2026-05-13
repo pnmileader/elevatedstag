@@ -1,10 +1,12 @@
+// Compute a client's financial summary from local Supabase data.
+// (Previously fetched live from QuickBooks; OAuth has been removed.)
+
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { quickBooksRequest, getValidAccessToken } from '@/lib/quickbooks'
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -13,83 +15,52 @@ export async function GET(
   }
 
   const { id } = await params
-
-  try {
-    // Get the client's QuickBooks ID
-    const { data: client, error: clientError } = await supabase
-      .from('clients')
-      .select('quickbooks_id')
-      .eq('id', id)
-      .single()
-
-    if (clientError || !client?.quickbooks_id) {
-      return NextResponse.json({
-        lifetime_value: 0,
-        total_orders: 0,
-        average_order: 0,
-        balance_due: 0,
-        last_payment_date: null,
-      })
-    }
-
-    // Check if we have a valid QuickBooks connection
-    const auth = await getValidAccessToken()
-    if (!auth) {
-      return NextResponse.json({
-        lifetime_value: 0,
-        total_orders: 0,
-        average_order: 0,
-        balance_due: 0,
-        last_payment_date: null,
-        error: 'QuickBooks not connected'
-      })
-    }
-
-    // Fetch invoices for this customer
-    const sanitizedQbId = client.quickbooks_id.replace(/[^a-zA-Z0-9-]/g, '')
-    const invoicesResponse = await quickBooksRequest(
-      `/query?query=SELECT * FROM Invoice WHERE CustomerRef = '${sanitizedQbId}'`
-    )
-
-    const invoices = invoicesResponse.QueryResponse?.Invoice || []
-
-    // Calculate financial summary
-    let lifetimeValue = 0
-    let balanceDue = 0
-    let lastPaymentDate: string | null = null
-
-    for (const invoice of invoices) {
-      lifetimeValue += invoice.TotalAmt || 0
-      balanceDue += invoice.Balance || 0
-      
-      // Track the most recent payment
-      if (invoice.Balance === 0 && invoice.TxnDate) {
-        if (!lastPaymentDate || invoice.TxnDate > lastPaymentDate) {
-          lastPaymentDate = invoice.TxnDate
-        }
-      }
-    }
-
-    const totalOrders = invoices.length
-    const averageOrder = totalOrders > 0 ? lifetimeValue / totalOrders : 0
-
-    return NextResponse.json({
-      lifetime_value: lifetimeValue,
-      total_orders: totalOrders,
-      average_order: averageOrder,
-      balance_due: balanceDue,
-      last_payment_date: lastPaymentDate,
-    })
-
-  } catch (err) {
-    console.error('Error fetching financials:', err)
-    return NextResponse.json({
-      lifetime_value: 0,
-      total_orders: 0,
-      average_order: 0,
-      balance_due: 0,
-      last_payment_date: null,
-      error: 'Failed to fetch financial data'
-    })
+  if (!id || typeof id !== 'string' || id.length > 64) {
+    return NextResponse.json({ error: 'Invalid client id' }, { status: 400 })
   }
+
+  const [ordersRes, purchasesRes] = await Promise.all([
+    supabase
+      .from('custom_orders')
+      .select('price, order_date')
+      .eq('client_id', id),
+    supabase
+      .from('ready_made_purchases')
+      .select('price, quantity, purchase_date')
+      .eq('client_id', id),
+  ])
+
+  if (ordersRes.error || purchasesRes.error) {
+    return NextResponse.json(
+      { error: 'Failed to load financial data' },
+      { status: 500 },
+    )
+  }
+
+  const orders = ordersRes.data || []
+  const purchases = purchasesRes.data || []
+
+  const orderTotal = orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0)
+  const purchaseTotal = purchases.reduce(
+    (sum, p) => sum + (Number(p.price) || 0) * (Number(p.quantity) || 1),
+    0,
+  )
+
+  const lifetimeValue = orderTotal + purchaseTotal
+  const totalOrders = orders.length + purchases.length
+  const averageOrder = totalOrders > 0 ? lifetimeValue / totalOrders : 0
+
+  const allDates = [
+    ...orders.map((o) => o.order_date).filter(Boolean),
+    ...purchases.map((p) => p.purchase_date).filter(Boolean),
+  ] as string[]
+  const lastPaymentDate = allDates.length > 0 ? allDates.sort().slice(-1)[0] : null
+
+  return NextResponse.json({
+    lifetime_value: lifetimeValue,
+    total_orders: totalOrders,
+    average_order: averageOrder,
+    balance_due: 0, // Open balances live in QBO and are no longer accessible.
+    last_payment_date: lastPaymentDate,
+  })
 }

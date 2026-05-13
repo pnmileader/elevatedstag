@@ -1,70 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getCalendarEvents, createCalendarEvent } from '@/lib/google'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+// REMOVED: Google Calendar API integration. Replaced by:
+//   - GET /api/appointments/[id]/ics for individual invite downloads
+//   - Supabase appointments table read directly from /calendar page
+import { NextResponse } from 'next/server'
 
-export async function GET(request: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+export const dynamic = 'force-static'
 
-  const searchParams = request.nextUrl.searchParams
-  const timeMin = searchParams.get('timeMin')
-  const timeMax = searchParams.get('timeMax')
-
-  if (!timeMin || !timeMax) {
-    return NextResponse.json(
-      { error: 'timeMin and timeMax are required' },
-      { status: 400 }
-    )
-  }
-
-  try {
-    const events = await getCalendarEvents(timeMin, timeMax)
-    return NextResponse.json(events)
-  } catch (err) {
-    console.error('Error fetching calendar events:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to fetch events' },
-      { status: 500 }
-    )
-  }
+export async function GET() {
+  return new NextResponse(
+    JSON.stringify({ error: 'This endpoint has been removed. See SECURITY_AUDIT.md.' }),
+    { status: 410, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' } },
+  )
 }
 
-export async function POST(request: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  try {
-    const body = await request.json()
-    
-    const { summary, description, location, start, end } = body
-
-    if (!summary || !start || !end) {
-      return NextResponse.json(
-        { error: 'summary, start, and end are required' },
-        { status: 400 }
-      )
-    }
-
-    const event = await createCalendarEvent({
-      summary,
-      description,
-      location,
-      start,
-      end,
-    })
-
-    return NextResponse.json(event)
-  } catch (err) {
-    console.error('Error creating calendar event:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to create event' },
-      { status: 500 }
-    )
-  }
+export async function POST() {
+  return new NextResponse(
+    JSON.stringify({ error: 'This endpoint has been removed. Use POST /api/appointments instead.' }),
+    { status: 410, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' } },
+  )
 }

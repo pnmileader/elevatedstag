@@ -1,23 +1,12 @@
-// DEPRECATED: This OAuth flow is not used. Email is sent via Resend (see src/lib/email.ts).
-// QuickBooks data is imported via CSV (see /settings/import).
-// Keeping this code in place for potential future use.
+// REMOVED: QuickBooks OAuth is no longer an active integration.
+// Customer + invoice data is imported via CSV (see /settings/import).
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-static'
+
 export async function GET() {
-  const clientId = process.env.QUICKBOOKS_CLIENT_ID
-  const redirectUri = process.env.QUICKBOOKS_REDIRECT_URI
-
-  if (!clientId || !redirectUri) {
-    return NextResponse.json({ error: 'QuickBooks not configured' }, { status: 500 })
-  }
-
-  // Generate a cryptographically secure state for CSRF protection
-  const state = crypto.randomUUID()
-
-  // Use the sandbox-specific authorization endpoint
-  const authUrl = `https://appcenter.intuit.com/connect/oauth2?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent('com.intuit.quickbooks.accounting')}&state=${state}`
-
-  const response = NextResponse.redirect(authUrl)
-  response.cookies.set('quickbooks_oauth_state', state, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 600 })
-  return response
+  return new NextResponse(
+    JSON.stringify({ error: 'This endpoint has been removed. See SECURITY_AUDIT.md.' }),
+    { status: 410, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' } },
+  )
 }

@@ -1,31 +1,17 @@
-// PARTIALLY DEPRECATED: This OAuth flow is no longer the active integration path.
-// Email: sent via Resend (see src/lib/email.ts)
-// Calendar: invitations via .ics file generation (see src/lib/calendar.ts)
-// Kept on disk for potential future re-enablement.
+// REMOVED: Gmail OAuth is no longer an active integration.
+// Email sends now via Resend (see src/lib/email.ts).
+// Calendar invites are delivered as .ics attachments (see src/lib/calendar.ts).
+// This route is intentionally a tombstone — return 410 Gone instead of redirecting
+// to Google's OAuth screen, so accidental traffic doesn't get prompted to grant a
+// scope that the app can't honor.
+
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-static'
+
 export async function GET() {
-  const clientId = process.env.GOOGLE_CLIENT_ID
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI
-
-  if (!clientId || !redirectUri) {
-    return NextResponse.json({ error: 'Google not configured' }, { status: 500 })
-  }
-
-  // Calendar + Gmail scopes
-  const scopes = [
-    'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/calendar.events',
-    'https://www.googleapis.com/auth/gmail.send',
-    'https://www.googleapis.com/auth/userinfo.email',
-  ]
-
-  const scope = encodeURIComponent(scopes.join(' '))
-  const state = crypto.randomUUID()
-
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`
-
-  const response = NextResponse.redirect(authUrl)
-  response.cookies.set('google_oauth_state', state, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 600 })
-  return response
+  return new NextResponse(
+    JSON.stringify({ error: 'This endpoint has been removed. See SECURITY_AUDIT.md.' }),
+    { status: 410, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' } },
+  )
 }
