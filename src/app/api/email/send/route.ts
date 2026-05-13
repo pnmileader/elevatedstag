@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { parseJson, SendEmailSchema } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerSupabaseClient()
@@ -9,28 +10,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: {
-    clientId?: string
-    to?: string | string[]
-    subject?: string
-    emailBody?: string
-    templateId?: string
-    replyTo?: string
-  }
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  const parsed = await parseJson(request, SendEmailSchema)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error, issues: parsed.issues }, { status: parsed.status })
   }
 
-  const { clientId, to, subject, emailBody, templateId, replyTo } = body
-
-  if (!to || !subject || !emailBody) {
-    return NextResponse.json(
-      { error: 'to, subject, and emailBody are required' },
-      { status: 400 },
-    )
-  }
+  const { clientId, to, subject, emailBody, templateId, replyTo } = parsed.data
 
   const result = await sendEmail({
     to,

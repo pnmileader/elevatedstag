@@ -1,27 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { parseJson, TestEmailSchema } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
-    const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
+  // Always require auth, even in development. (Previously this was open in
+  // dev for one-shot terminal testing; the audit closes that hole.)
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: { to?: string }
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 })
+  const parsed = await parseJson(request, TestEmailSchema)
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { success: false, error: parsed.error, issues: parsed.issues },
+      { status: parsed.status },
+    )
   }
 
-  const to = body.to?.trim()
-  if (!to) {
-    return NextResponse.json({ success: false, error: 'to is required' }, { status: 400 })
-  }
+  const { to } = parsed.data
 
   const result = await sendEmail({
     to,
