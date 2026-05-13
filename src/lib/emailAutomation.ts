@@ -154,7 +154,7 @@ export async function queueAppointmentReminder(appointmentId: string) {
       scheduled_for: sendTime.toISOString(),
     })
 
-    console.log(`Queued appointment reminder for ${client.first_name} at ${sendTime}`)
+    console.log(`[email] queued appointment reminder rule=${rule.id} client=${client.id}`)
   }
 }
 
@@ -252,7 +252,7 @@ export async function queuePostDeliveryFollowUp(orderId: string) {
       scheduled_for: sendTime.toISOString(),
     })
 
-    console.log(`Queued post-delivery follow-up for ${client.first_name} at ${sendTime}`)
+    console.log(`[email] queued post-delivery follow-up rule=${rule.id} client=${client.id}`)
   }
 }
 
@@ -338,7 +338,7 @@ export async function checkAndQueueReactivationEmails() {
       })
 
       totalQueued++
-      console.log(`Queued reactivation email for ${client.first_name} ${client.last_name}`)
+      console.log(`[email] queued reactivation rule=${rule.id} client=${client.id}`)
     }
   }
 

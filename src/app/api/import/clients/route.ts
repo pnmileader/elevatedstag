@@ -158,7 +158,7 @@ export async function POST(req: Request) {
           match = candidates[0]
         } else if (candidates.length > 1) {
           // Duplicate emails — disambiguate by last name. Log a warning either way.
-          console.warn(`[import] Multiple clients (${candidates.length}) share email ${email}; disambiguating by last name`)
+          console.warn(`[import] ${candidates.length} clients share an email; disambiguating by last name`)
           if (last) {
             match = candidates.find((c) => (c.last_name || '').toLowerCase().trim() === last!.toLowerCase().trim())
           }
