@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { parseJson, CreateTemplateSchema } from '@/lib/validation'
 
 export async function GET() {
   const supabase = await createServerSupabaseClient()
@@ -28,16 +29,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await request.json()
-
-  const { name, subject, body: templateBody, category } = body
-
-  if (!name || !subject || !templateBody) {
-    return NextResponse.json(
-      { error: 'name, subject, and body are required' },
-      { status: 400 }
-    )
+  const parsed = await parseJson(request, CreateTemplateSchema)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error, issues: parsed.issues }, { status: parsed.status })
   }
+  const { name, subject, body: templateBody, category } = parsed.data
 
   const { data, error } = await supabase
     .from('email_templates')

@@ -1,27 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { parseJson, TestEmailSchema } from '@/lib/validation'
+import { rateLimit, ipKey } from '@/lib/rateLimit'
 
 export async function POST(request: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
-    const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
+  // Rate-limit before auth so an unauthenticated attacker can't even probe
+  // for accounts. 10 attempts per IP per hour is generous for a legitimate
+  // developer testing the integration.
+  const limit = rateLimit(ipKey(request, 'email-test'), {
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+  })
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { success: false, error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(limit.retryAfterMs / 1000)) } },
+    )
   }
 
-  let body: { to?: string }
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 })
+  // Always require auth, even in development.
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
-  const to = body.to?.trim()
-  if (!to) {
-    return NextResponse.json({ success: false, error: 'to is required' }, { status: 400 })
+  const parsed = await parseJson(request, TestEmailSchema)
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { success: false, error: parsed.error, issues: parsed.issues },
+      { status: parsed.status },
+    )
   }
+
+  const { to } = parsed.data
 
   const result = await sendEmail({
     to,

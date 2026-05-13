@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { parseJson, ImportRowsSchema } from '@/lib/validation'
 
 type IncomingRow = {
   full_name?: string
@@ -83,14 +84,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: { rows?: IncomingRow[] }
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  const parsed = await parseJson(req, ImportRowsSchema)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error, issues: parsed.issues }, { status: parsed.status })
   }
-
-  const rows = Array.isArray(body.rows) ? body.rows : []
+  const rows: IncomingRow[] = parsed.data.rows as unknown as IncomingRow[]
   if (rows.length === 0) {
     return NextResponse.json({ error: 'No rows provided' }, { status: 400 })
   }
@@ -160,7 +158,7 @@ export async function POST(req: Request) {
           match = candidates[0]
         } else if (candidates.length > 1) {
           // Duplicate emails — disambiguate by last name. Log a warning either way.
-          console.warn(`[import] Multiple clients (${candidates.length}) share email ${email}; disambiguating by last name`)
+          console.warn(`[import] ${candidates.length} clients share an email; disambiguating by last name`)
           if (last) {
             match = candidates.find((c) => (c.last_name || '').toLowerCase().trim() === last!.toLowerCase().trim())
           }

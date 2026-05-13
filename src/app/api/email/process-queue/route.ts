@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     }
 
     sent++
-    console.log(`[email] Sent queue row ${email.id} to ${email.to_email}: ${renderedSubject}`)
+    console.log(`[email] sent queue=${email.id} client=${email.client_id ?? 'none'}`)
   }
 
   return NextResponse.json({

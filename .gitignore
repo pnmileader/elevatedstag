@@ -43,3 +43,8 @@ next-env.d.ts
 # local handoff docs (personal, not part of repo)
 CLAUDE_PROJECT_GUIDE.md
 fixtures/
+
+# Security audit working files — raw scanner outputs may contain secret excerpts
+# from grep matches; keep them local. SECURITY_AUDIT.md (the summary) IS committed.
+security-audit/scan-results/
+security-audit/checkpoint.json

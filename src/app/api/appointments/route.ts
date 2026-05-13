@@ -2,17 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { generateAppointmentIcs } from '@/lib/calendar'
 import { sendEmail } from '@/lib/email'
-
-type CreateBody = {
-  client_id?: string | null
-  appointment_type?: string
-  title?: string
-  start_time?: string
-  end_time?: string
-  location?: string | null
-  notes?: string | null
-  status?: string
-}
+import { parseJson, CreateAppointmentSchema } from '@/lib/validation'
 
 const TZ = 'America/Chicago'
 
@@ -72,18 +62,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: CreateBody
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  const parsed = await parseJson(request, CreateAppointmentSchema)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error, issues: parsed.issues }, { status: parsed.status })
   }
-
-  const { client_id, appointment_type, title, start_time, end_time, location, notes, status } = body
-
-  if (!start_time || !end_time) {
-    return NextResponse.json({ error: 'start_time and end_time are required' }, { status: 400 })
-  }
+  const { client_id, appointment_type, title, start_time, end_time, location, notes, status } = parsed.data
 
   const insertPayload: Record<string, unknown> = {
     client_id: client_id || null,
