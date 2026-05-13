@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 type IncomingRow = {
+  full_name?: string
   first_name?: string
   last_name?: string
   email?: string
   phone?: string
   company?: string
+  customer_type?: string
   billing_street?: string
   billing_city?: string
   billing_state?: string
@@ -27,6 +29,22 @@ type ExistingClient = {
   notes: string | null
   billing_address: Record<string, unknown> | null
   shipping_address: Record<string, unknown> | null
+  location_tags: string[] | null
+}
+
+function splitFullName(full: string): { first: string; last: string } {
+  const trimmed = full.trim()
+  if (trimmed.includes(',')) {
+    const [last, first] = trimmed.split(',').map((p) => p.trim())
+    return { first: first || '', last: last || '' }
+  }
+  const parts = trimmed.split(/\s+/)
+  if (parts.length === 1) return { first: parts[0], last: '' }
+  return { first: parts[0], last: parts.slice(1).join(' ') }
+}
+
+function uniq(arr: string[]): string[] {
+  return Array.from(new Set(arr.filter((x) => x && x.trim())))
 }
 
 function blank(v: unknown): boolean {
@@ -79,17 +97,24 @@ export async function POST(req: Request) {
 
   const { data: allExisting, error: fetchErr } = await supabase
     .from('clients')
-    .select('id, first_name, last_name, email, phone, notes, billing_address, shipping_address')
+    .select('id, first_name, last_name, email, phone, notes, billing_address, shipping_address, location_tags')
 
   if (fetchErr) {
     return NextResponse.json({ error: `Failed to load clients: ${fetchErr.message}` }, { status: 500 })
   }
 
-  const byEmail = new Map<string, ExistingClient>()
+  // For email matching: a single email can map to MULTIPLE clients (rare but seen in real data).
+  // We store an array per key so we can disambiguate by last name later.
+  const byEmail = new Map<string, ExistingClient[]>()
   const byPhone = new Map<string, ExistingClient>()
   const byName = new Map<string, ExistingClient>()
   for (const c of (allExisting as ExistingClient[]) || []) {
-    if (c.email) byEmail.set(c.email.toLowerCase(), c)
+    if (c.email) {
+      const key = c.email.toLowerCase()
+      const list = byEmail.get(key) || []
+      list.push(c)
+      byEmail.set(key, list)
+    }
     if (c.phone) {
       const digits = c.phone.replace(/\D/g, '')
       if (digits) byPhone.set(digits, c)
@@ -109,18 +134,39 @@ export async function POST(req: Request) {
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     try {
-      const first = clean(row.first_name)
-      const last = clean(row.last_name)
+      // If full_name is provided (Excel "Name" column), split it. Explicit first_name/last_name win.
+      let first = clean(row.first_name)
+      let last = clean(row.last_name)
+      if ((!first || !last) && !blank(row.full_name)) {
+        const split = splitFullName(String(row.full_name).trim())
+        if (!first) first = split.first || null
+        if (!last) last = split.last || null
+      }
+
       const email = normalizeEmail(row.email)
       const phone = normalizePhone(row.phone)
+      const customerType = clean(row.customer_type)
 
       if (!first && !last && !email && !phone) {
         skipped++
         continue
       }
 
+      // Match: email → phone → first+last name.
       let match: ExistingClient | undefined
-      if (email) match = byEmail.get(email)
+      if (email) {
+        const candidates = byEmail.get(email) || []
+        if (candidates.length === 1) {
+          match = candidates[0]
+        } else if (candidates.length > 1) {
+          // Duplicate emails — disambiguate by last name. Log a warning either way.
+          console.warn(`[import] Multiple clients (${candidates.length}) share email ${email}; disambiguating by last name`)
+          if (last) {
+            match = candidates.find((c) => (c.last_name || '').toLowerCase().trim() === last!.toLowerCase().trim())
+          }
+          if (!match) match = candidates[0] // fall back to first match
+        }
+      }
       if (!match && phone) match = byPhone.get(phone)
       if (!match && first && last) match = byName.get(`${first.toLowerCase()}|${last.toLowerCase()}`)
 
@@ -143,6 +189,14 @@ export async function POST(req: Request) {
         if (incomingNotes && !match.notes) updateData.notes = incomingNotes
         else if (incomingNotes && match.notes && !match.notes.includes(incomingNotes)) {
           updateData.notes = `${match.notes}\n${incomingNotes}`
+        }
+
+        // Merge customer_type into location_tags without duplicating.
+        if (customerType) {
+          const existingTags = Array.isArray(match.location_tags) ? match.location_tags : []
+          if (!existingTags.includes(customerType)) {
+            updateData.location_tags = uniq([...existingTags, customerType])
+          }
         }
 
         if (Object.keys(updateData).length === 0) {
@@ -180,11 +234,14 @@ export async function POST(req: Request) {
         first_contact_date: today,
         last_contact_date: today,
       }
+      if (customerType) {
+        insertPayload.location_tags = [customerType]
+      }
 
       const { data: inserted, error: insertErr } = await supabase
         .from('clients')
         .insert(insertPayload)
-        .select('id, first_name, last_name, email, phone, notes, billing_address, shipping_address')
+        .select('id, first_name, last_name, email, phone, notes, billing_address, shipping_address, location_tags')
         .single()
 
       if (insertErr || !inserted) {
@@ -194,7 +251,12 @@ export async function POST(req: Request) {
       }
 
       const ins = inserted as ExistingClient
-      if (ins.email) byEmail.set(ins.email.toLowerCase(), ins)
+      if (ins.email) {
+        const key = ins.email.toLowerCase()
+        const list = byEmail.get(key) || []
+        list.push(ins)
+        byEmail.set(key, list)
+      }
       if (ins.phone) {
         const digits = ins.phone.replace(/\D/g, '')
         if (digits) byPhone.set(digits, ins)

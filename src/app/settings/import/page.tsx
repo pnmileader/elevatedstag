@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import Papa from 'papaparse'
+import * as XLSX from 'xlsx'
 import {
   ArrowLeft,
   Upload,
@@ -12,11 +13,20 @@ import {
   AlertTriangle,
   Loader2,
   X,
+  Sparkles,
 } from 'lucide-react'
 import Layout from '@/components/Layout'
+import {
+  isQboGroupedReport,
+  parseQboGroupedSalesReport,
+  matrixToRowObjects,
+  type CellMatrix,
+  type FlatSalesRow,
+} from '@/lib/import'
 
 const CLIENT_FIELDS = [
   { key: '', label: '— skip —' },
+  { key: 'full_name', label: 'Full Name (split into first + last on import)' },
   { key: 'first_name', label: 'First Name' },
   { key: 'last_name', label: 'Last Name' },
   { key: 'email', label: 'Email' },
@@ -30,6 +40,7 @@ const CLIENT_FIELDS = [
   { key: 'shipping_city', label: 'Shipping City' },
   { key: 'shipping_state', label: 'Shipping State' },
   { key: 'shipping_zip', label: 'Shipping Zip' },
+  { key: 'customer_type', label: 'Customer Type → location tag' },
   { key: 'notes', label: 'Notes' },
 ] as const
 
@@ -47,14 +58,15 @@ const PURCHASE_FIELDS = [
 
 function guessClientField(header: string): string {
   const h = header.toLowerCase().trim()
-  if (/^(customer|client)$/.test(h) || /full\s*name/.test(h) || /display\s*name/.test(h)) {
-    return 'first_name'
+  if (h === 'name' || h === 'customer' || h === 'client' || /full\s*name/.test(h) || /display\s*name/.test(h)) {
+    return 'full_name'
   }
   if (/^first|given/.test(h)) return 'first_name'
   if (/^last|family|surname/.test(h)) return 'last_name'
   if (/e[-\s]?mail/.test(h)) return 'email'
   if (/phone|mobile|cell/.test(h)) return 'phone'
   if (/company|business/.test(h)) return 'company'
+  if (/customer\s*type/.test(h)) return 'customer_type'
   if (/bill.*(street|addr.*line.*1|line\s*1|address)/.test(h)) return 'billing_street'
   if (/bill.*city/.test(h)) return 'billing_city'
   if (/bill.*(state|province|country.*sub)/.test(h)) return 'billing_state'
@@ -90,6 +102,8 @@ type ParsedFile = {
   headers: string[]
   rows: Record<string, string>[]
   fileName: string
+  fileKind: 'csv' | 'xls'
+  groupedReport?: { rows: FlatSalesRow[]; skippedHeaderRows: number }
 }
 
 type ClientsResult = {
@@ -109,11 +123,50 @@ type PurchasesResult = {
   deduped: number
   serviceLines: number
   discountLines: number
+  outOfScopeLines?: number
   total: number
   unmatched: Array<{ row: number; customer: string }>
   needsReview: Array<{ row: number; customer: string; product: string; description: string }>
   errors: Array<{ row: number; error: string }>
 } | { error: string }
+
+function extensionOf(fileName: string): 'csv' | 'xls' | 'xlsx' | 'unknown' {
+  const lower = fileName.toLowerCase()
+  if (lower.endsWith('.csv')) return 'csv'
+  if (lower.endsWith('.xlsx')) return 'xlsx'
+  if (lower.endsWith('.xls')) return 'xls'
+  return 'unknown'
+}
+
+function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as ArrayBuffer)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+function readFileAsText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsText(file)
+  })
+}
+
+function xlsxToMatrix(buffer: ArrayBuffer): CellMatrix {
+  const wb = XLSX.read(buffer, { type: 'array' })
+  const sheet = wb.Sheets[wb.SheetNames[0]]
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { defval: null, header: 1, blankrows: false, raw: false })
+  return rows.map((row) => row.map((cell) => (cell == null ? null : String(cell))))
+}
+
+function csvToMatrix(text: string): CellMatrix {
+  const parsed = Papa.parse<string[]>(text, { skipEmptyLines: false, header: false })
+  return (parsed.data as string[][]).map((row) => row.map((cell) => (cell === '' || cell == null ? null : cell)))
+}
 
 function UploadZone({
   mode,
@@ -136,36 +189,90 @@ function UploadZone({
   const title = mode === 'clients' ? 'Import Clients' : 'Import Purchase History'
   const subtitle =
     mode === 'clients'
-      ? 'Upload the QBO Customers CSV (Sales → Customers → Export to Excel, saved as CSV).'
-      : 'Upload the QBO Sales CSV (Reports → Sales by Customer Detail, exported as CSV).'
+      ? 'Upload the QBO Customers export (CSV or Excel).'
+      : 'Upload the QBO "Sales by Customer Detail" report (CSV). Grouped reports are auto-detected and flattened.'
 
   const handleFile = useCallback(
-    (file: File) => {
+    async (file: File) => {
       setParseError(null)
       setResult(null)
-      if (!file.name.toLowerCase().endsWith('.csv')) {
-        setParseError('Please upload a .csv file.')
+
+      const ext = extensionOf(file.name)
+      if (ext === 'unknown') {
+        setParseError('Please upload a .csv, .xls, or .xlsx file.')
         return
       }
-      Papa.parse<Record<string, string>>(file, {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: (h) => h.trim(),
-        complete: (res) => {
-          if (res.errors.length > 0 && res.data.length === 0) {
-            setParseError(`Parse error: ${res.errors[0].message}`)
+
+      try {
+        // Read the file into a 2-D matrix first — same shape for both CSV and Excel.
+        let matrix: CellMatrix
+        let fileKind: 'csv' | 'xls'
+        if (ext === 'csv') {
+          const text = await readFileAsText(file)
+          matrix = csvToMatrix(text)
+          fileKind = 'csv'
+        } else {
+          const buffer = await readFileAsArrayBuffer(file)
+          matrix = xlsxToMatrix(buffer)
+          fileKind = 'xls'
+        }
+
+        // For purchases: detect QBO grouped sales report and flatten if so.
+        if (mode === 'purchases' && isQboGroupedReport(matrix)) {
+          const result = parseQboGroupedSalesReport(matrix)
+          if (!result.success) {
+            setParseError(result.error)
             return
           }
-          const headers = res.meta.fields || []
-          const rows = res.data
-          const guesser = mode === 'clients' ? guessClientField : guessPurchaseField
-          const initialMapping: Record<string, string> = {}
-          for (const h of headers) initialMapping[h] = guesser(h)
-          setMapping(initialMapping)
-          setParsed({ headers, rows, fileName: file.name })
-        },
-        error: (err) => setParseError(`Failed to read file: ${err.message}`),
-      })
+          const headers = ['customer_name', 'date', 'transaction_type', 'num', 'product', 'description', 'quantity', 'sales_price', 'amount']
+          const rows = result.rows.map((r) => ({
+            customer_name: r.customer_name,
+            date: r.date,
+            transaction_type: r.transaction_type,
+            num: r.num,
+            product: r.product,
+            description: r.description,
+            quantity: r.quantity,
+            sales_price: r.sales_price,
+            amount: r.amount,
+          }))
+          // Pre-set the mapping so the user doesn't have to do it.
+          setMapping({
+            customer_name: 'customer',
+            date: 'date',
+            transaction_type: '',
+            num: 'invoice_id',
+            product: 'product',
+            description: 'description',
+            quantity: 'quantity',
+            sales_price: '',
+            amount: 'amount',
+          })
+          setParsed({
+            headers,
+            rows,
+            fileName: file.name,
+            fileKind,
+            groupedReport: { rows: result.rows, skippedHeaderRows: result.skippedHeaderRows },
+          })
+          return
+        }
+
+        // Flat table path — first row is headers.
+        const rowObjects = matrixToRowObjects(matrix)
+        if (rowObjects.length === 0) {
+          setParseError('No data rows found in the file.')
+          return
+        }
+        const headers = matrix[0].map((h) => (h ?? '').toString().trim()).filter((h) => h !== '')
+        const guesser = mode === 'clients' ? guessClientField : guessPurchaseField
+        const initialMapping: Record<string, string> = {}
+        for (const h of headers) initialMapping[h] = guesser(h)
+        setMapping(initialMapping)
+        setParsed({ headers, rows: rowObjects, fileName: file.name, fileKind })
+      } catch (err) {
+        setParseError(err instanceof Error ? err.message : 'Failed to read file')
+      }
     },
     [mode, setParsed],
   )
@@ -182,14 +289,16 @@ function UploadZone({
 
   const preview = useMemo(() => parsed?.rows.slice(0, 5) ?? [], [parsed])
 
+  const isGroupedReport = !!parsed?.groupedReport
+
   const requiredMissing = useMemo(() => {
     if (!parsed) return []
     const mapped = new Set(Object.values(mapping).filter(Boolean))
     const missing: string[] = []
     if (mode === 'clients') {
-      const hasName = mapped.has('first_name') || mapped.has('last_name')
+      const hasName = mapped.has('full_name') || mapped.has('first_name') || mapped.has('last_name')
       const hasContact = mapped.has('email') || mapped.has('phone')
-      if (!hasName) missing.push('first/last name')
+      if (!hasName) missing.push('full name (or first/last)')
       if (!hasContact) missing.push('email or phone')
     } else {
       if (!mapped.has('customer')) missing.push('customer')
@@ -265,13 +374,13 @@ function UploadZone({
         >
           <Upload className="w-8 h-8 mx-auto mb-2 text-gray-dark" />
           <p className="font-body text-sm text-body font-medium mb-1">
-            Drop your CSV here, or click to browse
+            Drop your file here, or click to browse
           </p>
-          <p className="font-body text-xs text-gray-dark">.csv files only</p>
+          <p className="font-body text-xs text-gray-dark">.csv, .xls, or .xlsx</p>
           <input
             ref={inputRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0]
@@ -294,32 +403,51 @@ function UploadZone({
             <span className="font-medium text-body">{parsed.fileName}</span>
             <span>·</span>
             <span>{parsed.rows.length} rows</span>
+            {parsed.fileKind === 'xls' && (
+              <span className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-light rounded text-xs">
+                Excel
+              </span>
+            )}
+            {isGroupedReport && (
+              <span className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-50 text-green-700 rounded text-xs">
+                <Sparkles className="w-3 h-3" /> QBO grouped report (auto-flattened)
+              </span>
+            )}
           </div>
 
-          <div>
-            <h3 className="font-heading text-sm font-medium text-body mb-2">Column mapping</h3>
-            <div className="space-y-2">
-              {parsed.headers.map((header) => (
-                <div key={header} className="flex items-center gap-3">
-                  <div className="flex-1 font-body text-sm text-body truncate" title={header}>
-                    {header}
-                  </div>
-                  <div className="text-gray-dark">→</div>
-                  <select
-                    value={mapping[header] ?? ''}
-                    onChange={(e) => setMapping((m) => ({ ...m, [header]: e.target.value }))}
-                    className="flex-1 border border-gray-med rounded px-2 py-1 font-body text-sm bg-white"
-                  >
-                    {fields.map((f) => (
-                      <option key={f.key} value={f.key}>
-                        {f.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+          {isGroupedReport && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-900 px-3 py-2 rounded font-body text-sm">
+              The customer name has been propagated to each transaction row below.
+              Columns are auto-mapped, so you can skip the mapping step.
             </div>
-          </div>
+          )}
+
+          {!isGroupedReport && (
+            <div>
+              <h3 className="font-heading text-sm font-medium text-body mb-2">Column mapping</h3>
+              <div className="space-y-2">
+                {parsed.headers.map((header) => (
+                  <div key={header} className="flex items-center gap-3">
+                    <div className="flex-1 font-body text-sm text-body truncate" title={header}>
+                      {header}
+                    </div>
+                    <div className="text-gray-dark">→</div>
+                    <select
+                      value={mapping[header] ?? ''}
+                      onChange={(e) => setMapping((m) => ({ ...m, [header]: e.target.value }))}
+                      className="flex-1 border border-gray-med rounded px-2 py-1 font-body text-sm bg-white"
+                    >
+                      {fields.map((f) => (
+                        <option key={f.key} value={f.key}>
+                          {f.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <h3 className="font-heading text-sm font-medium text-body mb-2">
@@ -332,7 +460,7 @@ function UploadZone({
                     {parsed.headers.map((h) => (
                       <th key={h} className="px-2 py-1 text-left text-body font-medium border-b border-gray-med">
                         {h}
-                        {mapping[h] && (
+                        {!isGroupedReport && mapping[h] && (
                           <div className="text-gray-dark text-xs font-normal">
                             → {fields.find((f) => f.key === mapping[h])?.label}
                           </div>
@@ -345,7 +473,7 @@ function UploadZone({
                   {preview.map((row, ri) => (
                     <tr key={ri} className="border-b border-gray-med last:border-0">
                       {parsed.headers.map((h) => (
-                        <td key={h} className="px-2 py-1 text-gray-dark whitespace-nowrap max-w-[12rem] truncate" title={row[h]}>
+                        <td key={h} className="px-2 py-1 text-gray-dark whitespace-nowrap max-w-[14rem] truncate" title={row[h]}>
                           {row[h] || ''}
                         </td>
                       ))}
@@ -356,7 +484,7 @@ function UploadZone({
             </div>
           </div>
 
-          {requiredMissing.length > 0 && (
+          {requiredMissing.length > 0 && !isGroupedReport && (
             <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-2 rounded font-body text-sm flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" />
               Map at least: {requiredMissing.join(', ')}
@@ -366,7 +494,7 @@ function UploadZone({
           <div className="flex gap-3">
             <button
               onClick={handleSubmit}
-              disabled={submitting || requiredMissing.length > 0}
+              disabled={submitting || (requiredMissing.length > 0 && !isGroupedReport)}
               className="bg-body hover:bg-body-hover disabled:bg-gray-med text-white px-4 py-2 rounded font-body font-medium text-sm flex items-center gap-2 transition-colors"
             >
               {submitting ? (
@@ -475,6 +603,7 @@ function PurchasesSummary({
         <p>
           {result.skipped} lines skipped total (
           {result.serviceLines} service, {result.discountLines} discount,
+          {result.outOfScopeLines !== undefined ? ` ${result.outOfScopeLines} out-of-scope,` : ''}
           {' '}{result.unmatched.length} unmatched, {result.needsReview.length} needs review)
         </p>
       </div>
@@ -560,18 +689,20 @@ export default function ImportPage() {
           Back to Settings
         </Link>
 
-        <h1 className="font-heading text-lg font-medium text-body mb-2">Import from QuickBooks (CSV)</h1>
+        <h1 className="font-heading text-lg font-medium text-body mb-2">Import from QuickBooks</h1>
         <p className="font-body text-sm text-gray-dark mb-4">
-          Export your data from QuickBooks Online, then upload the CSVs below.
+          Export your data from QuickBooks Online, then upload it here.
           Clients are matched by email → phone → name. Purchases are classified
-          using your custom item codes (CCVP, CT, CSC…) and ready-made brand names.
+          using your custom codes (CCP, CCVP, CT, CSC, CSHT…) and ready-made brand
+          names (Magnanni, 34 Heritage, Johnston & Murphy, Paige, Liverpool…).
+          Interior Design line items, fixtures, services and discounts are auto-skipped.
         </p>
 
         <div className="bg-gray-light border border-gray-med rounded p-3 mb-4 font-body text-sm text-gray-dark">
           <p className="font-medium text-body mb-1">How to export from QuickBooks</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><span className="text-body font-medium">Clients:</span> Sales → Customers → ⚙ → Export to Excel → save as CSV</li>
-            <li><span className="text-body font-medium">Purchases:</span> Reports → Sales by Customer Detail → Export → CSV</li>
+            <li><span className="text-body font-medium">Clients:</span> Sales → Customers → ⚙ → Export to Excel (save as .xls or .xlsx — the importer reads both)</li>
+            <li><span className="text-body font-medium">Purchases:</span> Reports → Sales by Customer Detail → Export to CSV (grouped format is auto-flattened on upload)</li>
           </ul>
         </div>
 

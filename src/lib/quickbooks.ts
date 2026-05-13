@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase'
 
-export type LineItemCategory = 'custom' | 'ready_made' | 'service' | 'discount' | 'unknown'
+export type LineItemCategory = 'custom' | 'ready_made' | 'service' | 'discount' | 'skip' | 'unknown'
 export type GarmentType = 'suit' | 'jacket' | 'pant' | 'shirt' | 'vest' | 'sport_coat' | 'other'
 
 export interface ParsedLineItem {
@@ -11,36 +11,121 @@ export interface ParsedLineItem {
   code?: string
 }
 
+// Custom garment codes — longest first so CSHT matches before CSH etc.
 const CUSTOM_CODE_MAP: Array<{ code: string; garment: GarmentType }> = [
   { code: 'CCVP', garment: 'suit' },
   { code: 'COVP', garment: 'suit' },
+  { code: 'CSHT', garment: 'shirt' },
+  { code: 'CSHO', garment: 'pant' },
   { code: 'CCP',  garment: 'suit' },
   { code: 'COP',  garment: 'suit' },
   { code: 'CSC',  garment: 'sport_coat' },
-  { code: 'CSHT', garment: 'shirt' },
   { code: 'CSH',  garment: 'shirt' },
   { code: 'COF',  garment: 'other' },
   { code: 'CT',   garment: 'pant' },
   { code: 'CV',   garment: 'vest' },
+  { code: 'CB',   garment: 'jacket' },
   { code: 'CC',   garment: 'jacket' },
 ]
 
-const GENERIC_GARMENT_WORDS: Array<{ pattern: RegExp; garment: GarmentType }> = [
-  { pattern: /\bsuit\b/i,        garment: 'suit' },
-  { pattern: /\bsport[\s-]?coat\b/i, garment: 'sport_coat' },
-  { pattern: /\bjacket\b/i,      garment: 'jacket' },
-  { pattern: /\bcoat\b/i,        garment: 'jacket' },
-  { pattern: /\b(pant|trouser)s?\b/i, garment: 'pant' },
-  { pattern: /\bvest\b/i,        garment: 'vest' },
-  { pattern: /\bshirt\b/i,       garment: 'shirt' },
-  { pattern: /\bshorts?\b/i,     garment: 'pant' },
+// Custom-by-keyword (no formal code): "Custom Tuxedo", "Custom Sweater", "Custom Jeans", etc.
+const CUSTOM_KEYWORDS: Array<{ pattern: RegExp; garment: GarmentType }> = [
+  { pattern: /\bcustom\s+tuxedo\b/i,           garment: 'suit' },
+  { pattern: /\bcustom\s+cashmere\s+sweater\b/i, garment: 'other' },
+  { pattern: /\bcustom\s+sweater\b/i,          garment: 'other' },
+  { pattern: /\bcustom\s+jeans\b/i,            garment: 'pant' },
+  { pattern: /\bcustom\s+sport[\s-]?coat\b/i,  garment: 'sport_coat' },
+  { pattern: /\bcustom\s+suit\b/i,             garment: 'suit' },
+  { pattern: /\bcustom\s+jacket\b/i,           garment: 'jacket' },
+  { pattern: /\bcustom\s+bomber\b/i,           garment: 'jacket' },
+  { pattern: /\bcustom\s+coat\b/i,             garment: 'jacket' },
+  { pattern: /\bcustom\s+(pant|trouser)s?\b/i, garment: 'pant' },
+  { pattern: /\bcustom\s+shorts?\b/i,          garment: 'pant' },
+  { pattern: /\bcustom\s+vest\b/i,             garment: 'vest' },
+  { pattern: /\bcustom\s+shirt\b/i,            garment: 'shirt' },
 ]
 
+// Known ready-made brand patterns, longest/most-specific first.
 const READY_MADE_BRANDS: Array<{ pattern: RegExp; brand: string }> = [
-  { pattern: /magnann?i/i,        brand: 'Magnanni' },
-  { pattern: /34\s*heritage/i,    brand: '34 Heritage' },
-  { pattern: /7\s*diamonds/i,     brand: '7Diamonds' },
+  { pattern: /\bholderness\s*&?\s*bourne\b/i, brand: 'Holderness & Bourne' },
+  { pattern: /\bjohnston\s*&?\s*murphy\b/i,   brand: 'Johnston & Murphy' },
+  { pattern: /\bdead\s*soxy\b/i,              brand: 'Dead Soxy' },
+  { pattern: /\bblue\s*delta\b/i,             brand: 'Blue Delta' },
+  { pattern: /\b34\s*heritage\b/i,            brand: '34 Heritage' },
+  { pattern: /\b7\s*diamonds\b/i,             brand: '7Diamonds' },
+  { pattern: /\bliverpool\b/i,                brand: 'Liverpool' },
+  { pattern: /\bmagnann?i\b/i,                brand: 'Magnanni' },
+  { pattern: /\bpaige\b/i,                    brand: 'Paige' },
+  // J&M / JM — short tokens, require word boundaries and the ampersand or specific context to avoid false matches
+  { pattern: /\bJ\s*&\s*M\b/,                 brand: 'Johnston & Murphy' },
+  { pattern: /(^|[:\s])JM\b/,                 brand: 'Johnston & Murphy' },
 ]
+
+// Furniture / fixture / lighting words — interior design line items without the prefix.
+const FIXTURE_WORDS = [
+  /\bdelta\b/i, /\bkohler\b/i, /\bmatthews\b/i, /\bpossini\b/i,
+  /\belegant\s+lighting\b/i,
+  /\bpendants?\b/i, /\bvanity\s+light\b/i, /\bflush\s+mount\b/i,
+  /\blantern\b/i, /\bsconce\b/i, /\bmirror\b/i, /\btile\b/i,
+  /\bwallpaper\b/i, /\bfaucet\b/i, /\btub\b/i, /\bsink\b/i,
+  /\bshower\b/i,
+  // Plain "Light" / "Lights" matched last so we don't catch "Lighting Charge" etc. on its own
+  /\bbulbs?\b/i,
+]
+
+// Specific wardrobe-styling-as-service labels.
+const WARDROBE_SERVICE_LABELS = [
+  /\bpersonal\s+styling\b/i,
+  /\bmonthly\s+vip\b/i, /\bvip\s+concierge\b/i,
+  /\bcuts\b/i,
+  /\bdry\s+cleaning\b/i,
+  /\bshipping\b/i,
+  /\btips?\b/i,
+  /\bconvenience\s+fee\b/i,
+  /\brush\s+fee\b/i,
+  /\bshoe\s+repair\b/i,
+  /\bcustom\s+lining\s+charge\b/i,
+  /\balterations?\b/i,
+  /\bcustom\s+amount\b/i,
+  /\bcustom\s+clothing\s+gift\s+certificate\b/i,
+  /\bdesigner\s+fee\b/i,
+  /\badjustment\s+from\s+prior\s+period\b/i,
+  /\berc\s+tax\s+credit\b/i,
+  /\binterest\s+earned\b/i,
+  /\bstyling\s+fee\b/i,
+  /\bconsultation\b/i,
+]
+
+// Discount/credit/complimentary tokens.
+const DISCOUNT_PATTERNS = [
+  /\bdiscount\b/i,
+  /\bcredit\b/i,
+  /\bcomplimentary\b/i,
+  /\bbuy\s+\d+\s+get\s+\d+\s+free\b/i,
+  /\bfriends\s*&?\s*family\b/i,
+]
+
+// Generic ready-made labels after "Wardrobe Styling:" — brand stays null.
+const GENERIC_READY_MADE_KEYWORDS = [
+  /\bready[\s-]?made\b/i,
+  /^shoes$/i, /\bshoes?\b/i,
+  /\bbelt\b/i,
+  /\bsocks?\b/i,
+  /\btie\b/i,
+  /\bpocket\s*square\b/i,
+  /\baccessor(y|ies)\b/i,
+  /\bpolo\b/i,
+]
+
+// Stop words that shouldn't be treated as brand when extracting from description.
+const BRAND_STOP_WORDS = new Set([
+  'a', 'an', 'the', 'and', 'or', 'with', 'in',
+  'navy', 'black', 'white', 'blue', 'red', 'grey', 'gray', 'green', 'tan', 'brown',
+  'charcoal', 'olive', 'beige', 'cream', 'burgundy', 'pink', 'orange', 'yellow',
+  'dark', 'light', 'med', 'medium', 'pale', 'deep',
+  'size', 'small', 'large', 'xl', 'xxl', 'xs', 's', 'm', 'l',
+  'cotton', 'wool', 'linen', 'silk', 'cashmere', 'leather', 'denim',
+])
 
 function parseSize(description: string): string | undefined {
   if (!description) return undefined
@@ -58,63 +143,101 @@ function parseSize(description: string): string | undefined {
   return undefined
 }
 
+function extractBrandFromDescription(desc: string): string | undefined {
+  if (!desc) return undefined
+  const tokens = desc.split(/[\s,]+/).filter(Boolean)
+  if (tokens.length === 0) return undefined
+  const first = tokens[0]
+  if (BRAND_STOP_WORDS.has(first.toLowerCase())) return undefined
+  if (/^\d/.test(first)) return undefined
+  return first
+}
+
+// Strip the common "Section:" prefix (e.g., "Wardrobe Styling:CCP - Custom...") so subsequent
+// matching is easier. Returns both the stripped name and the original section if present.
+function stripSectionPrefix(name: string): { section: string | null; rest: string } {
+  const m = name.match(/^([^:]+):(.*)$/)
+  if (!m) return { section: null, rest: name }
+  return { section: m[1].trim(), rest: m[2].trim() }
+}
+
 export function parseInvoiceLineItem(productName: string, description: string = ''): ParsedLineItem {
-  const name = (productName || '').trim()
+  const rawName = (productName || '').trim()
   const desc = (description || '').trim()
 
-  if (!name) return { category: 'unknown' }
+  if (!rawName) return { category: 'unknown' }
 
-  if (/\b(discount|friends\s*&?\s*family|adjustment|refund)\b/i.test(name)) {
-    return { category: 'discount' }
+  const { section, rest } = stripSectionPrefix(rawName)
+
+  // (1) Hard-skip prefixes: anything in Interior Design / Renovation / Organizing namespaces.
+  if (section) {
+    const sectionLower = section.toLowerCase()
+    if (sectionLower === 'interior design' || sectionLower === 'renovation' || sectionLower === 'organizing') {
+      return { category: 'skip' }
+    }
   }
 
-  if (/\b(alterations?|styling\s*fee|service|consultation)\b/i.test(name)) {
-    return { category: 'service' }
-  }
-
+  // (2) Known ready-made brand patterns — checked FIRST so e.g. "Blue Delta" wins
+  // over the bare "Delta" fixture rule below.
   for (const { pattern, brand } of READY_MADE_BRANDS) {
-    if (pattern.test(name)) {
+    if (pattern.test(rest)) {
       return { category: 'ready_made', brand, size: parseSize(desc) }
     }
   }
 
-  if (/\bready[\s-]?made\b/i.test(name)) {
-    let brand: string | undefined
-    if (desc) {
-      const first = desc.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(' ')
-      brand = first || 'Unknown'
-    } else {
-      brand = 'Unknown'
+  // (3) Wardrobe styling services / fees / accounting line items — BEFORE discount,
+  // so "ERC Tax Credit" lands as service instead of matching /credit/.
+  for (const re of WARDROBE_SERVICE_LABELS) {
+    if (re.test(rest)) {
+      return { category: 'service' }
     }
-    return { category: 'ready_made', brand, size: parseSize(desc) }
   }
 
+  // (4) Discounts / credits / complimentary.
+  for (const re of DISCOUNT_PATTERNS) {
+    if (re.test(rest)) {
+      return { category: 'discount' }
+    }
+  }
+
+  // (5) Furniture / fixture / lighting words — interior design items without the prefix.
+  for (const re of FIXTURE_WORDS) {
+    if (re.test(rest) || re.test(rawName)) {
+      return { category: 'skip' }
+    }
+  }
+
+  // (6) Custom garment codes (longest first via array order).
   for (const { code, garment } of CUSTOM_CODE_MAP) {
     const re = new RegExp(`\\b${code}\\b`)
-    if (re.test(name)) {
+    if (re.test(rest)) {
       return { category: 'custom', garment_type: garment, code, size: parseSize(desc) }
     }
   }
 
-  if (/\bcustom\b/i.test(name)) {
-    for (const { pattern, garment } of GENERIC_GARMENT_WORDS) {
-      if (pattern.test(name)) return { category: 'custom', garment_type: garment, size: parseSize(desc) }
-    }
-    return { category: 'custom', garment_type: 'other', size: parseSize(desc) }
-  }
-
-  for (const { pattern, garment } of GENERIC_GARMENT_WORDS) {
-    if (pattern.test(name)) {
-      const brandLeadingPattern = /^(wardrobe\s+styling\s+)?(magnann?i|34\s*heritage|7\s*diamonds|peter\s+millar|canali|zegna)/i
-      if (brandLeadingPattern.test(name)) {
-        return { category: 'ready_made', brand: name.replace(/wardrobe\s+styling\s+/i, '').trim(), size: parseSize(desc) }
-      }
+  // (7) Custom-by-keyword.
+  for (const { pattern, garment } of CUSTOM_KEYWORDS) {
+    if (pattern.test(rest)) {
       return { category: 'custom', garment_type: garment, size: parseSize(desc) }
     }
   }
 
-  if (/\b(belt|socks?|tie|pocket\s*square|cufflinks?|accessor(y|ies))\b/i.test(name)) {
-    return { category: 'ready_made', size: parseSize(desc) }
+  // (8) Generic "Wardrobe Styling:Ready Made Clothing" — try to pull brand from description.
+  if (/\bready[\s-]?made\b/i.test(rest)) {
+    const brand = extractBrandFromDescription(desc)
+    return { category: 'ready_made', ...(brand ? { brand } : {}), size: parseSize(desc) }
+  }
+
+  // (9) Generic accessory / no-brand ready-made labels.
+  for (const re of GENERIC_READY_MADE_KEYWORDS) {
+    if (re.test(rest)) {
+      return { category: 'ready_made', size: parseSize(desc) }
+    }
+  }
+
+  // (10) Fallback "Custom <something>" without a specific keyword match.
+  if (/\bcustom\b/i.test(rest)) {
+    return { category: 'custom', garment_type: 'other', size: parseSize(desc) }
   }
 
   return { category: 'unknown' }

@@ -41,6 +41,13 @@ function clean(v: unknown): string | null {
 function parseDate(v: unknown): string | null {
   const s = clean(v)
   if (!s) return null
+  // QBO format is MM/DD/YYYY — parse explicitly so it works regardless of locale.
+  const mdy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (mdy) {
+    const mm = mdy[1].padStart(2, '0')
+    const dd = mdy[2].padStart(2, '0')
+    return `${mdy[3]}-${mm}-${dd}`
+  }
   const d = new Date(s)
   if (isNaN(d.getTime())) return null
   return d.toISOString().split('T')[0]
@@ -124,6 +131,8 @@ export async function POST(req: Request) {
   let skipped = 0
   let serviceLines = 0
   let discountLines = 0
+  let outOfScopeLines = 0
+  let refundLines = 0
   let deduped = 0
   const unmatched: Array<{ row: number; customer: string }> = []
   const needsReview: Array<{ row: number; customer: string; product: string; description: string }> = []
@@ -158,6 +167,18 @@ export async function POST(req: Request) {
       }
       if (parsed.category === 'discount') {
         discountLines++
+        skipped++
+        continue
+      }
+      if (parsed.category === 'skip') {
+        outOfScopeLines++
+        skipped++
+        continue
+      }
+
+      // Negative amount on a real purchase = refund line; skip.
+      if ((parsed.category === 'ready_made' || parsed.category === 'custom') && amount !== null && amount < 0) {
+        refundLines++
         skipped++
         continue
       }
@@ -282,6 +303,8 @@ export async function POST(req: Request) {
     deduped,
     serviceLines,
     discountLines,
+    outOfScopeLines,
+    refundLines,
     total: rows.length,
     unmatched,
     needsReview,

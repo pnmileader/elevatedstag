@@ -42,3 +42,4 @@ next-env.d.ts
 
 # local handoff docs (personal, not part of repo)
 CLAUDE_PROJECT_GUIDE.md
+fixtures/
