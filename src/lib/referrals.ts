@@ -8,7 +8,11 @@ export type ReferralClient = { id: string; first_name: string | null; last_name:
 let columnProbe: Promise<boolean> | null = null
 export function hasReferredByIdColumn(supabase: SupabaseClient): Promise<boolean> {
   if (!columnProbe) {
-    columnProbe = Promise.resolve(supabase.from('clients').select('referred_by_id').limit(1)).then(({ error }) => !error)
+    // select('*') and look for the key: asking for a missing column by name is a
+    // 400 from PostgREST, which the browser logs as a console error on every visit.
+    columnProbe = Promise.resolve(supabase.from('clients').select('*').limit(1)).then(
+      ({ data }) => !!data?.[0] && 'referred_by_id' in data[0],
+    )
   }
   return columnProbe
 }

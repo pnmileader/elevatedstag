@@ -6,6 +6,8 @@ import { ArrowLeft, Send, Loader2, Users, User, Tag, MapPin, ShoppingBag } from 
 import Link from 'next/link'
 import Layout from '@/components/Layout'
 import ClientCombobox from '@/components/ClientCombobox'
+import { SuccessCheck, useSuccessFlash } from '@/components/motion/SuccessCheck'
+import { useToast } from '@/components/motion/Toast'
 import { createClient } from '@/lib/supabase'
 import { normalizeNewlines } from '@/lib/emailRender'
 import { clientDisplayName } from '@/lib/clientDisplay'
@@ -62,6 +64,8 @@ function ComposeContent() {
   const [sending, setSending] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
+  const toast = useToast()
+  const [sentFlash, flashSent] = useSuccessFlash()
 
   useEffect(() => {
     async function fetchData() {
@@ -196,6 +200,12 @@ function ComposeContent() {
     }
 
     const notSent = recipients.length - sent - failures.length
+    if (failures.length === 0 && !limitHit) {
+      toast.success(`Sent ${sent} email${sent !== 1 ? 's' : ''}`)
+      flashSent()
+    } else {
+      toast.error(`${sent} sent, ${recipients.length - sent} not sent — details above`)
+    }
     setResult({
       success: failures.length === 0 && !limitHit,
       message:
@@ -393,6 +403,11 @@ function ComposeContent() {
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Sending {progress} of {recipients.length}…
+              </>
+            ) : sentFlash ? (
+              <>
+                <SuccessCheck show />
+                Sent
               </>
             ) : (
               <>

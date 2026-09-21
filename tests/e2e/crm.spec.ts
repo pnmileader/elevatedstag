@@ -330,7 +330,7 @@ test.describe('3. Clients list', () => {
     await expect(modal).toContainText('cannot be undone')
     await page.getByTestId('confirm-accept').click()
 
-    await expect(page.getByTestId('clients-notice')).toContainText('Deleted 2 clients')
+    await expect(page.getByTestId('toast')).toContainText('Deleted 2 clients')
     const { data: left } = await db.from('clients').select('id').in('id', [doomedA, doomedB])
     expect(left).toHaveLength(0)
   })
@@ -395,5 +395,188 @@ test.describe('3. Calendar', () => {
     await page.goto('/calendar')
     await page.getByRole('button', { name: 'Month' }).click()
     await expect(page.getByText('E2E Studio').first()).toBeVisible()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// SECTION 4 — transitions.dev motion
+// ---------------------------------------------------------------------------
+test.describe('4. Transitions', () => {
+  test('4.1 pages slide in from the right going forward and from the left going back', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Clients' }).click()
+    await expect(page).toHaveURL(/\/clients$/)
+    await expect(page.getByTestId('page-transition')).toHaveAttribute('data-dir', 'forward')
+    await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Dashboard' }).click()
+    await expect(page).toHaveURL(/\/$/)
+    await expect(page.getByTestId('page-transition')).toHaveAttribute('data-dir', 'back')
+    const anim = await page.getByTestId('page-transition').evaluate((el) => getComputedStyle(el).animationName)
+    expect(anim).toBe('t-page-in')
+  })
+
+  test('4.2 + 4.6 modal scales in/out and the gear menu opens from its top-right origin', async ({ page }) => {
+    await page.goto('/clients')
+    await expect(page.getByTestId('client-card').first()).toBeVisible()
+    await page.getByTestId('gear-icon').click()
+    const menu = page.getByTestId('settings-menu')
+    await expect(menu).toHaveClass(/t-dropdown/)
+    await expect(menu).toHaveClass(/is-open/)
+    await expect(menu).toHaveAttribute('data-origin', 'top-right')
+    await expect(menu.getByText('Settings')).toBeVisible()
+    await expect(menu.getByText('Referrals')).toBeVisible()
+    await page.mouse.click(10, 300)
+    await expect(menu).toHaveCount(0)
+
+    await expect(page.getByTestId('client-card').first()).toBeVisible()
+    await page.getByTestId('select-mode-toggle').click()
+    await page.getByTestId('client-checkbox').first().check()
+    await page.getByTestId('delete-selected').click()
+    const modal = page.getByTestId('confirm-modal')
+    await expect(modal).toHaveClass(/t-modal/)
+    await expect(modal).toHaveClass(/is-open/)
+    await page.getByTestId('confirm-cancel').click() // cancel — nothing is deleted
+    await expect(modal).not.toHaveClass(/is-open/)
+    await expect(modal).toBeHidden()
+  })
+
+  test('4.3 client cards rise in with a stagger', async ({ page }) => {
+    await page.goto('/clients')
+    const cards = page.getByTestId('client-card')
+    await expect(cards.first()).toBeVisible()
+    const info = await cards.evaluateAll((els) => els.slice(0, 3).map((el) => ({
+      name: getComputedStyle(el).animationName,
+      delay: getComputedStyle(el).animationDelay,
+    })))
+    expect(info.map((i) => i.name)).toEqual(['t-stagger-in', 't-stagger-in', 't-stagger-in'])
+    expect(info.map((i) => i.delay)).toEqual(['0s', '0.04s', '0.08s'])
+  })
+
+  test('4.4 the tab pill slides to the active tab', async ({ page }) => {
+    await page.goto('/email')
+    const pill = page.getByTestId('tabs-pill')
+    await expect(pill).toHaveAttribute('data-ready', 'true')
+    const x = () => pill.evaluate((el) => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41)
+    const before = await x()
+    await page.getByRole('tab', { name: 'Sent History' }).click()
+    await expect(page.getByRole('tab', { name: 'Sent History' })).toHaveAttribute('aria-selected', 'true')
+    await expect.poll(x).toBeGreaterThan(before + 100)
+    await expect(page.locator('#panel-sent')).toBeVisible()
+  })
+
+  test('4.5 + 4.7 saving shows a toast and a drawn checkmark on the button', async ({ page }) => {
+    await page.goto(`/clients/${testClientId}/measurements`)
+    await page.locator('input[data-field="weight"]').fill('170')
+    await page.getByTestId('save-measurements').click()
+    const toast = page.getByTestId('toast')
+    await expect(toast).toContainText('Measurements saved')
+    await expect(toast).toHaveClass(/is-open/)
+    await expect(page.getByTestId('save-measurements').getByTestId('success-check')).toHaveAttribute('data-state', 'in')
+    await expect(page.getByTestId('save-measurements')).toContainText('Saved')
+    await expect(toast).toHaveCount(0, { timeout: 8000 }) // it dismisses itself
+  })
+
+  test('4.8 + 4.9 dashboard shows a skeleton, then numbers pop in', async ({ page }) => {
+    // slow the data down so the skeleton is observable
+    await page.route('**/rest/v1/**', async (route) => { await new Promise((r) => setTimeout(r, 700)); await route.continue() })
+    await page.goto('/')
+    await expect(page.getByTestId('dashboard-skeleton')).toBeVisible()
+    await expect(page.getByTestId('dashboard-content')).toBeVisible()
+    await expect(page.getByTestId('dashboard-skeleton')).toHaveCount(0)
+    const total = page.getByTestId('stat-total-clients')
+    await expect(total).toHaveClass(/is-animating/)
+    expect(await total.locator('.t-digit').count()).toBeGreaterThan(0)
+    expect(await total.locator('.t-digit').first().evaluate((el) => getComputedStyle(el).animationName)).toBe('t-digit-pop-in')
+  })
+
+  test('4.10 measurement sections are accordions on a phone and always open on iPad', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto(`/clients/${testClientId}/measurements`)
+    const coat = page.getByTestId('acc-coat')
+    await expect(page.getByTestId('acc-body')).toHaveAttribute('data-open', 'true')
+    await expect(coat).toHaveAttribute('data-open', 'false')
+    const panelHeight = () => coat.locator('.t-acc-panel').evaluate((el) => el.getBoundingClientRect().height)
+    expect(await panelHeight()).toBeLessThan(2)
+    await coat.getByRole('button', { name: 'Coat Measurements' }).tap()
+    await expect(coat).toHaveAttribute('data-open', 'true')
+    await expect.poll(panelHeight).toBeGreaterThan(200)
+    await page.locator('input[name="coat.chest"]').fill('42')
+    await expect(page.locator('input[name="coat.chest"]')).toHaveValue('42')
+
+    await page.setViewportSize({ width: 768, height: 1024 })
+    await page.reload()
+    await expect(page.locator('input[name="pant.rise"]')).toBeVisible() // closed-by-default section is open at tablet width
+  })
+
+  test('respects prefers-reduced-motion', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: 'tests/e2e/.auth/user.json', reducedMotion: 'reduce', viewport: { width: 768, height: 1024 } })
+    const page = await ctx.newPage()
+    await page.goto('/clients')
+    await expect(page.getByTestId('client-card').first()).toBeVisible()
+    expect(await page.getByTestId('client-card').first().evaluate((el) => getComputedStyle(el).animationName)).toBe('none')
+    expect(await page.getByTestId('page-transition').evaluate((el) => getComputedStyle(el).animationName)).toBe('none')
+    await ctx.close()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// SECTION 5 — app-wide smoke tests from the spec
+// ---------------------------------------------------------------------------
+test.describe('5. Navigation + smoke', () => {
+  test('bottom nav tabs all navigate correctly', async ({ page }) => {
+    await page.goto('/')
+    const nav = page.getByRole('navigation', { name: 'Main navigation' })
+    for (const [label, url] of [['Clients', /\/clients$/], ['Orders', /\/orders$/], ['Calendar', /\/calendar$/], ['Email', /\/email$/], ['Dashboard', /\/$/]] as const) {
+      await nav.getByRole('link', { name: label }).click()
+      await expect(page).toHaveURL(url)
+    }
+  })
+
+  test('mobile shows the bottom tab bar with 44px+ targets', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/')
+    const nav = page.getByRole('navigation', { name: 'Main navigation' })
+    for (const label of ['Dashboard', 'Clients', 'Orders', 'Calendar', 'Email']) {
+      const link = nav.getByRole('link', { name: label })
+      await expect(link).toBeVisible()
+      const box = (await link.boundingBox())!
+      expect(box.height).toBeGreaterThanOrEqual(44)
+      expect(box.width).toBeGreaterThanOrEqual(44)
+    }
+  })
+
+  test('dashboard loads with all widgets', async ({ page }) => {
+    await page.goto('/')
+    for (const heading of ['Revenue', 'Clients by Stage', 'Needs Follow-Up', 'Recent Orders']) {
+      await expect(page.getByText(heading, { exact: false }).first()).toBeVisible()
+    }
+    expect(await page.getByTestId('revenue-this-month').textContent()).toMatch(/^\$[\d,]+$/)
+  })
+
+  test('client profile loads with all sections', async ({ page }) => {
+    await page.goto('/clients')
+    await page.getByTestId('client-search').fill('james bettersworth')
+    await page.getByTestId('client-card').first().click()
+    await expect(page.getByRole('heading', { name: 'James Bettersworth' })).toBeVisible()
+    for (const section of ['Financial Summary', 'Quick Links', 'Client Care', 'Tags', 'Referrals']) {
+      await expect(page.getByRole('heading', { name: section }).first()).toBeVisible()
+    }
+  })
+
+  test('email templates page loads with templates', async ({ page }) => {
+    await page.goto('/email/templates')
+    await expect(page.getByText('Appointment Outreach').first()).toBeVisible()
+    await expect(page.getByText('Post-Delivery Follow Up').first()).toBeVisible()
+  })
+
+  test('navigating the whole app produces no console errors', async ({ page }) => {
+    const errors: string[] = []
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(`${msg.text()} @ ${page.url()}`) })
+    page.on('pageerror', (err) => errors.push(`${String(err)} @ ${page.url()}`))
+    page.on('response', (res) => { if (res.status() >= 400) errors.push(`HTTP ${res.status()} ${res.request().method()} ${res.url().split('?')[0]} ?${(res.url().split('?')[1] || '').slice(0, 120)} @ ${page.url()}`) })
+    for (const path of ['/', '/clients', `/clients/${testClientId}`, `/clients/${testClientId}/measurements`, '/orders', '/calendar', '/email', '/email/compose', '/email/templates', '/settings', '/settings/import', '/referrals']) {
+      await page.goto(path)
+      await page.waitForLoadState('networkidle')
+    }
+    expect(errors, errors.join('\n')).toEqual([])
   })
 })

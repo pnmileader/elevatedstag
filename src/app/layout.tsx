@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Libre_Baskerville, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
+import "./transitions.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { ToastProvider } from "@/components/motion/Toast";
 
 const libreBaskerville = Libre_Baskerville({
   subsets: ['latin'],
@@ -44,7 +46,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${libreBaskerville.variable} ${sourceSans.variable}`}>
         <ErrorBoundary>
-          {children}
+          <ToastProvider>{children}</ToastProvider>
         </ErrorBoundary>
       </body>
     </html>

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, X, Trash2, CheckSquare } from 'lucide-react'
 import Layout from '@/components/Layout'
 import ConfirmModal from '@/components/ConfirmModal'
+import { useToast } from '@/components/motion/Toast'
 import { createClient } from '@/lib/supabase'
 import { clientDisplayName, clientInitials } from '@/lib/clientDisplay'
 import {
@@ -74,7 +75,7 @@ function ClientsContent() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+  const toast = useToast()
 
   useEffect(() => {
     async function loadClients() {
@@ -191,10 +192,10 @@ function ClientsContent() {
       }
       const gone = new Set(ids)
       setClients((prev) => prev.filter((c) => !gone.has(c.id)))
-      setNotice({ kind: 'success', text: `Deleted ${deleted} client${deleted !== 1 ? 's' : ''}.` })
+      toast.success(`Deleted ${deleted} client${deleted !== 1 ? 's' : ''}`)
       exitSelectMode()
     } catch (err) {
-      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Delete failed' })
+      toast.error(err instanceof Error ? err.message : 'Delete failed')
     } finally {
       setDeleting(false)
       setConfirmOpen(false)
@@ -220,16 +221,6 @@ function ClientsContent() {
           </button>
         )}
       </div>
-
-      {notice && (
-        <div
-          role="status"
-          data-testid="clients-notice"
-          className={`mb-3 px-4 py-3 rounded text-sm border ${notice.kind === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
-        >
-          {notice.text}
-        </div>
-      )}
 
       {/* Search */}
       <div className="relative mb-3">

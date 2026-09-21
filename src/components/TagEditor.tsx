@@ -71,7 +71,7 @@ export default function TagEditor({ tags, suggestions, onChange, disabled }: Pro
           />
           {focused && options.length > 0 && (
             <ul
-              className="absolute left-0 right-0 top-full mt-1 z-30 bg-surface border border-rule rounded overflow-hidden"
+              className="t-dropdown-mount absolute left-0 right-0 top-full mt-1 z-30 bg-surface border border-rule rounded overflow-hidden"
               style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.12)' }}
               data-testid="tag-suggestions"
             >

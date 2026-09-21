@@ -2,6 +2,9 @@
 
 import { useState, useEffect, use } from 'react'
 import ReferredByField from '@/components/ReferredByField'
+import ConfirmModal from '@/components/ConfirmModal'
+import SlidingTabs from '@/components/motion/SlidingTabs'
+import { useToast } from '@/components/motion/Toast'
 import TagEditor from '@/components/TagEditor'
 import { hasReferredByIdColumn } from '@/lib/referrals'
 import { uniqueTags } from '@/lib/clientFilters'
@@ -59,6 +62,8 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
     trinity_id: '',
   })
 
+  const toast = useToast()
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [tags, setTags] = useState<string[]>([])
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
   const [referredById, setReferredById] = useState<string | null>(null)
@@ -218,14 +223,11 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
       return
     }
 
+    toast.success('Client saved')
     router.push(`/clients/${clientId}`)
   }
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this client? This will also delete all their measurements, orders, and care items. This cannot be undone.')) {
-      return
-    }
-
     setDeleting(true)
     const supabase = createClient()
 
@@ -241,6 +243,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
       return
     }
 
+    toast.success('Client deleted')
     router.push('/clients')
   }
 
@@ -284,7 +287,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           <div className="flex items-center justify-between mb-3">
             <h1 className="font-heading text-xl font-medium text-body">Edit Client</h1>
             <button
-              onClick={handleDelete}
+              onClick={() => setConfirmDelete(true)}
               disabled={deleting}
               className="text-red-500 hover:text-red-700 font-body text-sm flex items-center gap-1"
             >
@@ -294,21 +297,14 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* Section Tabs */}
-          <div className="flex gap-1 bg-gray-light rounded p-1 mb-3">
-            {sections.map(s => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setActiveSection(s.id)}
-                className={`flex-1 px-4 py-2 rounded-md font-body text-sm font-semibold transition-colors ${
-                  activeSection === s.id
-                    ? 'bg-white text-body'
-                    : 'text-gray-dark hover:text-black'
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
+          <div className="mb-3">
+            <SlidingTabs
+              ariaLabel="Client details sections"
+              idPrefix="edit-tab"
+              value={activeSection}
+              onChange={setActiveSection}
+              tabs={sections}
+            />
           </div>
 
           {error && (
@@ -579,6 +575,16 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           </form>
         </div>
       </div>
+      <ConfirmModal
+        open={confirmDelete}
+        title="Delete this client?"
+        message="This also deletes their measurements, orders, purchases and care items. This cannot be undone."
+        confirmLabel="Delete client"
+        destructive
+        busy={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   )
 }

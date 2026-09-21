@@ -141,7 +141,7 @@ export default function ClientCombobox({ clients, value, onChange, placeholder =
           id={listId}
           role="listbox"
           data-testid={`${testId}-options`}
-          className="absolute left-0 right-0 top-full mt-1 z-40 bg-surface border border-rule rounded overflow-y-auto"
+          className="t-dropdown-mount absolute left-0 right-0 top-full mt-1 z-40 bg-surface border border-rule rounded overflow-y-auto"
           style={{ maxHeight: 280, boxShadow: '0 4px 24px rgba(0,0,0,0.12)' }}
         >
           {matches.length === 0 ? (

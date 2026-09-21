@@ -5,6 +5,9 @@ import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import Layout from '@/components/Layout'
 import { createClient } from '@/lib/supabase'
+import Accordion from '@/components/motion/Accordion'
+import { SuccessCheck, useSuccessFlash } from '@/components/motion/SuccessCheck'
+import { useToast } from '@/components/motion/Toast'
 
 // ---------------------------------------------------------------------------
 // Field definitions per category
@@ -262,6 +265,8 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const toast = useToast()
+  const [savedFlash, flashSaved] = useSuccessFlash()
 
   // ---- Data fetching ----
   useEffect(() => {
@@ -403,6 +408,8 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
 
       setLastSaved(new Date())
       setSaveError(null)
+      toast.success('Measurements saved')
+      flashSaved()
     } catch (err) {
       console.error('Error saving measurements:', err)
       setSaveError('Could not save measurements. Check your connection and try again.')
@@ -463,6 +470,11 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Saving...
                 </>
+              ) : savedFlash ? (
+                <>
+                  <SuccessCheck show />
+                  Saved
+                </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
@@ -501,10 +513,13 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
           {/* --- Left column: Body Description --- */}
           <div className="bg-white rounded border border-gray-med p-5">
-            <h3 className="font-heading text-base font-medium text-body mb-4 border-b border-gray-med pb-2">
-              Body Description
-            </h3>
-            <div className="space-y-1">
+            <Accordion
+              collapse="mobile"
+              defaultOpen={true}
+              testId="acc-body"
+              title={<h3 className="font-heading text-base font-medium text-body">Body Description</h3>}
+            >
+            <div className="space-y-1 border-t border-gray-med mt-2 pt-3">
               {BODY_FIELDS.map((field) => (
                 <MeasurementInput
                   key={field.key}
@@ -515,14 +530,18 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
                 />
               ))}
             </div>
+            </Accordion>
           </div>
 
           {/* --- Center column: Coat Measurements --- */}
           <div className="bg-white rounded border border-gray-med p-5">
-            <h3 className="font-heading text-base font-medium text-body mb-4 border-b border-gray-med pb-2">
-              Coat Measurements
-            </h3>
-            <div className="space-y-1">
+            <Accordion
+              collapse="mobile"
+              defaultOpen={false}
+              testId="acc-coat"
+              title={<h3 className="font-heading text-base font-medium text-body">Coat Measurements</h3>}
+            >
+            <div className="space-y-1 border-t border-gray-med mt-2 pt-3">
               {COAT_FIELDS.map((field) => (
                 <MeasurementInput
                   key={field.key}
@@ -533,14 +552,18 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
                 />
               ))}
             </div>
+            </Accordion>
           </div>
 
           {/* --- Right column: Pant Measurements --- */}
           <div className="bg-white rounded border border-gray-med p-5">
-            <h3 className="font-heading text-base font-medium text-body mb-4 border-b border-gray-med pb-2">
-              Pant Measurements
-            </h3>
-            <div className="space-y-1">
+            <Accordion
+              collapse="mobile"
+              defaultOpen={false}
+              testId="acc-pant"
+              title={<h3 className="font-heading text-base font-medium text-body">Pant Measurements</h3>}
+            >
+            <div className="space-y-1 border-t border-gray-med mt-2 pt-3">
               {PANT_FIELDS.map((field) => (
                 <MeasurementInput
                   key={field.key}
@@ -551,6 +574,7 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
                 />
               ))}
             </div>
+            </Accordion>
           </div>
         </div>
 
@@ -558,10 +582,12 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
         {/* Shirt Measurements                                               */}
         {/* ================================================================ */}
         <div className="bg-white rounded border border-gray-med p-5 mb-3">
-          <h3 className="font-heading text-base font-medium text-body mb-4 border-b border-gray-med pb-2">
-            Shirt Measurements
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-1">
+          <Accordion
+            collapse="mobile"
+            testId="acc-shirt"
+            title={<h3 className="font-heading text-base font-medium text-body">Shirt Measurements</h3>}
+          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-1 border-t border-gray-med mt-2 pt-3">
             {SHIRT_FIELDS.map((field) => (
               <MeasurementInput
                   key={field.key}
@@ -572,6 +598,7 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
                 />
             ))}
           </div>
+          </Accordion>
         </div>
 
         {/* ================================================================ */}

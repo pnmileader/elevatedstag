@@ -1,0 +1,448 @@
+/* ============================================
+   MOTION — recipes from transitions.dev (see /transitions/*.md)
+   Timings and easings are the library defaults; colors are mapped to the
+   Leather-Bound Ledger palette. CSS only — no JS animation library.
+   Every block ends with its prefers-reduced-motion guard, and a global
+   guard at the bottom catches anything that slips through.
+   ============================================ */
+
+:root {
+  /* modal */
+  --modal-open-dur: 250ms;
+  --modal-close-dur: 150ms;
+  --modal-scale: 0.96;
+  --modal-scale-close: 0.96;
+  --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* toast */
+  --toast-open: 350ms;
+  --toast-close: 250ms;
+  --toast-distance: 16px;
+  --toast-blur: 2px;
+  --toast-scale: 0.97;
+  --toast-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* menu dropdown */
+  --dropdown-open-dur: 250ms;
+  --dropdown-close-dur: 150ms;
+  --dropdown-pre-scale: 0.97;
+  --dropdown-closing-scale: 0.99;
+  --dropdown-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* page side-by-side */
+  --page-slide-dur: 250ms;
+  --page-fade-dur: 250ms;
+  --page-slide-distance: 8px;
+  --page-blur: 3px;
+  --page-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --page-fade-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* texts reveal (staggered rise) */
+  --stagger-dur: 500ms;
+  --stagger-distance: 12px;
+  --stagger-stagger: 40ms;
+  --stagger-blur: 3px;
+  --stagger-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* tabs sliding */
+  --tabs-dur: 250ms;
+  --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tabs-text-muted: var(--color-ink-secondary);
+  --tabs-text-active: var(--color-ink);
+  --tabs-bar-bg: var(--color-surface-alt);
+  --tabs-pill-bg: var(--color-surface);
+  /* success check */
+  --check-opacity-dur: 500ms;
+  --check-rotate-dur: 500ms;
+  --check-rotate-from: 80deg;
+  --check-bob-dur: 500ms;
+  --check-y-amount: 12px; /* library default is 40px for a hero icon; ours lives inside a 44px button */
+  --check-blur-dur: 500ms;
+  --check-blur-from: 6px;
+  --check-path-dur: 500ms;
+  --check-path-delay: 80ms;
+  --check-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --check-ease-opacity: cubic-bezier(0.22, 1, 0.36, 1);
+  --check-ease-rotate: cubic-bezier(0.22, 1, 0.36, 1);
+  --check-ease-bob: cubic-bezier(0.34, 1.35, 0.64, 1);
+  --check-ease-path: cubic-bezier(0.22, 1, 0.36, 1);
+  /* skeleton loader + reveal */
+  --pulse-dur: 1000ms;
+  --pulse-count: infinite; /* load time is unknown, so pulse until data arrives */
+  --pulse-min: 0.5;
+  --reveal-dur: 400ms;
+  --reveal-blur: 2px;
+  --reveal-ease: ease-in-out;
+  /* number pop-in */
+  --digit-dur: 500ms;
+  --digit-distance: 8px;
+  --digit-stagger: 70ms;
+  --digit-blur: 2px;
+  --digit-ease: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --digit-dir-x: 0;
+  --digit-dir-y: 1;
+  /* accordion */
+  --acc-expand: 250ms;
+  --acc-collapse: 250ms;
+  --acc-chevron: 250ms;
+  --acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- 4.1 Page side-by-side ------------------------------------------
+   Enter-only variant (the recipe's --page-exit-enabled: 0): each route renders
+   its own shell, so the incoming page slides in from the side it lives on —
+   right when moving forward through the tab bar, left when going back. */
+@keyframes t-page-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--t-page-from-x, 0px));
+    filter: blur(var(--page-blur));
+  }
+  to { opacity: 1; transform: translateX(0); filter: blur(0); }
+}
+.t-page[data-dir="forward"] { --t-page-from-x: var(--page-slide-distance); }
+.t-page[data-dir="back"]    { --t-page-from-x: calc(var(--page-slide-distance) * -1); }
+.t-page[data-dir] {
+  /* backwards only: a transform left on this wrapper would re-anchor every
+     position:fixed modal rendered inside the page */
+  animation: t-page-in var(--page-slide-dur) var(--page-slide-ease) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-page[data-dir] { animation: none !important; }
+}
+
+/* ---------- 4.2 Modal open / close ---------------------------------------- */
+.t-modal {
+  transform-origin: center;
+  transform: scale(var(--modal-scale));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--modal-open-dur) var(--modal-ease),
+    opacity   var(--modal-open-dur) var(--modal-ease);
+  will-change: transform, opacity;
+}
+.t-modal.is-open { transform: scale(1); opacity: 1; pointer-events: auto; }
+.t-modal.is-closing {
+  transform: scale(var(--modal-scale-close));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--modal-close-dur) var(--modal-ease),
+    opacity   var(--modal-close-dur) var(--modal-ease);
+}
+.t-modal-backdrop { opacity: 0; transition: opacity var(--modal-close-dur) var(--modal-ease); }
+.t-modal-backdrop.is-open { opacity: 1; transition-duration: var(--modal-open-dur); }
+/* Same motion for overlays that mount/unmount instead of toggling a class */
+@keyframes t-modal-in {
+  from { transform: scale(var(--modal-scale)); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+@keyframes t-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.t-modal-mount { animation: t-modal-in var(--modal-open-dur) var(--modal-ease) both; transform-origin: center; }
+.t-backdrop-mount { animation: t-fade-in var(--modal-open-dur) var(--modal-ease) both; }
+@media (prefers-reduced-motion: reduce) {
+  .t-modal, .t-modal-backdrop { transition: none !important; }
+  .t-modal-mount, .t-backdrop-mount { animation: none !important; }
+}
+
+/* ---------- 4.3 Texts reveal (staggered rise) for cards and list rows ------ */
+@keyframes t-stagger-in {
+  from { opacity: 0; transform: translateY(var(--stagger-distance)); filter: blur(var(--stagger-blur)); }
+  to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.es-reveal {
+  animation: t-stagger-in var(--stagger-dur) var(--stagger-ease) both;
+  animation-delay: calc(var(--stagger-stagger) * var(--i, 0));
+}
+@media (prefers-reduced-motion: reduce) {
+  .es-reveal { animation: none !important; }
+}
+
+/* ---------- 4.4 Tabs sliding ---------------------------------------------- */
+.t-tabs {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 6px;
+  background: var(--tabs-bar-bg);
+}
+.t-tab {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  min-height: 44px;
+  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tabs-text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  z-index: 1;
+  transition: color var(--tabs-dur) var(--tabs-ease);
+}
+.t-tab[aria-selected="true"] { color: var(--tabs-text-active); }
+.t-tabs-pill {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  width: 0;
+  background: var(--tabs-pill-bg);
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(26, 24, 20, 0.12);
+  transform: translateX(0);
+  transition:
+    transform var(--tabs-dur) var(--tabs-ease),
+    width     var(--tabs-dur) var(--tabs-ease);
+  will-change: transform, width;
+  z-index: 0;
+  pointer-events: none;
+}
+.t-tabs-pill[data-ready="false"] { transition: none; } /* no slide-in from x=0 on first paint */
+/* Phone width: three labels don't fit beside icons — keep the words, drop the icons. */
+@media (max-width: 480px) {
+  .t-tab { padding: 4px 6px; font-size: 13px; gap: 0; }
+  .t-tab > svg { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-tabs-pill, .t-tab { transition: none !important; }
+}
+
+/* ---------- 4.5 Toast open / close ---------------------------------------- */
+.t-toast {
+  opacity: 0;
+  transform: translateY(var(--toast-distance)) scale(var(--toast-scale));
+  filter: blur(var(--toast-blur));
+  will-change: transform, opacity, filter;
+  transition:
+    opacity var(--toast-close) var(--toast-ease),
+    transform var(--toast-close) var(--toast-ease),
+    filter var(--toast-close) var(--toast-ease);
+}
+.t-toast.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+  transition:
+    opacity var(--toast-open) var(--toast-ease),
+    transform var(--toast-open) var(--toast-ease),
+    filter var(--toast-open) var(--toast-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-toast { transition: none !important; }
+}
+.es-toast-region {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px)); /* clear the tab bar */
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.es-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 480px;
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-paper);
+  background: var(--color-charcoal);
+  border-radius: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+.es-toast[data-kind="error"] { background: var(--color-error); }
+.es-toast-icon { color: var(--color-gold-light); flex-shrink: 0; }
+.es-toast[data-kind="error"] .es-toast-icon { color: #FFFFFF; }
+
+/* ---------- 4.6 Menu dropdown (origin-aware) ------------------------------ */
+.t-dropdown {
+  transform-origin: top left;
+  transform: scale(var(--dropdown-pre-scale));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--dropdown-open-dur) var(--dropdown-ease),
+    opacity   var(--dropdown-open-dur) var(--dropdown-ease);
+  will-change: transform, opacity;
+}
+.t-dropdown[data-origin="top-right"]     { transform-origin: top right; }
+.t-dropdown[data-origin="top-center"]    { transform-origin: top center; }
+.t-dropdown[data-origin="bottom-left"]   { transform-origin: bottom left; }
+.t-dropdown[data-origin="bottom-center"] { transform-origin: bottom center; }
+.t-dropdown[data-origin="bottom-right"]  { transform-origin: bottom right; }
+.t-dropdown.is-open { transform: scale(1); opacity: 1; pointer-events: auto; }
+.t-dropdown.is-closing {
+  transform: scale(var(--dropdown-closing-scale));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--dropdown-close-dur) var(--dropdown-ease),
+    opacity   var(--dropdown-close-dur) var(--dropdown-ease);
+}
+/* Same motion for lists that mount when opened (search results, typeahead, tag suggestions) */
+@keyframes t-dropdown-in {
+  from { transform: scale(var(--dropdown-pre-scale)); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.t-dropdown-mount {
+  transform-origin: top center;
+  animation: t-dropdown-in var(--dropdown-open-dur) var(--dropdown-ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-dropdown { transition: none !important; }
+  .t-dropdown-mount { animation: none !important; }
+}
+
+/* ---------- 4.7 Success check --------------------------------------------- */
+.t-success-check {
+  display: inline-block;
+  transform-origin: center;
+  opacity: 0;
+  will-change: transform, opacity, filter;
+}
+.t-success-check svg { display: block; overflow: visible; }
+.t-success-check svg path { stroke-dasharray: 20; stroke-dashoffset: 20; }
+.t-success-check[data-state="in"] {
+  animation:
+    t-check-fade   var(--check-opacity-dur) var(--check-ease-opacity) forwards,
+    t-check-rotate var(--check-rotate-dur)  var(--check-ease-rotate)  forwards,
+    t-check-blur   var(--check-blur-dur)    var(--check-ease-out)     forwards,
+    t-check-bob    var(--check-bob-dur)     var(--check-ease-bob)     forwards;
+}
+.t-success-check[data-state="in"] svg path {
+  animation: t-check-draw var(--check-path-dur) var(--check-ease-path) var(--check-path-delay, 0ms) forwards;
+}
+@keyframes t-check-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes t-check-rotate { from { transform: rotate(var(--check-rotate-from)); } to { transform: rotate(0deg); } }
+@keyframes t-check-blur { from { filter: blur(var(--check-blur-from)); } to { filter: blur(0); } }
+@keyframes t-check-bob { from { translate: 0 var(--check-y-amount); } to { translate: 0 0; } }
+@keyframes t-check-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .t-success-check { animation: none !important; opacity: 1; }
+  .t-success-check svg path { animation: none !important; stroke-dashoffset: 0 !important; }
+}
+
+/* ---------- 4.8 Skeleton loader and reveal --------------------------------
+   Flow variant: the skeleton holds the layout while loading; when data
+   arrives the content mounts with the recipe's fade + un-blur. (The stacked
+   absolute-position version needs a fixed height, which these pages lack.) */
+.t-skel-skeleton.is-pulsing > *,
+.es-skeleton {
+  animation: t-skel-pulse var(--pulse-dur) ease-in-out var(--pulse-count);
+}
+@keyframes t-skel-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: var(--pulse-min); }
+}
+@keyframes t-skel-reveal {
+  from { opacity: 0; filter: blur(var(--reveal-blur)); }
+  to   { opacity: 1; filter: blur(0); }
+}
+.t-skel-content { animation: t-skel-reveal var(--reveal-dur) var(--reveal-ease) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .t-skel-skeleton.is-pulsing > *, .es-skeleton, .t-skel-content { animation: none !important; }
+}
+
+/* ---------- 4.9 Number pop-in --------------------------------------------- */
+@keyframes t-digit-pop-in {
+  0% {
+    transform: translate(
+      calc(var(--digit-distance) * var(--digit-dir-x)),
+      calc(var(--digit-distance) * var(--digit-dir-y))
+    );
+    opacity: 0;
+    filter: blur(var(--digit-blur));
+  }
+  100% { transform: translate(0, 0); opacity: 1; filter: blur(0); }
+}
+.t-digit-group { display: inline-flex; align-items: baseline; }
+.t-digit { display: inline-block; will-change: transform, opacity, filter; }
+.t-digit-group.is-animating .t-digit {
+  animation: t-digit-pop-in var(--digit-dur) var(--digit-ease) both;
+  animation-delay: calc(var(--digit-stagger) * var(--d, 0));
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-digit-group .t-digit { animation: none !important; }
+}
+
+/* ---------- 4.10 Accordion ------------------------------------------------ */
+.t-acc-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--acc-collapse) var(--acc-ease);
+}
+.t-acc[data-open="true"] .t-acc-panel {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--acc-expand) var(--acc-ease);
+}
+.t-acc-panel-inner {
+  overflow: hidden;
+  opacity: 0;
+  filter: blur(2px);
+  transition:
+    opacity var(--acc-collapse) var(--acc-ease),
+    filter var(--acc-collapse) var(--acc-ease);
+}
+.t-acc[data-open="true"] .t-acc-panel-inner {
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity var(--acc-expand) var(--acc-ease),
+    filter var(--acc-expand) var(--acc-ease);
+}
+.t-acc-chevron {
+  display: inline-flex;
+  transform: scaleY(1);
+  transform-origin: center;
+  transition: transform var(--acc-chevron) var(--acc-ease);
+}
+.t-acc-chevron path { vector-effect: non-scaling-stroke; }
+.t-acc[data-open="true"] .t-acc-chevron { transform: scaleY(-1); }
+.t-acc-head {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+/* From tablet up there is room for every section: always open, no toggle. */
+@media (min-width: 768px) {
+  .t-acc[data-collapse="mobile"] .t-acc-panel { grid-template-rows: 1fr !important; }
+  .t-acc[data-collapse="mobile"] .t-acc-panel-inner { opacity: 1 !important; filter: none !important; overflow: visible; }
+  .t-acc[data-collapse="mobile"] .t-acc-chevron { display: none; }
+  .t-acc[data-collapse="mobile"] .t-acc-head { cursor: default; pointer-events: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-acc-panel, .t-acc-panel-inner, .t-acc-chevron { transition: none !important; }
+}
+
+/* ---------- Global safety net --------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

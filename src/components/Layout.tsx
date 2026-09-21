@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Plus, Users, Clock, TrendingUp, Calendar, Settings, Search, LogOut, Mail, UserPlus, X } from 'lucide-react'
 import SearchBar from '@/components/SearchBar'
+import PageTransition from '@/components/motion/PageTransition'
+import { useOpenClose } from '@/components/motion/useOpenClose'
 
 type LayoutProps = {
   children: React.ReactNode
@@ -28,6 +30,7 @@ export default function Layout({
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const menu = useOpenClose(menuOpen, 150)
 
   // iOS Safari only raises the keyboard when focus() runs inside the tap
   // handler itself, so render the field synchronously, then focus it.
@@ -102,14 +105,19 @@ export default function Layout({
       </header>
 
       {/* ===== SETTINGS/MORE DROPDOWN ===== */}
-      {menuOpen && (
+      {menu.mounted && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-          <div className="absolute right-4 top-[52px] z-50 bg-surface border border-rule shadow-md" style={{ minWidth: 200 }}>
+          <div
+            className={`t-dropdown ${menu.stateClass} absolute right-4 top-[52px] z-50 bg-surface border border-rule rounded`}
+            data-origin="top-right"
+            data-testid="settings-menu"
+            style={{ minWidth: 200, boxShadow: '0 8px 28px rgba(0,0,0,0.14)' }}
+          >
             <Link
               href="/referrals"
               onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-ink hover:bg-paper border-b border-rule"
+              className="flex items-center gap-3 px-4 min-h-[48px] text-ink hover:bg-paper border-b border-rule"
             >
               <UserPlus className="w-4 h-4 text-ink-muted" />
               <span className="font-sans text-[14px]">Referrals</span>
@@ -117,7 +125,7 @@ export default function Layout({
             <Link
               href="/settings"
               onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-ink hover:bg-paper border-b border-rule"
+              className="flex items-center gap-3 px-4 min-h-[48px] text-ink hover:bg-paper border-b border-rule"
             >
               <Settings className="w-4 h-4 text-ink-muted" />
               <span className="font-sans text-[14px]">Settings</span>
@@ -130,7 +138,7 @@ export default function Layout({
                 await supabase.auth.signOut()
                 window.location.href = '/login'
               }}
-              className="flex items-center gap-3 px-4 py-3 text-ink hover:bg-paper w-full text-left"
+              className="flex items-center gap-3 px-4 min-h-[48px] text-ink hover:bg-paper w-full text-left"
             >
               <LogOut className="w-4 h-4 text-ink-muted" />
               <span className="font-sans text-[14px]">Sign Out</span>
@@ -142,7 +150,7 @@ export default function Layout({
       {/* ===== MAIN CONTENT ===== */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 20px' }}>
-          {children}
+          <PageTransition>{children}</PageTransition>
         </div>
       </main>
 

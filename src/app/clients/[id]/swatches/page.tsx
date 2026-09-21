@@ -409,7 +409,7 @@ function SwatchDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 t-backdrop-mount"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}

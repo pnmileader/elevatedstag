@@ -7,6 +7,9 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { normalizeNewlines } from '@/lib/emailRender'
 import ClientCombobox from '@/components/ClientCombobox'
+import SlidingTabs from '@/components/motion/SlidingTabs'
+import { SuccessCheck, useSuccessFlash } from '@/components/motion/SuccessCheck'
+import { useToast } from '@/components/motion/Toast'
 
 interface Template {
   id: string
@@ -65,60 +68,25 @@ export default function EmailPage() {
           </div>
           <Link
             href="/email/compose"
-            className="bg-body hover:bg-body-hover text-white px-4 py-2 rounded font-body font-medium text-sm inline-flex items-center gap-2 transition-colors"
+            className="bg-body hover:bg-body-hover text-white px-4 min-h-[44px] rounded font-body font-medium text-sm inline-flex items-center gap-2 transition-colors whitespace-nowrap flex-shrink-0"
           >
             <Plus className="w-4 h-4" />
             Compose Email
           </Link>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-gray-light rounded p-1 mb-3" role="tablist" aria-label="Email sections">
-          <button
-            role="tab"
-            id="tab-compose"
-            aria-selected={activeTab === 'compose'}
-            aria-controls="panel-compose"
-            onClick={() => setActiveTab('compose')}
-            className={`flex-1 px-4 py-2 rounded font-body text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-              activeTab === 'compose'
-                ? 'bg-white text-body'
-                : 'text-gray-dark hover:text-body'
-            }`}
-          >
-            <Send className="w-4 h-4" />
-            Quick Send
-          </button>
-          <button
-            role="tab"
-            id="tab-templates"
-            aria-selected={activeTab === 'templates'}
-            aria-controls="panel-templates"
-            onClick={() => setActiveTab('templates')}
-            className={`flex-1 px-4 py-2 rounded font-body text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-              activeTab === 'templates'
-                ? 'bg-white text-body'
-                : 'text-gray-dark hover:text-body'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            Templates
-          </button>
-          <button
-            role="tab"
-            id="tab-sent"
-            aria-selected={activeTab === 'sent'}
-            aria-controls="panel-sent"
-            onClick={() => setActiveTab('sent')}
-            className={`flex-1 px-4 py-2 rounded font-body text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-              activeTab === 'sent'
-                ? 'bg-white text-body'
-                : 'text-gray-dark hover:text-body'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            Sent History
-          </button>
+        {/* Tabs — pill slides to the active tab */}
+        <div className="mb-3">
+          <SlidingTabs
+            ariaLabel="Email sections"
+            value={activeTab}
+            onChange={setActiveTab}
+            tabs={[
+              { id: 'compose', label: 'Quick Send', icon: <Send className="w-4 h-4 flex-shrink-0" />, controls: 'panel-compose' },
+              { id: 'templates', label: 'Templates', icon: <FileText className="w-4 h-4 flex-shrink-0" />, controls: 'panel-templates' },
+              { id: 'sent', label: 'Sent History', icon: <Clock className="w-4 h-4 flex-shrink-0" />, controls: 'panel-sent' },
+            ]}
+          />
         </div>
 
         {loading ? (
@@ -235,6 +203,8 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
+  const toast = useToast()
+  const [sentFlash, flashSent] = useSuccessFlash()
 
   useEffect(() => {
     async function fetchClients() {
@@ -312,7 +282,8 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
         throw new Error(data.error || 'Failed to send')
       }
 
-      setResult({ success: true, message: 'Email sent successfully!' })
+      toast.success(`Email sent to ${toEmail}`)
+      flashSent()
 
       // Reset form
       setSelectedClient('')
@@ -409,12 +380,18 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
       <button
         type="submit"
         disabled={sending}
-        className="w-full bg-body hover:bg-body-hover disabled:bg-gray-med text-white py-3 rounded font-body font-medium flex items-center justify-center gap-2 transition-colors"
+        data-testid="quick-send-submit"
+        className="w-full min-h-[48px] bg-body hover:bg-body-hover disabled:bg-gray-med text-white rounded font-body font-medium flex items-center justify-center gap-2 transition-colors"
       >
         {sending ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
             Sending...
+          </>
+        ) : sentFlash ? (
+          <>
+            <SuccessCheck show />
+            Sent
           </>
         ) : (
           <>

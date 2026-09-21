@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
 import Layout from '@/components/Layout'
 import ReferredByField from '@/components/ReferredByField'
+import { useToast } from '@/components/motion/Toast'
 import { hasReferredByIdColumn } from '@/lib/referrals'
 import { Info } from 'lucide-react'
 
@@ -16,6 +17,7 @@ export default function NewClientPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [referredById, setReferredById] = useState<string | null>(null)
+  const toast = useToast()
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -104,6 +106,7 @@ export default function NewClientPage() {
       description: `${formData.first_name} ${formData.last_name} was added as a new client`,
     })
 
+    toast.success('Client added')
     // Redirect to the new client's profile
     router.push(`/clients/${data.id}`)
   }

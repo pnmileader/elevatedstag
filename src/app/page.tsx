@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Loader2 } from 'lucide-react'
 import Layout from '@/components/Layout'
+import PopNumber from '@/components/motion/PopNumber'
 import { createClient } from '@/lib/supabase'
 import { clientDisplayName, clientInitials } from '@/lib/clientDisplay'
 import {
@@ -235,9 +235,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <Layout currentPage="dashboard" title="Dashboard">
-        <div className="flex items-center justify-center" style={{ height: '60vh' }}>
-          <Loader2 className="w-6 h-6 animate-spin text-gold" />
-        </div>
+        <DashboardSkeleton />
       </Layout>
     )
   }
@@ -254,7 +252,7 @@ export default function DashboardPage() {
 
   return (
     <Layout currentPage="dashboard" title="Dashboard">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 t-skel-content" data-testid="dashboard-content">
 
         {/* ===== REVENUE — first thing she looks at ===== */}
         <section>
@@ -262,12 +260,12 @@ export default function DashboardPage() {
           <div className="grid grid-cols-3 gap-px bg-rule border border-rule">
             <div className="bg-surface" style={{ padding: '16px 20px' }}>
               <div className="es-label mb-1">This Month</div>
-              <div className="es-metric revenue-amount" data-testid="revenue-this-month">{money(stats.revenueThisMonth)}</div>
+              <div className="es-metric revenue-amount"><PopNumber testId="revenue-this-month" value={money(stats.revenueThisMonth)} /></div>
               <div className="text-ink-muted text-[12px] mt-1">{stats.ordersThisMonth} order{stats.ordersThisMonth !== 1 ? 's' : ''}</div>
             </div>
             <div className="bg-surface" style={{ padding: '16px 20px' }}>
               <div className="es-label mb-1">Last Month</div>
-              <div className="es-metric revenue-amount" data-testid="revenue-last-month">{money(stats.revenueLastMonth)}</div>
+              <div className="es-metric revenue-amount"><PopNumber testId="revenue-last-month" value={money(stats.revenueLastMonth)} /></div>
               <div className="text-ink-muted text-[12px] mt-1">{stats.ordersLastMonth} order{stats.ordersLastMonth !== 1 ? 's' : ''}</div>
             </div>
             <div className="bg-surface" style={{ padding: '16px 20px' }}>
@@ -301,22 +299,22 @@ export default function DashboardPage() {
         <div className="grid grid-cols-4 gap-px bg-rule border border-rule">
           <Link href="/clients" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
             <div className="es-label mb-0.5">Clients</div>
-            <div className="es-metric-sm" data-testid="stat-total-clients">{stats.totalClients}</div>
+            <div className="es-metric-sm"><PopNumber testId="stat-total-clients" value={stats.totalClients} /></div>
             <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
           </Link>
           <Link href="/orders" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
             <div className="es-label mb-0.5">In Progress</div>
-            <div className={`es-metric-sm ${stats.ordersInProgress > 0 ? 'text-gold' : ''}`} data-testid="stat-in-progress">{stats.ordersInProgress}</div>
+            <div className={`es-metric-sm ${stats.ordersInProgress > 0 ? 'text-gold' : ''}`}><PopNumber testId="stat-in-progress" value={stats.ordersInProgress} /></div>
             <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
           </Link>
           <Link href="/clients?stage=vip" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
             <div className="es-label mb-0.5">VIP</div>
-            <div className="es-metric-sm" data-testid="stat-vip">{stats.stageCounts.vip}</div>
+            <div className="es-metric-sm"><PopNumber testId="stat-vip" value={stats.stageCounts.vip} /></div>
             <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
           </Link>
           <Link href="/clients?stage=active" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
             <div className="es-label mb-0.5">Active</div>
-            <div className="es-metric-sm" data-testid="stat-active">{stats.stageCounts.active}</div>
+            <div className="es-metric-sm"><PopNumber testId="stat-active" value={stats.stageCounts.active} /></div>
             <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
           </Link>
         </div>
@@ -481,5 +479,43 @@ export default function DashboardPage() {
         )}
       </div>
     </Layout>
+  )
+}
+
+/** Holds the dashboard's shape while data loads; the real content fades + un-blurs in over it. */
+function DashboardSkeleton() {
+  const bar = (w: number | string, h: number) => <div className="es-skeleton" style={{ width: w, height: h }} />
+  return (
+    <div className="flex flex-col gap-4" data-testid="dashboard-skeleton" aria-busy="true" aria-label="Loading dashboard">
+      <section>
+        <div className="es-section-header">Revenue</div>
+        <div className="grid grid-cols-3 gap-px bg-rule border border-rule">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="bg-surface flex flex-col gap-2" style={{ padding: '16px 20px' }}>
+              {bar(64, 10)}{bar('70%', 24)}{bar(48, 10)}
+            </div>
+          ))}
+        </div>
+      </section>
+      <div className="grid grid-cols-4 gap-px bg-rule border border-rule">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="bg-surface flex flex-col gap-2" style={{ padding: '12px 20px' }}>
+            {bar(48, 10)}{bar(40, 18)}
+          </div>
+        ))}
+      </div>
+      <section>
+        <div className="es-section-header">Needs Follow-Up</div>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="es-row">
+            <div className="flex items-center gap-3 flex-1">
+              {bar(36, 36)}
+              <div className="flex-1 flex flex-col gap-2">{bar('45%', 12)}{bar('30%', 10)}</div>
+            </div>
+            {bar(36, 12)}
+          </div>
+        ))}
+      </section>
+    </div>
   )
 }

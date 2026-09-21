@@ -218,7 +218,7 @@ export default function SearchBar({ inputRef, onClose }: SearchBarProps) {
       {open && (
         <div
           data-testid="search-results"
-          className="absolute top-full left-0 right-0 mt-2 bg-surface rounded border border-rule z-50 overflow-hidden"
+          className="t-dropdown-mount absolute top-full left-0 right-0 mt-2 bg-surface rounded border border-rule z-50 overflow-hidden"
           style={{ boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12)' }}
         >
           {loading && results.length === 0 ? (

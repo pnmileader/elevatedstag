@@ -227,7 +227,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
 
         {/* Order Form Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 t-backdrop-mount">
             <div className="bg-white rounded max-w-lg w-full max-h-[90vh] overflow-y-auto">
               <div className="p-3 lg:p-3 border-b border-gray-med flex items-center justify-between">
                 <h2 className="font-heading text-base font-medium text-body">
