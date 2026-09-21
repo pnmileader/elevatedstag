@@ -316,3 +316,70 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; }
 .es-chip[aria-pressed="true"], .es-chip-active { background: var(--color-charcoal); color: var(--color-paper); border-color: var(--color-charcoal); }
 .es-chip-count { font-weight: 600; color: var(--color-ink-muted); font-size: 12px; }
 .es-chip[aria-pressed="true"] .es-chip-count, .es-chip-active .es-chip-count { color: var(--color-gold-light); }
+
+/* Tag chip */
+.es-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 32px;
+  padding: 0 4px 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-gold);
+  background: rgba(130, 109, 60, 0.10);
+  border: 1px solid rgba(130, 109, 60, 0.25);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.es-tag-static { padding: 0 12px; }
+.es-tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: -6px -4px -6px 0; /* 44px-tall hit area inside a 32px chip */
+  padding: 6px 0;
+  box-sizing: content-box;
+  color: var(--color-gold);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.es-tag-remove:active { background: rgba(130, 109, 60, 0.2); }
+
+.es-btn-danger { background: var(--color-error); color: #FFFFFF; }
+.es-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Checkbox sized for fingers */
+.es-check { width: 22px; height: 22px; accent-color: var(--color-gold); cursor: pointer; flex-shrink: 0; }
+
+/* Modal — base layout; open/close motion is layered on in the transitions block */
+.es-modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  visibility: hidden;
+  pointer-events: none;
+}
+.es-modal-root[data-open="true"] { visibility: visible; pointer-events: auto; }
+.es-modal-backdrop { position: absolute; inset: 0; background: rgba(26, 24, 20, 0.45); }
+.es-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: 6px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+}
+
+/* Skeleton block + list-entry hook (motion details live in the transitions block) */
+.es-skeleton { background: var(--color-rule); border-radius: 4px; }

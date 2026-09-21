@@ -1,18 +1,22 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Search, X, Trash2, CheckSquare } from 'lucide-react'
 import Layout from '@/components/Layout'
+import ConfirmModal from '@/components/ConfirmModal'
 import { createClient } from '@/lib/supabase'
 import { clientDisplayName, clientInitials } from '@/lib/clientDisplay'
+import {
+  LAST_PURCHASE_OPTIONS,
+  lastPurchaseBucket,
+  matchesSearch,
+  uniqueTags as collectTags,
+  type LastPurchaseBucket,
+} from '@/lib/clientFilters'
 
-type BillingAddress = {
-  street?: string
-  city?: string
-  state?: string
-  zip?: string
-} | null
+type BillingAddress = { street?: string; city?: string; state?: string; zip?: string } | null
 
 type Client = {
   id: string
@@ -21,397 +25,411 @@ type Client = {
   email: string | null
   phone: string | null
   stage: 'lead' | 'active' | 'vip' | 'dormant'
-  notes: string | null
   last_contact_date: string | null
   last_purchase_date: string | null
   billing_address: BillingAddress
   location_tags: string[] | null
-  birthday_month: string | null
-  communication_preference: string | null
-  contact_type: string | null
 }
 
 type StageFilter = 'all' | 'vip' | 'active' | 'lead' | 'dormant'
+type SortKey = 'name' | 'last_purchase' | 'last_contact' | 'city' | 'stage'
 
-type SortField = 'name' | 'email' | 'phone' | 'city' | 'stage' | 'last_purchase'
-type SortDir = 'asc' | 'desc'
-
+const STAGES: StageFilter[] = ['all', 'vip', 'active', 'lead', 'dormant']
 const stageOrder: Record<string, number> = { vip: 0, active: 1, lead: 2, dormant: 3 }
-
-const stageBorderColors: Record<string, string> = {
+const stageColors: Record<string, string> = {
   vip: 'var(--color-gold)',
   active: 'var(--color-success)',
   lead: 'var(--color-info)',
   dormant: 'var(--color-muted)',
 }
 
+const CLIENT_COLUMNS = 'id, first_name, last_name, email, phone, stage, last_contact_date, last_purchase_date, billing_address, location_tags'
+const PAGE = 1000 // PostgREST returns at most 1000 rows per request
+
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return new Date(`${dateStr.slice(0, 10)}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function ClientsPage() {
+function ClientsContent() {
   const router = useRouter()
+  const params = useSearchParams()
+
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeFilter, setActiveFilter] = useState<StageFilter>('all')
-  const [cityFilter, setCityFilter] = useState<string>('all')
-  const [tagFilter, setTagFilter] = useState<string>('all')
-  const [sortField, setSortField] = useState<SortField>('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  // Filters start from the URL so dashboard links (?stage=vip, ?contact=never) land pre-filtered.
+  const initialStage = params.get('stage') as StageFilter | null
+  const [search, setSearch] = useState(params.get('q') || '')
+  const [stageFilter, setStageFilter] = useState<StageFilter>(initialStage && STAGES.includes(initialStage) ? initialStage : 'all')
+  const [cityFilter, setCityFilter] = useState('all')
+  const [tagFilter, setTagFilter] = useState(params.get('tag') || 'all')
+  const [purchaseFilter, setPurchaseFilter] = useState<LastPurchaseBucket | 'all'>((params.get('purchase') as LastPurchaseBucket) || 'all')
+  const [neverContacted, setNeverContacted] = useState(params.get('contact') === 'never')
+  const [sortKey, setSortKey] = useState<SortKey>((params.get('sort') as SortKey) || 'name')
+
+  // Bulk select / delete
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     async function loadClients() {
       const supabase = createClient()
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('last_name', { ascending: true })
-
-      if (error) {
-        console.error('Error fetching clients:', error)
-      } else {
-        setClients(data as Client[])
+      const all: Client[] = []
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('clients')
+          .select(CLIENT_COLUMNS)
+          .order('last_name', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, from + PAGE - 1)
+        if (error) {
+          console.error('Error fetching clients:', error.message)
+          setLoadError('Could not load clients. Pull down to refresh or try again.')
+          break
+        }
+        all.push(...((data || []) as Client[]))
+        if (!data || data.length < PAGE) break
       }
+      setClients(all)
       setLoading(false)
     }
-
     loadClients()
   }, [])
 
-  // Extract unique cities from clients
-  const uniqueCities = useMemo(() => {
-    const cities = new Set<string>()
-    clients.forEach(client => {
-      const city = client.billing_address?.city?.trim()
-      if (city) {
-        cities.add(city)
-      }
+  const uniqueCities = useMemo(
+    () => [...new Set(clients.map((c) => c.billing_address?.city?.trim()).filter(Boolean) as string[])].sort(),
+    [clients],
+  )
+  const allTags = useMemo(() => collectTags(clients.map((c) => c.location_tags)), [clients])
+
+  const filtered = useMemo(() => {
+    const now = new Date()
+    return clients.filter((c) => {
+      if (stageFilter !== 'all' && c.stage !== stageFilter) return false
+      if (cityFilter !== 'all' && c.billing_address?.city?.trim() !== cityFilter) return false
+      if (tagFilter !== 'all' && !(c.location_tags || []).some((t) => t.toLowerCase() === tagFilter.toLowerCase())) return false
+      if (purchaseFilter !== 'all' && lastPurchaseBucket(c.last_purchase_date, now) !== purchaseFilter) return false
+      if (neverContacted && c.last_contact_date) return false
+      return matchesSearch(c, search)
     })
-    return Array.from(cities).sort()
-  }, [clients])
+  }, [clients, stageFilter, cityFilter, tagFilter, purchaseFilter, neverContacted, search])
 
-  // Extract unique location tags
-  const uniqueTags = useMemo(() => {
-    const tags = new Set<string>()
-    clients.forEach(client => {
-      if (client.location_tags) {
-        client.location_tags.forEach(tag => tags.add(tag))
-      }
-    })
-    return Array.from(tags).sort()
-  }, [clients])
-
-  // Filter by stage, city, and location tag
-  const filteredClients = useMemo(() => {
-    let result = clients
-
-    if (activeFilter !== 'all') {
-      result = result.filter(c => c.stage === activeFilter)
-    }
-
-    if (cityFilter !== 'all') {
-      result = result.filter(c => c.billing_address?.city?.trim() === cityFilter)
-    }
-
-    if (tagFilter !== 'all') {
-      result = result.filter(c => c.location_tags?.includes(tagFilter))
-    }
-
-    return result
-  }, [clients, activeFilter, cityFilter, tagFilter])
-
-  // Sort filtered clients
-  const sortedClients = useMemo(() => {
-    const sorted = [...filteredClients]
-    const dir = sortDir === 'asc' ? 1 : -1
-
-    sorted.sort((a, b) => {
-      let cmp = 0
-      switch (sortField) {
-        case 'name':
-          cmp = `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`)
-          break
-        case 'email':
-          cmp = (a.email || '').localeCompare(b.email || '')
-          break
-        case 'phone':
-          cmp = (a.phone || '').localeCompare(b.phone || '')
-          break
-        case 'city': {
-          const cityA = a.billing_address?.city?.trim() || ''
-          const cityB = b.billing_address?.city?.trim() || ''
-          cmp = cityA.localeCompare(cityB)
-          break
-        }
+  const sorted = useMemo(() => {
+    const list = [...filtered]
+    const byName = (a: Client, b: Client) =>
+      `${a.last_name || ''} ${a.first_name || ''}`.localeCompare(`${b.last_name || ''} ${b.first_name || ''}`)
+    list.sort((a, b) => {
+      switch (sortKey) {
+        case 'last_purchase': // most recent first, never-purchased last
+          return (b.last_purchase_date || '').localeCompare(a.last_purchase_date || '') || byName(a, b)
+        case 'last_contact': // longest since contact first
+          return (a.last_contact_date || '9999').localeCompare(b.last_contact_date || '9999') || byName(a, b)
+        case 'city':
+          return (a.billing_address?.city || 'zzz').localeCompare(b.billing_address?.city || 'zzz') || byName(a, b)
         case 'stage':
-          cmp = (stageOrder[a.stage] ?? 9) - (stageOrder[b.stage] ?? 9)
-          break
-        case 'last_purchase':
-          cmp = (a.last_purchase_date || '').localeCompare(b.last_purchase_date || '')
-          break
+          return (stageOrder[a.stage] ?? 9) - (stageOrder[b.stage] ?? 9) || byName(a, b)
+        default:
+          return byName(a, b)
       }
-      return cmp * dir
     })
+    return list
+  }, [filtered, sortKey])
 
-    return sorted
-  }, [filteredClients, sortField, sortDir])
+  const stageCounts = useMemo(() => {
+    const counts: Record<StageFilter, number> = { all: clients.length, vip: 0, active: 0, lead: 0, dormant: 0 }
+    clients.forEach((c) => { if (c.stage in counts) counts[c.stage] += 1 })
+    return counts
+  }, [clients])
 
-  const stageCounts = {
-    all: clients.length,
-    vip: clients.filter(c => c.stage === 'vip').length,
-    active: clients.filter(c => c.stage === 'active').length,
-    lead: clients.filter(c => c.stage === 'lead').length,
-    dormant: clients.filter(c => c.stage === 'dormant').length,
+  const hasFilters = stageFilter !== 'all' || cityFilter !== 'all' || tagFilter !== 'all' || purchaseFilter !== 'all' || neverContacted || search.trim() !== ''
+  const clearFilters = () => {
+    setStageFilter('all'); setCityFilter('all'); setTagFilter('all'); setPurchaseFilter('all'); setNeverContacted(false); setSearch('')
   }
 
-  const cityCounts = useMemo(() => {
-    const stageFiltered = activeFilter === 'all'
-      ? clients
-      : clients.filter(c => c.stage === activeFilter)
-
-    const counts: Record<string, number> = { all: stageFiltered.length }
-    uniqueCities.forEach(city => {
-      counts[city] = stageFiltered.filter(c => c.billing_address?.city?.trim() === city).length
+  // ---- selection ----
+  const visibleIds = useMemo(() => sorted.map((c) => c.id), [sorted])
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id))
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
     })
-    return counts
-  }, [clients, activeFilter, uniqueCities])
+  const toggleAllVisible = () =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id))
+      else visibleIds.forEach((id) => next.add(id))
+      return next
+    })
+  const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()) }
+  const selectedWithPurchases = useMemo(
+    () => clients.filter((c) => selected.has(c.id) && c.last_purchase_date).length,
+    [clients, selected],
+  )
 
-  const hasActiveFilters = cityFilter !== 'all' || tagFilter !== 'all'
-
-  function handleSort(field: SortField) {
-    if (sortField === field) {
-      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDir('asc')
+  async function deleteSelected() {
+    setDeleting(true)
+    const ids = [...selected]
+    let deleted = 0
+    try {
+      for (let at = 0; at < ids.length; at += 200) {
+        const res = await fetch('/api/clients/bulk-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: ids.slice(at, at + 200) }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Delete failed')
+        deleted += data.deleted
+      }
+      const gone = new Set(ids)
+      setClients((prev) => prev.filter((c) => !gone.has(c.id)))
+      setNotice({ kind: 'success', text: `Deleted ${deleted} client${deleted !== 1 ? 's' : ''}.` })
+      exitSelectMode()
+    } catch (err) {
+      setNotice({ kind: 'error', text: err instanceof Error ? err.message : 'Delete failed' })
+    } finally {
+      setDeleting(false)
+      setConfirmOpen(false)
     }
   }
-
-  function sortIndicator(field: SortField) {
-    if (sortField !== field) return null
-    return sortDir === 'asc' ? ' \u2191' : ' \u2193'
-  }
-
-  const stageFilters: { key: StageFilter; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'vip', label: 'VIP' },
-    { key: 'active', label: 'Active' },
-    { key: 'lead', label: 'Lead' },
-    { key: 'dormant', label: 'Dormant' },
-  ]
 
   return (
     <Layout currentPage="clients">
       {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12 }}>
-        <h1 className="ds-page-title">Clients</h1>
-        <span className="ds-label">{filteredClients.length} client{filteredClients.length !== 1 ? 's' : ''}</span>
-      </div>
-
-      {/* Filter bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-        {stageFilters.map(sf => (
-          <button
-            key={sf.key}
-            onClick={() => setActiveFilter(sf.key)}
-            className="ds-btn"
-            style={
-              activeFilter === sf.key
-                ? { background: 'var(--color-gold)', color: '#FFFFFF', border: '1px solid var(--color-gold)', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
-                : { background: 'transparent', color: '#222', border: '1px solid var(--color-rule)' }
-            }
-          >
-            {sf.label} ({stageCounts[sf.key]})
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-baseline gap-3 min-w-0">
+          <h1 className="ds-page-title">Clients</h1>
+          <span className="ds-label" data-testid="client-count">{sorted.length} client{sorted.length !== 1 ? 's' : ''}</span>
+        </div>
+        {selectMode ? (
+          <button type="button" onClick={exitSelectMode} className="es-btn es-btn-secondary es-btn-sm" data-testid="select-mode-cancel">
+            Done
           </button>
-        ))}
-
-        {uniqueCities.length > 0 && (
-          <select
-            value={cityFilter}
-            onChange={(e) => setCityFilter(e.target.value)}
-            className="ds-input"
-            style={{ width: 'auto', paddingRight: 28 }}
-          >
-            <option value="all">All Cities ({cityCounts.all})</option>
-            {uniqueCities.map(city => (
-              <option key={city} value={city}>
-                {city} ({cityCounts[city] || 0})
-              </option>
-            ))}
-          </select>
-        )}
-
-        {uniqueTags.length > 0 && (
-          <select
-            value={tagFilter}
-            onChange={(e) => setTagFilter(e.target.value)}
-            className="ds-input"
-            style={{ width: 'auto', paddingRight: 28 }}
-          >
-            <option value="all">All Tags</option>
-            {uniqueTags.map(tag => (
-              <option key={tag} value={tag}>{tag}</option>
-            ))}
-          </select>
-        )}
-
-        {hasActiveFilters && (
-          <button
-            onClick={() => { setCityFilter('all'); setTagFilter('all') }}
-            className="ds-btn ds-btn-ghost"
-          >
-            Clear Filters
+        ) : (
+          <button type="button" onClick={() => setSelectMode(true)} className="es-btn es-btn-secondary es-btn-sm" data-testid="select-mode-toggle">
+            <CheckSquare className="w-4 h-4" />
+            Select
           </button>
         )}
       </div>
 
-      {/* Loading state */}
-      {loading ? (
-        <div className="ds-section">
-          <table className="ds-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th className="hidden md:table-cell">Email</th>
-                <th>Phone</th>
-                <th className="hidden md:table-cell">City</th>
-                <th>Stage</th>
-                <th>Last Contact</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[1, 2, 3, 4, 5].map(i => (
-                <tr key={i}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 28, height: 28, background: 'var(--color-gray-med)' }} className="animate-pulse" />
-                      <div style={{ width: 120, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" />
-                    </div>
-                  </td>
-                  <td className="hidden md:table-cell"><div style={{ width: 160, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" /></td>
-                  <td><div style={{ width: 100, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" /></td>
-                  <td className="hidden md:table-cell"><div style={{ width: 80, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" /></td>
-                  <td><div style={{ width: 50, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" /></td>
-                  <td><div style={{ width: 90, height: 12, background: 'var(--color-gray-med)' }} className="animate-pulse" /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : sortedClients.length === 0 ? (
-        /* Empty state */
-        <div style={{ padding: '48px 0', textAlign: 'center' }}>
-          <p style={{ color: 'var(--color-muted)', fontSize: 13, marginBottom: 12 }}>No clients found</p>
-          <Link href="/clients/new" className="ds-btn ds-btn-primary">
-            Add Client
-          </Link>
-        </div>
-      ) : (
-        /* Table */
-        <div className="ds-section" style={{ padding: 0 }}>
-          <table className="ds-table">
-            <thead>
-              <tr>
-                <th aria-sort={sortField === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                  <button type="button" onClick={() => handleSort('name')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
-                    Name{sortIndicator('name')}
-                  </button>
-                </th>
-                <th aria-sort={sortField === 'email' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="hidden md:table-cell">
-                  <button type="button" onClick={() => handleSort('email')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
-                    Email{sortIndicator('email')}
-                  </button>
-                </th>
-                <th aria-sort={sortField === 'phone' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                  <button type="button" onClick={() => handleSort('phone')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
-                    Phone{sortIndicator('phone')}
-                  </button>
-                </th>
-                <th aria-sort={sortField === 'city' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="hidden md:table-cell">
-                  <button type="button" onClick={() => handleSort('city')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
-                    City{sortIndicator('city')}
-                  </button>
-                </th>
-                <th aria-sort={sortField === 'stage' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                  <button type="button" onClick={() => handleSort('stage')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit">
-                    Stage{sortIndicator('stage')}
-                  </button>
-                </th>
-                <th aria-sort={sortField === 'last_purchase' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ whiteSpace: 'nowrap', minWidth: 120 }}>
-                  <button type="button" onClick={() => handleSort('last_purchase')} className="w-full text-left bg-transparent border-none cursor-pointer font-inherit" style={{ whiteSpace: 'nowrap' }}>
-                    Last Purchase{sortIndicator('last_purchase')}
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedClients.map((client, idx) => {
-                const initials = clientInitials(client)
-                const displayName = clientDisplayName(client)
-                const city = client.billing_address?.city?.trim() || ''
-                const rowBg = idx % 2 === 1 ? 'var(--color-ivory)' : 'var(--color-warm-white)'
-
-                return (
-                    <tr
-                      key={client.id}
-                      onClick={() => router.push(`/clients/${client.id}`)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/clients/${client.id}`) } }}
-                      className="cursor-pointer"
-                      tabIndex={0}
-                      role="link"
-                      style={{ background: rowBg, height: 32 }}
-                    >
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div
-                            className="ds-avatar"
-                            style={{
-                              background: 'var(--color-gold)',
-                              color: '#FFFFFF',
-                              width: 28,
-                              height: 28,
-                            }}
-                          >
-                            {initials}
-                          </div>
-                          <span style={{ fontWeight: 500 }}>
-                            {displayName}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="hidden md:table-cell" style={{ color: client.email ? 'var(--color-body)' : 'var(--color-muted)' }}>
-                        {client.email || '\u2014'}
-                      </td>
-                      <td style={{ color: client.phone ? 'var(--color-body)' : 'var(--color-muted)' }}>
-                        {client.phone || '\u2014'}
-                      </td>
-                      <td className="hidden md:table-cell" style={{ color: city ? 'var(--color-body)' : 'var(--color-muted)' }}>
-                        {city || '\u2014'}
-                      </td>
-                      <td style={{ verticalAlign: 'middle' }}>
-                        <span
-                          className="ds-status"
-                          style={{ borderLeftColor: stageBorderColors[client.stage] || 'var(--color-muted)', verticalAlign: 'middle' }}
-                        >
-                          {client.stage.toUpperCase()}
-                        </span>
-                      </td>
-                      <td style={{ verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                        {client.last_purchase_date ? (
-                          <span>{formatDate(client.last_purchase_date)}</span>
-                        ) : (
-                          <span style={{ color: 'var(--color-muted)' }}>—</span>
-                        )}
-                      </td>
-                    </tr>
-                )
-              })}
-            </tbody>
-          </table>
+      {notice && (
+        <div
+          role="status"
+          data-testid="clients-notice"
+          className={`mb-3 px-4 py-3 rounded text-sm border ${notice.kind === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
+        >
+          {notice.text}
         </div>
       )}
+
+      {/* Search */}
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search clients by name, email, or phone…"
+          aria-label="Search clients"
+          data-testid="client-search"
+          autoComplete="off"
+          className="es-input es-search-input"
+          style={{ paddingLeft: 36, paddingRight: 44, height: 44 }}
+        />
+        {search && (
+          <button type="button" onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-0 top-0 w-[44px] h-[44px] flex items-center justify-center text-ink-muted">
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Stage chips */}
+      <div className="flex flex-wrap gap-2 mb-3" role="group" aria-label="Filter by stage">
+        {STAGES.map((stage) => (
+          <button
+            key={stage}
+            type="button"
+            aria-pressed={stageFilter === stage}
+            data-testid={`stage-${stage}`}
+            onClick={() => setStageFilter(stage)}
+            className="es-chip"
+          >
+            <span>{stage === 'all' ? 'All' : stage === 'vip' ? 'VIP' : stage[0].toUpperCase() + stage.slice(1)}</span>
+            <span className="es-chip-count">{stageCounts[stage]}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Dropdown filters */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+        <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="es-input" aria-label="Filter by Tag" data-testid="filter-tag">
+          <option value="all">Filter by Tag: All</option>
+          {allTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+        </select>
+        <select value={purchaseFilter} onChange={(e) => setPurchaseFilter(e.target.value as LastPurchaseBucket | 'all')} className="es-input" aria-label="Last Purchase" data-testid="filter-last-purchase">
+          <option value="all">Last Purchase: Any</option>
+          {LAST_PURCHASE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} className="es-input" aria-label="Filter by city" data-testid="filter-city">
+          <option value="all">City: All</option>
+          {uniqueCities.map((city) => <option key={city} value={city}>{city}</option>)}
+        </select>
+        <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} className="es-input" aria-label="Sort clients" data-testid="sort-clients">
+          <option value="name">Sort: Name</option>
+          <option value="last_purchase">Sort: Most recent purchase</option>
+          <option value="last_contact">Sort: Longest since contact</option>
+          <option value="city">Sort: City</option>
+          <option value="stage">Sort: Stage</option>
+        </select>
+      </div>
+
+      {(hasFilters || neverContacted) && (
+        <div className="flex flex-wrap items-center gap-2 mb-3 text-[13px] text-ink-secondary">
+          {neverContacted && <span className="es-tag es-tag-static">Never contacted</span>}
+          <button type="button" onClick={clearFilters} className="es-btn-ghost min-h-[44px]" data-testid="clear-filters">Clear filters</button>
+        </div>
+      )}
+
+      {/* Bulk action bar */}
+      {selectMode && (
+        <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 mb-3 px-4 py-2 bg-surface border border-rule rounded" data-testid="bulk-bar">
+          <label className="flex items-center gap-3 min-h-[44px] cursor-pointer text-sm font-semibold">
+            <input type="checkbox" className="es-check" checked={allVisibleSelected} onChange={toggleAllVisible} data-testid="select-all" />
+            Select All ({visibleIds.length})
+          </label>
+          <button
+            type="button"
+            disabled={selected.size === 0}
+            onClick={() => setConfirmOpen(true)}
+            className="es-btn es-btn-danger es-btn-sm"
+            style={{ height: 44 }}
+            data-testid="delete-selected"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete Selected ({selected.size})
+          </button>
+        </div>
+      )}
+
+      {/* List */}
+      {loading ? (
+        <div className="border border-rule bg-surface" data-testid="clients-loading">
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <div key={i} className="es-row">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="es-skeleton" style={{ width: 36, height: 36 }} />
+                <div className="flex-1">
+                  <div className="es-skeleton mb-2" style={{ width: '40%', height: 12 }} />
+                  <div className="es-skeleton" style={{ width: '60%', height: 10 }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : loadError ? (
+        <div role="alert" className="px-4 py-6 text-center text-error text-sm">{loadError}</div>
+      ) : sorted.length === 0 ? (
+        <div className="py-12 text-center">
+          <p className="text-ink-muted text-[13px] mb-3">No clients match these filters.</p>
+          {hasFilters ? (
+            <button type="button" onClick={clearFilters} className="es-btn es-btn-secondary">Clear filters</button>
+          ) : (
+            <Link href="/clients/new" className="es-btn es-btn-primary">Add Client</Link>
+          )}
+        </div>
+      ) : (
+        <div className="border border-rule bg-surface" data-testid="client-list">
+          {sorted.map((client, idx) => {
+            const city = client.billing_address?.city?.trim() || ''
+            const isSelected = selected.has(client.id)
+            const open = () => (selectMode ? toggleOne(client.id) : router.push(`/clients/${client.id}`))
+            return (
+              <div
+                key={client.id}
+                data-testid="client-card"
+                role={selectMode ? 'checkbox' : 'link'}
+                aria-checked={selectMode ? isSelected : undefined}
+                tabIndex={0}
+                onClick={open}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } }}
+                className={`es-row es-reveal cursor-pointer ${isSelected ? 'bg-surface-alt' : ''}`}
+                style={{ minHeight: 60, ['--i' as string]: Math.min(idx, 16) }}
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  {selectMode && (
+                    <input
+                      type="checkbox"
+                      className="es-check"
+                      checked={isSelected}
+                      onChange={() => toggleOne(client.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Select ${clientDisplayName(client)}`}
+                      data-testid="client-checkbox"
+                    />
+                  )}
+                  <div className="es-avatar">{clientInitials(client)}</div>
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate">{clientDisplayName(client)}</div>
+                    <div className="text-ink-muted text-[12px] truncate">
+                      {[client.email, city].filter(Boolean).join(' · ') || client.phone || 'No contact info'}
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
+                  {(client.location_tags || []).slice(0, 2).map((tag) => (
+                    <span key={tag} className="es-tag es-tag-static" style={{ minHeight: 24, fontSize: 11 }}>{tag}</span>
+                  ))}
+                </div>
+                <div className="flex-shrink-0 text-right" style={{ minWidth: 92 }}>
+                  <div className="es-status justify-end" style={{ color: stageColors[client.stage] || 'var(--color-muted)' }}>
+                    <span className="text-ink text-[11px] font-semibold uppercase tracking-wide">{client.stage}</span>
+                  </div>
+                  <div className="text-ink-muted text-[11px] whitespace-nowrap">
+                    {client.last_purchase_date ? formatDate(client.last_purchase_date) : 'No purchases'}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <ConfirmModal
+        open={confirmOpen}
+        title={`Delete ${selected.size} client${selected.size !== 1 ? 's' : ''}?`}
+        message={
+          <>
+            This cannot be undone. Their orders, purchases, measurements, care items and email history are deleted too.
+            {selectedWithPurchases > 0 && (
+              <span className="block mt-3 font-semibold text-error" data-testid="delete-warning">
+                {selectedWithPurchases} of the selected client{selectedWithPurchases !== 1 ? 's have' : ' has'} purchase history in the CRM.
+              </span>
+            )}
+          </>
+        }
+        confirmLabel={`Delete ${selected.size}`}
+        destructive
+        busy={deleting}
+        onConfirm={deleteSelected}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </Layout>
+  )
+}
+
+export default function ClientsPage() {
+  return (
+    <Suspense fallback={<Layout currentPage="clients"><div className="py-12 text-center text-ink-muted text-sm">Loading…</div></Layout>}>
+      <ClientsContent />
+    </Suspense>
   )
 }

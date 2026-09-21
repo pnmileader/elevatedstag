@@ -9,11 +9,11 @@ export async function POST(request: NextRequest) {
   // Defense in depth: even an authenticated user shouldn't burst-send.
   const limit = rateLimit(ipKey(request, 'email-send'), {
     windowMs: 60 * 60 * 1000,
-    max: 60,
+    max: 300, // group emails to a tag/city/zip send one request per recipient
   })
   if (!limit.allowed) {
     return NextResponse.json(
-      { error: 'Too many sends in the last hour. Use email automations for bulk.' },
+      { error: 'Hourly sending limit reached (300). The remaining recipients were not emailed — try again in an hour.' },
       { status: 429, headers: { 'Retry-After': String(Math.ceil(limit.retryAfterMs / 1000)) } },
     )
   }

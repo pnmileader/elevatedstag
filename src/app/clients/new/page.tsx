@@ -7,11 +7,15 @@ import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { logActivity } from '@/lib/activityLog'
 import Layout from '@/components/Layout'
+import ReferredByField from '@/components/ReferredByField'
+import { hasReferredByIdColumn } from '@/lib/referrals'
+import { Info } from 'lucide-react'
 
 export default function NewClientPage() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [referredById, setReferredById] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -60,6 +64,8 @@ export default function NewClientPage() {
       zip: formData.zip,
     } : null
 
+    const linkReferrer = await hasReferredByIdColumn(supabase)
+
     const { data, error: insertError } = await supabase
       .from('clients')
       .insert({
@@ -74,6 +80,7 @@ export default function NewClientPage() {
         preferences: formData.preferences.trim() || null,
         birthday: formData.birthday || null,
         referred_by: formData.referred_by.trim() || null,
+        ...(linkReferrer ? { referred_by_id: referredById } : {}),
         contact_type: formData.contact_type,
         trinity_id: formData.trinity_id.trim() || null,
         first_contact_date: new Date().toISOString().split('T')[0],
@@ -112,6 +119,15 @@ export default function NewClientPage() {
 
         <div className="bg-white rounded p-3 border border-gray-med">
           <h1 className="font-heading text-xl font-medium text-body mb-3">New Client</h1>
+
+          <div className="flex items-start gap-3 bg-gray-light border border-gray-med rounded px-4 py-3 mb-3 font-body text-sm text-gray-dark" data-testid="qb-sync-note">
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-gold" />
+            <p>
+              <strong className="text-body">Note:</strong> New clients added here are not automatically added to QuickBooks.
+              You&rsquo;ll need to add them in QuickBooks separately. Use the same name in both places so their
+              purchases match up the next time you import.
+            </p>
+          </div>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-3 font-body text-sm">
@@ -287,7 +303,13 @@ export default function NewClientPage() {
               </div>
               <div>
                 <label className="block font-body text-sm font-medium text-gray-dark mb-1">Referred By</label>
-                <input type="text" name="referred_by" value={formData.referred_by} onChange={handleChange} className="w-full px-4 py-2 border border-gray-med rounded font-body focus:outline-none focus:border-gold" placeholder="Name of referrer" />
+                <ReferredByField
+                  value={{ id: referredById, name: formData.referred_by }}
+                  onChange={(next) => {
+                    setReferredById(next.id)
+                    setFormData((prev) => ({ ...prev, referred_by: next.name }))
+                  }}
+                />
               </div>
             </div>
 

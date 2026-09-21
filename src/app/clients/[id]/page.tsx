@@ -9,6 +9,8 @@ import FinancialSummary from '@/components/FinancialSummary'
 import ClientPhotosGallery from '@/components/ClientPhotosGallery'
 import StatusBadge from '@/components/StatusBadge'
 import Layout from '@/components/Layout'
+import ClientTagsCard from '@/components/ClientTagsCard'
+import ClientReferralsCard from '@/components/ClientReferralsCard'
 
 type UpcomingEvent = { event: string; date: string }
 
@@ -193,11 +195,6 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                     <MapPin className="w-4 h-4" />
                     {[client.billing_address.street, client.billing_address.city, client.billing_address.state].filter(Boolean).join(', ')}
                   </div>
-                )}
-                {client.referred_by && (
-                  <p className="font-body text-sm text-gray-dark mt-1">
-                    Referred by {client.referred_by}
-                  </p>
                 )}
                 <div className="flex items-center gap-3 mt-3">
                   <span className={`inline-block px-3 py-1 rounded text-[11px] font-medium uppercase tracking-wide text-white whitespace-nowrap ${stageColors[client.stage]}`}>
@@ -701,24 +698,19 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                     </span>
                   </div>
                 )}
-                {client.referred_by && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-dark">Referred By</span>
-                    <span className="font-semibold">{client.referred_by}</span>
-                  </div>
-                )}
-                {client.location_tags && client.location_tags.length > 0 && (
-                  <div className="flex justify-between items-start">
-                    <span className="text-gray-dark">Locations</span>
-                    <div className="flex flex-wrap gap-1 justify-end">
-                      {client.location_tags.map(tag => (
-                        <span key={tag} className="px-2 py-0.5 bg-gray-light text-body rounded text-xs font-medium">{tag}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
+
+            {/* Tags — add / remove right here */}
+            <ClientTagsCard clientId={client.id} initialTags={client.location_tags || []} />
+
+            {/* Who referred them + everyone they have referred */}
+            <ClientReferralsCard
+              clientId={client.id}
+              fullName={fullName}
+              referredBy={client.referred_by}
+              referredById={(client as { referred_by_id?: string | null }).referred_by_id ?? null}
+            />
 
             {/* Activity Timeline */}
             <ActivityTimeline clientId={client.id} />

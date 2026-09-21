@@ -6,6 +6,7 @@ import Layout from '@/components/Layout'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { normalizeNewlines } from '@/lib/emailRender'
+import ClientCombobox from '@/components/ClientCombobox'
 
 interface Template {
   id: string
@@ -238,13 +239,19 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
   useEffect(() => {
     async function fetchClients() {
       const supabase = createClient()
-      const { data } = await supabase
-        .from('clients')
-        .select('id, first_name, last_name, email')
-        .not('email', 'is', null)
-        .order('last_name')
-
-      setClients(data || [])
+      const all: { id: string; first_name: string; last_name: string; email: string }[] = []
+      for (let from = 0; ; from += 1000) {
+        const { data } = await supabase
+          .from('clients')
+          .select('id, first_name, last_name, email')
+          .not('email', 'is', null)
+          .order('last_name')
+          .order('id')
+          .range(from, from + 999)
+        all.push(...(data || []))
+        if (!data || data.length < 1000) break
+      }
+      setClients(all)
     }
     fetchClients()
   }, [])
@@ -335,28 +342,23 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2 mb-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <div>
-          <label className="block font-body font-medium text-sm mb-2">Client</label>
-          <select
+          <label htmlFor="quick-send-client" className="block font-body font-medium text-sm mb-2">Client</label>
+          <ClientCombobox
+            id="quick-send-client"
+            clients={clients}
             value={selectedClient}
-            onChange={(e) => setSelectedClient(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
-          >
-            <option value="">Select a client...</option>
-            {clients.map(client => (
-              <option key={client.id} value={client.id}>
-                {client.last_name}, {client.first_name}
-              </option>
-            ))}
-          </select>
+            onChange={(clientId) => setSelectedClient(clientId)}
+            placeholder="Type a client's name…"
+          />
         </div>
         <div>
           <label className="block font-body font-medium text-sm mb-2">Template</label>
           <select
             value={selectedTemplate}
             onChange={(e) => setSelectedTemplate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-body"
+            className="es-input"
           >
             <option value="">Select a template...</option>
             {templates.map(template => (

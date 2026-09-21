@@ -219,14 +219,16 @@ export default function CalendarPage() {
               <p className="text-red-500 font-body mb-2">{error}</p>
             </div>
           ) : appointments.length === 0 ? (
-            <div className="p-3 text-center">
+            <div className="px-5 py-8 text-center" data-testid="calendar-empty">
               <Calendar className="w-12 h-12 text-gray-med mx-auto mb-4" />
-              <p className="font-body text-gray-dark mb-4">No appointments scheduled for this period</p>
-              <Link
-                href="/calendar/new"
-                className="text-gray-dark hover:text-body font-body text-sm font-medium"
-              >
-                Schedule an appointment →
+              <p className="font-body text-body font-medium mb-1">No appointments scheduled for this period</p>
+              <p className="font-body text-sm text-gray-dark mb-4 max-w-md mx-auto">
+                This calendar shows appointments you schedule here in the CRM. It doesn&rsquo;t pull events in from
+                Google Calendar. When you schedule one, the client is emailed an invite, and you can use
+                &ldquo;Add to calendar&rdquo; on any appointment to put it on your own Google or Apple calendar.
+              </p>
+              <Link href="/calendar/new" className="es-btn es-btn-primary">
+                Schedule an appointment
               </Link>
             </div>
           ) : (

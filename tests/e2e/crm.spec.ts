@@ -129,7 +129,7 @@ test.describe('1. Email', () => {
 
   test('1.6 choosing a template shows real line breaks in the editor', async ({ page }) => {
     await page.goto('/email/compose?template=')
-    await page.locator('select').filter({ hasText: 'No template' }).selectOption({ label: 'Appointment Outreach' })
+    await page.getByTestId('compose-template').selectOption({ label: 'Appointment Outreach' })
     const body = page.locator('textarea')
     await expect(body).toHaveValue(/Hi \{FIRST_NAME\},\n\nI hope all is well!/)
     expect(await body.inputValue()).not.toContain('\\n')
@@ -216,5 +216,184 @@ test.describe('1. Dashboard', () => {
     await page.goto('/')
     await page.getByTestId('stage-filter-active').click()
     await expect(page).toHaveURL(/\/clients\?stage=active/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// SECTION 3 — features
+// ---------------------------------------------------------------------------
+test.describe('3. Email selectors', () => {
+  test('3.1 Quick Send client selector is a typeahead that matches any part of the name', async ({ page }) => {
+    await page.goto('/email')
+    const input = page.getByTestId('client-selector-input')
+    await input.click()
+    await input.pressSequentially('Bet')
+    const option = page.getByTestId('client-selector-option').filter({ hasText: 'James Bettersworth' })
+    await expect(option).toBeVisible()
+    await option.click()
+    await expect(page.getByTestId('client-selector-selected')).toContainText('James Bettersworth')
+    await expect(page.locator('input[type="email"]')).toHaveValue(/@/)
+  })
+
+  test('3.1 Compose single-client selector is the same typeahead', async ({ page }) => {
+    await page.goto('/email/compose')
+    await page.getByTestId('client-selector-input').pressSequentially('bettersworth james')
+    await page.getByTestId('client-selector-option').filter({ hasText: 'James Bettersworth' }).click()
+    await expect(page.getByTestId('compose-send')).toContainText('Send to 1 recipient')
+  })
+
+  test('3.2 group email lists every match with a checkbox and lets her uncheck people', async ({ page }) => {
+    await page.goto('/email/compose')
+    await page.getByRole('button', { name: 'By City' }).click()
+    const city = page.getByTestId('group-city')
+    const options = await city.locator('option').allTextContents()
+    // pick the city with the most clients so there are at least 3 rows
+    let best = ''
+    let bestCount = 0
+    for (const name of options.filter((o) => o && !o.startsWith('Select'))) {
+      await city.selectOption({ label: name })
+      const n = await page.getByTestId('recipient-row').count()
+      if (n > bestCount) { best = name; bestCount = n }
+      if (bestCount >= 5) break
+    }
+    await city.selectOption({ label: best })
+    const boxes = page.getByTestId('recipient-checkbox')
+    const total = await boxes.count()
+    expect(total).toBeGreaterThanOrEqual(3)
+    for (let i = 0; i < total; i++) await expect(boxes.nth(i)).toBeChecked()
+    await expect(page.getByTestId('recipient-count')).toContainText(`Sending to ${total} of ${total} client`)
+
+    await boxes.nth(0).uncheck()
+    await boxes.nth(1).uncheck()
+    await expect(page.getByTestId('recipient-count')).toContainText(`Sending to ${total - 2} of ${total} client`)
+    await expect(page.getByTestId('compose-send')).toContainText(`Send to ${total - 2} recipient`)
+  })
+
+  test('3.3 + 3.4 By Tag lists every tag, and Last Purchase narrows a group', async ({ page }) => {
+    await page.goto('/email/compose')
+    await page.getByRole('button', { name: 'By Tag' }).click()
+    await expect(page.getByTestId('group-tag').locator('option', { hasText: 'E2E' })).toHaveCount(1)
+    await page.getByTestId('group-tag').selectOption('E2E')
+    await expect(page.getByTestId('recipient-row')).toHaveCount(1)
+    await page.getByTestId('group-last-purchase').selectOption('never')
+    await expect(page.getByTestId('recipient-row')).toHaveCount(1) // the fixture client has never purchased
+    await page.getByTestId('group-last-purchase').selectOption('under_3')
+    await expect(page.getByTestId('recipient-row')).toHaveCount(0)
+  })
+})
+
+test.describe('3. Clients list', () => {
+  test('client list loads, and search filters as you type', async ({ page }) => {
+    await page.goto('/clients')
+    await expect(page.getByTestId('client-card').first()).toBeVisible()
+    await page.getByTestId('client-search').fill('james bettersworth')
+    await expect(page.getByTestId('client-card')).toHaveCount(1)
+    await expect(page.getByTestId('client-card').first()).toContainText('James Bettersworth')
+  })
+
+  test('6.1 dashboard stage links arrive pre-filtered', async ({ page }) => {
+    await page.goto('/clients?stage=lead')
+    await expect(page.getByTestId('stage-lead')).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByTestId('client-card').filter({ hasText: E2E_LAST_NAME })).toBeVisible()
+  })
+
+  test('3.3 Filter by Tag + 3.4 Last Purchase filter', async ({ page }) => {
+    await page.goto('/clients')
+    await expect(page.getByTestId('client-card').first()).toBeVisible()
+    await page.getByTestId('filter-tag').selectOption('E2E')
+    await expect(page.getByTestId('client-card')).toHaveCount(1)
+    await page.getByTestId('clear-filters').click()
+
+    const all = await page.getByTestId('client-count').innerText()
+    await page.getByTestId('filter-last-purchase').selectOption('never')
+    await expect(page.getByTestId('client-count')).not.toHaveText(all)
+    const { count } = await db.from('clients').select('id', { count: 'exact', head: true }).is('last_purchase_date', null)
+    await expect(page.getByTestId('client-count')).toHaveText(`${count} clients`)
+  })
+
+  test('3.5 bulk delete: select mode, select all, confirm modal, delete', async ({ page }) => {
+    const doomedA = await ensureTestClient(db, 'DeleteMeA')
+    const doomedB = await ensureTestClient(db, 'DeleteMeB')
+    await page.goto('/clients')
+    await page.getByTestId('client-search').fill('DeleteMe')
+    await expect(page.getByTestId('client-card')).toHaveCount(2)
+
+    await page.getByTestId('select-mode-toggle').click()
+    await expect(page.getByTestId('client-checkbox').first()).toBeVisible()
+    await expect(page.getByTestId('delete-selected')).toBeDisabled()
+    await page.getByTestId('select-all').check()
+    await expect(page.getByTestId('delete-selected')).toHaveText(/Delete Selected \(2\)/)
+
+    await page.getByTestId('delete-selected').click()
+    const modal = page.getByTestId('confirm-modal')
+    await expect(modal).toContainText('Delete 2 clients?')
+    await expect(modal).toContainText('cannot be undone')
+    await page.getByTestId('confirm-accept').click()
+
+    await expect(page.getByTestId('clients-notice')).toContainText('Deleted 2 clients')
+    const { data: left } = await db.from('clients').select('id').in('id', [doomedA, doomedB])
+    expect(left).toHaveLength(0)
+  })
+})
+
+test.describe('3. Client profile', () => {
+  test('3.3 tags: add by typing, autocomplete, remove with ×, persists', async ({ page }) => {
+    await page.goto(`/clients/${testClientId}`)
+    const card = page.getByTestId('client-tags-card')
+    await expect(card.getByTestId('tag-chip')).toHaveText(['E2E'])
+    await card.getByTestId('tag-input').fill('VP')
+    await card.getByTestId('tag-input').press('Enter')
+    await expect(card.getByTestId('tags-status')).toHaveText('Saved')
+    await expect(card.getByTestId('tag-chip')).toHaveText(['E2E', 'VP'])
+
+    await page.reload()
+    await expect(card.getByTestId('tag-chip')).toHaveText(['E2E', 'VP'])
+    await card.getByTestId('tag-chip').filter({ hasText: 'VP' }).getByTestId('tag-remove').click()
+    await expect(card.getByTestId('tag-chip')).toHaveText(['E2E'])
+    await expect(card.getByTestId('tags-status')).toHaveText('Saved')
+  })
+
+  test('3.6 Referred By is a searchable client list, and referrals show on the referrer', async ({ page }) => {
+    const referrerId = await ensureTestClient(db, 'Referrer')
+    await page.goto(`/clients/${testClientId}/edit`)
+    const field = page.getByTestId('referred-by')
+    await field.scrollIntoViewIfNeeded()
+    await field.getByTestId('referred-by-select-input').pressSequentially('Referrer Zz')
+    await field.getByTestId('referred-by-select-option').filter({ hasText: `Referrer ${E2E_LAST_NAME}` }).click()
+    await page.getByRole('button', { name: /save/i }).first().click()
+    await page.waitForURL(new RegExp(`/clients/${testClientId}$`))
+
+    // the referred client links back to the referrer…
+    await expect(page.getByTestId('referrer-link')).toHaveText(`Referrer ${E2E_LAST_NAME}`)
+    // …and the referrer's profile lists who they referred
+    await page.goto(`/clients/${referrerId}`)
+    const card = page.getByTestId('client-referrals-card')
+    await expect(card.getByTestId('referral-count')).toHaveText('1 referred')
+    await expect(card.getByTestId('referral-row')).toContainText(`Testy ${E2E_LAST_NAME}`)
+  })
+
+  test('3.10 new client form explains QuickBooks is separate, and saving works', async ({ page }) => {
+    await page.goto('/clients/new')
+    await expect(page.getByTestId('qb-sync-note')).toContainText('not automatically added to QuickBooks')
+    await page.locator('input[name="first_name"]').fill('Test')
+    await page.locator('input[name="last_name"]').fill('Playwright')
+    await page.locator('input[name="email"]').fill('test@playwright.dev')
+    await page.getByRole('button', { name: /save|create|add client/i }).first().click()
+    await expect(page).toHaveURL(/\/clients\/[0-9a-f-]{36}$/)
+    await expect(page.getByRole('heading', { name: 'Test Playwright' })).toBeVisible()
+  })
+})
+
+test.describe('3. Calendar', () => {
+  test('3.9 an appointment scheduled in the CRM shows up on the calendar', async ({ page }) => {
+    const start = new Date(); start.setDate(start.getDate() + 1); start.setHours(10, 0, 0, 0)
+    const end = new Date(start.getTime() + 60 * 60 * 1000)
+    const res = await page.request.post('/api/appointments', {
+      data: { client_id: testClientId, appointment_type: 'fitting', title: 'E2E Fitting', start_time: start.toISOString(), end_time: end.toISOString(), location: 'E2E Studio' },
+    })
+    expect(res.status(), await res.text()).toBeLessThan(300)
+    await page.goto('/calendar')
+    await page.getByRole('button', { name: 'Month' }).click()
+    await expect(page.getByText('E2E Studio').first()).toBeVisible()
   })
 })

@@ -1,6 +1,10 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
+import ReferredByField from '@/components/ReferredByField'
+import TagEditor from '@/components/TagEditor'
+import { hasReferredByIdColumn } from '@/lib/referrals'
+import { uniqueTags } from '@/lib/clientFilters'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Loader2, Trash2, Plus, X } from 'lucide-react'
@@ -55,6 +59,10 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
     trinity_id: '',
   })
 
+  const [tags, setTags] = useState<string[]>([])
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
+  const [referredById, setReferredById] = useState<string | null>(null)
+
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([
     { event: '', date: '' },
     { event: '', date: '' },
@@ -77,6 +85,15 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
       }
 
       const address = data.billing_address || {}
+
+      setTags(Array.isArray(data.location_tags) ? data.location_tags : [])
+      setReferredById(data.referred_by_id ?? null)
+      supabase
+        .from('clients')
+        .select('location_tags')
+        .not('location_tags', 'is', null)
+        .limit(1000)
+        .then(({ data: tagRows }) => setTagSuggestions(uniqueTags((tagRows || []).map((r) => r.location_tags as string[] | null))))
 
       setFormData({
         first_name: data.first_name || '',
@@ -157,9 +174,8 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
     } : null
 
     const filteredEvents = upcomingEvents.filter(e => e.event.trim() || e.date)
-    const locationTags = formData.location_tags
-      ? formData.location_tags.split(',').map(t => t.trim()).filter(Boolean)
-      : null
+    const locationTags = tags.length > 0 ? tags : null
+    const linkReferrer = await hasReferredByIdColumn(supabase)
 
     const { error: updateError } = await supabase
       .from('clients')
@@ -187,6 +203,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
         upcoming_events: filteredEvents.length > 0 ? filteredEvents : null,
         location_tags: locationTags,
         referred_by: formData.referred_by.trim() || null,
+        ...(linkReferrer ? { referred_by_id: referredById } : {}),
         contact_type: formData.contact_type,
         need_by_date: formData.need_by_date || null,
         need_by_description: formData.need_by_description.trim() || null,
@@ -372,7 +389,14 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
                   </div>
                   <div>
                     <label className={labelClass}>Referred By</label>
-                    <input type="text" name="referred_by" value={formData.referred_by} onChange={handleChange} className={inputClass} placeholder="Name of referrer" />
+                    <ReferredByField
+                      excludeId={clientId}
+                      value={{ id: referredById, name: formData.referred_by }}
+                      onChange={(next) => {
+                        setReferredById(next.id)
+                        setFormData((prev) => ({ ...prev, referred_by: next.name }))
+                      }}
+                    />
                   </div>
                 </div>
 
@@ -388,9 +412,9 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 <div>
-                  <label className={labelClass}>Location Tags</label>
-                  <input type="text" name="location_tags" value={formData.location_tags} onChange={handleChange} className={inputClass} placeholder="Austin, San Antonio, Houston (comma-separated)" />
-                  <p className="font-body text-xs text-gray-dark mt-1">Used for targeted email campaigns</p>
+                  <label className={labelClass}>Tags</label>
+                  <TagEditor tags={tags} suggestions={tagSuggestions} onChange={setTags} />
+                  <p className="font-body text-xs text-gray-dark mt-1">Short codes (VP, FU, RF) or places (San Antonio). Used to filter clients and for group emails.</p>
                 </div>
 
                 <div className="pt-4 border-t border-gray-light">
