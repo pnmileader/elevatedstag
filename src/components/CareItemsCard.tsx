@@ -108,9 +108,13 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
     <div className="bg-white rounded p-3 lg:p-3 border border-gray-med">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-heading text-sm font-medium text-body">Client Care</h2>
+        {/* 44px tap target: this was a bare 20px-tall text button, nearly impossible to hit on a phone */}
         <button
+          type="button"
           onClick={() => setShowForm(!showForm)}
-          className="text-gray-dark hover:text-body font-body text-sm font-medium flex items-center gap-1"
+          aria-expanded={showForm}
+          data-testid="care-add-item"
+          className="min-h-[44px] min-w-[44px] -mr-2 px-3 rounded text-gray-dark hover:text-body active:bg-gray-light font-body text-sm font-medium flex items-center gap-1 touch-manipulation"
         >
           <Plus className="w-4 h-4" />
           Add Item
@@ -127,7 +131,8 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
                 value={newItem.title}
                 onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
                 placeholder="e.g., Send thank you note"
-                className="w-full px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold"
+                data-testid="care-title-input"
+                className="w-full min-h-[44px] px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold"
                 autoFocus
               />
             </div>
@@ -135,7 +140,7 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
               <select
                 value={newItem.item_type}
                 onChange={(e) => setNewItem({ ...newItem, item_type: e.target.value })}
-                className="px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold bg-white"
+                className="min-h-[44px] min-w-0 px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold bg-white"
               >
                 <option value="custom">Custom</option>
                 <option value="thank_you_note">Thank You Note</option>
@@ -146,21 +151,22 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
                 type="date"
                 value={newItem.due_date}
                 onChange={(e) => setNewItem({ ...newItem, due_date: e.target.value })}
-                className="px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold"
+                className="min-h-[44px] min-w-0 px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold"
               />
             </div>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="flex-1 px-3 py-2 border border-gray-med rounded font-body text-sm text-gray-dark hover:bg-white transition-colors"
+                className="flex-1 min-h-[44px] px-3 py-2 border border-gray-med rounded font-body text-sm text-gray-dark hover:bg-white transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving || !newItem.title.trim()}
-                className="flex-1 px-3 py-2 bg-body text-white rounded font-body text-sm font-medium hover:bg-body-hover disabled:bg-gray-med transition-colors flex items-center justify-center gap-2"
+                data-testid="care-save"
+                className="flex-1 min-h-[44px] px-3 py-2 bg-body text-white rounded font-body text-sm font-medium hover:bg-body-hover disabled:bg-gray-med transition-colors flex items-center justify-center gap-2"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
               </button>
@@ -220,17 +226,19 @@ function CareItemRow({
         aria-checked={item.completed}
         aria-labelledby={`care-title-${item.id}`}
         aria-label={`Mark "${item.title}" as ${item.completed ? 'incomplete' : 'complete'}`}
-        className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-          item.completed
-            ? 'bg-gold border-gold'
-            : 'border-gray-med hover:border-gold'
-        }`}
+        className="w-[44px] h-[44px] -m-3 flex items-center justify-center flex-shrink-0 touch-manipulation"
       >
-        {toggling ? (
-          <Loader2 className="w-3 h-3 animate-spin text-gold" />
-        ) : item.completed ? (
-          <span className="text-white text-xs">&#10003;</span>
-        ) : null}
+        <span
+          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+            item.completed ? 'bg-gold border-gold' : 'border-gray-med'
+          }`}
+        >
+          {toggling ? (
+            <Loader2 className="w-3 h-3 animate-spin text-gold" />
+          ) : item.completed ? (
+            <span className="text-white text-xs">&#10003;</span>
+          ) : null}
+        </span>
       </button>
 
       <div className="flex-1 min-w-0">
@@ -254,14 +262,14 @@ function CareItemRow({
           Delete?
           <button
             onClick={onDeleteConfirm}
-            className="text-red-600 hover:text-red-700 font-medium px-1"
+            className="min-h-[44px] px-3 text-red-600 hover:text-red-700 font-medium"
             aria-label={`Confirm delete "${item.title}"`}
           >
             Yes
           </button>
           <button
             onClick={onDeleteCancel}
-            className="text-gray-dark hover:text-body font-medium px-1"
+            className="min-h-[44px] px-3 text-gray-dark hover:text-body font-medium"
             aria-label="Cancel delete"
           >
             No
@@ -271,7 +279,7 @@ function CareItemRow({
         <button
           onClick={onDeleteRequest}
           aria-label={`Delete "${item.title}"`}
-          className="text-ink-muted focus:text-error focus-visible:text-error active:text-error focus:opacity-100 focus-visible:opacity-100 transition-colors p-1"
+          className="w-[44px] h-[44px] -mr-3 flex items-center justify-center text-ink-muted focus-visible:text-error active:text-error transition-colors touch-manipulation"
         >
           <span className="text-xs">&#10005;</span>
         </button>

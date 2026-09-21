@@ -5,6 +5,7 @@ import { Mail, Send, FileText, Clock, Loader2, Plus } from 'lucide-react'
 import Layout from '@/components/Layout'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import { normalizeNewlines } from '@/lib/emailRender'
 
 interface Template {
   id: string
@@ -264,7 +265,7 @@ function QuickSendForm({ templates }: { templates: Template[] }) {
       const template = templates.find(t => t.id === selectedTemplate)
       if (template) {
         let newSubject = template.subject
-        let newBody = template.body
+        let newBody = normalizeNewlines(template.body)
 
         // If client selected, replace variables
         if (selectedClient) {

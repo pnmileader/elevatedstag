@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Plus, Users, Clock, TrendingUp, Calendar, Settings, Search, LogOut, Mail, UserPlus, X } from 'lucide-react'
+import SearchBar from '@/components/SearchBar'
 
 type LayoutProps = {
   children: React.ReactNode
@@ -24,43 +26,79 @@ export default function Layout({
 }: LayoutProps) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // iOS Safari only raises the keyboard when focus() runs inside the tap
+  // handler itself, so render the field synchronously, then focus it.
+  const openSearch = () => {
+    setMenuOpen(false)
+    flushSync(() => setSearchOpen(true))
+    searchInputRef.current?.focus()
+  }
 
   return (
     <div className="h-[100dvh] flex flex-col bg-paper">
 
       {/* ===== TOP BAR ===== */}
-      <header className="flex-shrink-0 h-[52px] flex items-center justify-between px-4 border-b border-rule bg-surface">
-        {/* Left: brand + title */}
-        <div className="flex items-center gap-3 min-w-0">
-          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 bg-charcoal flex items-center justify-center rounded-sm">
-              <span className="font-serif text-paper text-[11px] font-bold tracking-wider">ES</span>
+      <header className="relative z-30 flex-shrink-0 h-[52px] flex items-center justify-between px-4 border-b border-rule bg-surface">
+        {searchOpen ? (
+          <div className="flex items-center gap-1 w-full">
+            <SearchBar inputRef={searchInputRef} onClose={() => setSearchOpen(false)} />
+            <button
+              type="button"
+              onClick={() => setSearchOpen(false)}
+              className="w-[44px] h-[44px] flex items-center justify-center text-ink-muted flex-shrink-0"
+              aria-label="Close search"
+              data-testid="search-close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Left: brand + title */}
+            <div className="flex items-center gap-3 min-w-0">
+              <Link href="/" className="flex items-center gap-2 flex-shrink-0" aria-label="Dashboard home">
+                <div className="w-8 h-8 bg-charcoal flex items-center justify-center rounded-sm">
+                  <span className="font-serif text-paper text-[11px] font-bold tracking-wider">ES</span>
+                </div>
+              </Link>
+              {title && (
+                <h1 className="font-serif text-[17px] font-bold text-ink truncate">{title}</h1>
+              )}
             </div>
-          </Link>
-          {title && (
-            <h1 className="font-serif text-[17px] font-bold text-ink truncate">{title}</h1>
-          )}
-        </div>
 
-        {/* Right: settings gear, search, action, logout */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="w-11 h-11 flex items-center justify-center text-ink-muted"
-            aria-label="Settings menu"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-          <Link href="/clients" aria-label="Search clients" className="w-11 h-11 flex items-center justify-center text-ink-muted">
-            <Search className="w-5 h-5" />
-          </Link>
-          {action ? action : showNewClient && (
-            <Link href="/clients/new" className="es-btn es-btn-primary es-btn-sm">
-              <Plus className="w-4 h-4" />
-              <span>New Client</span>
-            </Link>
-          )}
-        </div>
+            {/* Right: settings gear, search, action */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="w-[44px] h-[44px] flex items-center justify-center text-ink-muted"
+                aria-label="Settings menu"
+                aria-expanded={menuOpen}
+                data-testid="gear-icon"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={openSearch}
+                aria-label="Search clients, orders, fabrics"
+                className="w-[44px] h-[44px] flex items-center justify-center text-ink-muted"
+                data-testid="search-icon"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+              {action ? action : showNewClient && (
+                <Link href="/clients/new" className="es-btn es-btn-primary es-btn-sm">
+                  <Plus className="w-4 h-4" />
+                  <span>New Client</span>
+                </Link>
+              )}
+            </div>
+          </>
+        )}
       </header>
 
       {/* ===== SETTINGS/MORE DROPDOWN ===== */}

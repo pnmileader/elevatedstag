@@ -6,6 +6,7 @@ import { ArrowLeft, Send, Loader2, Users, User, Tag, MapPin } from 'lucide-react
 import Link from 'next/link'
 import Layout from '@/components/Layout'
 import { createClient } from '@/lib/supabase'
+import { normalizeNewlines } from '@/lib/emailRender'
 
 interface ClientOption {
   id: string
@@ -74,7 +75,7 @@ function ComposeContent() {
       const template = templates.find(t => t.id === selectedTemplateId)
       if (template) {
         setSubject(template.subject)
-        setBody(template.body)
+        setBody(normalizeNewlines(template.body))
       }
     }
   }, [selectedTemplateId, templates])

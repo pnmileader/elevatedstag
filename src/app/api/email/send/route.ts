@@ -3,6 +3,7 @@ import { sendEmail } from '@/lib/email'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { parseJson, SendEmailSchema } from '@/lib/validation'
 import { rateLimit, ipKey } from '@/lib/rateLimit'
+import { renderEmail } from '@/lib/emailRender'
 
 export async function POST(request: NextRequest) {
   // Defense in depth: even an authenticated user shouldn't burst-send.
@@ -30,10 +31,24 @@ export async function POST(request: NextRequest) {
 
   const { clientId, to, subject, emailBody, templateId, replyTo } = parsed.data
 
+  // Personalize here, not in the browser: the UI only swapped {FIRST_NAME}
+  // when a client AND a template were picked in a particular order, so raw
+  // placeholders (and literal "\n") reached real inboxes.
+  let recipient: { first_name: string | null; last_name: string | null } | null = null
+  if (clientId) {
+    const { data } = await supabase
+      .from('clients')
+      .select('first_name, last_name')
+      .eq('id', clientId)
+      .maybeSingle()
+    recipient = data
+  }
+  const rendered = renderEmail({ subject, body: emailBody }, recipient)
+
   const result = await sendEmail({
     to,
-    subject,
-    html: emailBody,
+    subject: rendered.subject,
+    html: rendered.html,
     replyTo,
   })
 
@@ -47,8 +62,8 @@ export async function POST(request: NextRequest) {
   await supabase.from('sent_emails').insert({
     client_id: clientId || null,
     to_email: toEmail,
-    subject,
-    body: emailBody,
+    subject: rendered.subject,
+    body: rendered.text,
     template_id: templateId || null,
     status: 'sent',
     sent_at: now,
@@ -64,9 +79,9 @@ export async function POST(request: NextRequest) {
       client_id: clientId,
       activity_type: 'email_sent',
       title: 'Email sent',
-      description: subject,
+      description: rendered.subject,
     })
   }
 
-  return NextResponse.json({ success: true, messageId: result.id })
+  return NextResponse.json({ success: true, messageId: result.id, from: result.from })
 }

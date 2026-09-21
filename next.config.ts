@@ -21,9 +21,13 @@ const SUPABASE_HOSTS = [
   'wss://*.supabase.co',
 ]
 
+// React's dev build uses eval() to rebuild call stacks; without this the dev
+// overlay reports a permanent "1 Issue". Production never gets 'unsafe-eval'.
+const DEV_SCRIPT_SRC = process.env.NODE_ENV === 'development' ? ` 'unsafe-eval'` : ''
+
 const csp = [
   `default-src 'self'`,
-  `script-src 'self' 'unsafe-inline'`,
+  `script-src 'self' 'unsafe-inline'${DEV_SCRIPT_SRC}`,
   `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
   `font-src 'self' https://fonts.gstatic.com data:`,
   `img-src 'self' data: blob: ${SUPABASE_HOSTS.join(' ')}`,

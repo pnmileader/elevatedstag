@@ -28,10 +28,26 @@
   --color-status-ship: #2D8C8C;
   --font-serif: 'Libre Baskerville', 'Georgia', serif;
   --font-sans: 'Source Sans 3', system-ui, -apple-system, sans-serif;
+
+  /* Legacy tokens — ~1,000 utility usages across older pages (text-gray-dark,
+     border-gray-med, bg-gray-light, font-body, font-heading) referenced these
+     but they were never defined, so the classes silently produced no CSS. */
+  --color-gray-light: #F3F0EA;
+  --color-gray-med: #E5E0D8;
+  --color-gray-dark: #6B6560;
+  --color-muted: #A09A93;
+  --font-body: 'Source Sans 3', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Libre Baskerville', 'Georgia', serif;
 }
 
-/* === Reset === */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* === Reset ===
+   MUST live in @layer base. Unlayered rules beat every Tailwind utility
+   (utilities are layered), so an unlayered `* { margin:0; padding:0 }`
+   silently disabled every p-*, px-*, m-*, space-y-* class in the app —
+   which crushed the layout and shrank tap targets on mobile. */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+}
 
 html {
   font-size: 14px;
@@ -268,3 +284,35 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; }
   header, nav, .es-tab-bar, .no-print { display: none !important; }
   body { background: white !important; }
 }
+
+/* Search field: 16px stops iOS Safari from zooming the page on focus. */
+.es-search-input { height: 40px; font-size: 16px; }
+.es-search-input::-webkit-search-cancel-button { display: none; }
+
+/* iOS zooms the viewport when a focused field's text is under 16px, which
+   reads as the layout "jumping" mid-typing. Touch devices only. */
+@media (hover: none) and (pointer: coarse) {
+  input, select, textarea { font-size: 16px !important; }
+}
+
+/* Chip — filter pills, tags */
+.es-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: 999px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.es-chip:active { background: var(--color-surface-alt); }
+.es-chip[aria-pressed="true"], .es-chip-active { background: var(--color-charcoal); color: var(--color-paper); border-color: var(--color-charcoal); }
+.es-chip-count { font-weight: 600; color: var(--color-ink-muted); font-size: 12px; }
+.es-chip[aria-pressed="true"] .es-chip-count, .es-chip-active .es-chip-count { color: var(--color-gold-light); }

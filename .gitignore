@@ -48,3 +48,9 @@ fixtures/
 # from grep matches; keep them local. SECURITY_AUDIT.md (the summary) IS committed.
 security-audit/scan-results/
 security-audit/checkpoint.json
+
+# playwright
+/tests/e2e/.auth/
+/test-results/
+/playwright-report/
+/blob-report/

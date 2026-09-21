@@ -1,0 +1,220 @@
+import { test, expect } from '@playwright/test'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { signedInDb, ensureTestClient, cleanup, E2E_LAST_NAME, E2E_SINK_EMAIL } from './fixtures'
+
+let db: SupabaseClient
+let testClientId: string
+
+test.beforeAll(async () => {
+  db = await signedInDb()
+  await cleanup(db)
+  testClientId = await ensureTestClient(db)
+})
+
+test.afterAll(async () => {
+  await cleanup(db)
+})
+
+// ---------------------------------------------------------------------------
+// SECTION 1 — critical bugs
+// ---------------------------------------------------------------------------
+test.describe('1. Navigation + search', () => {
+  test('1.1 search icon opens a field that accepts input and returns results', async ({ page }) => {
+    await page.goto('/')
+    await page.getByTestId('search-icon').click()
+    const input = page.getByTestId('search-input')
+    await expect(input).toBeFocused()
+    await input.pressSequentially('James')
+    const hit = page.getByTestId('search-result').filter({ hasText: 'James Bettersworth' })
+    await expect(hit).toBeVisible()
+    await hit.click()
+    await expect(page).toHaveURL(/\/clients\/[0-9a-f-]{36}$/)
+    await expect(page.getByRole('heading', { name: 'James Bettersworth' })).toBeVisible()
+  })
+
+  test('1.1 search works at iPhone width and matches first + last name together', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/orders')
+    await page.getByTestId('search-icon').click()
+    await page.getByTestId('search-input').pressSequentially('james bett')
+    await expect(page.getByTestId('search-result').filter({ hasText: 'James Bettersworth' })).toBeVisible()
+    await page.getByTestId('search-close').click()
+    await expect(page.getByTestId('search-input')).toHaveCount(0)
+  })
+})
+
+test.describe('1. Measurements', () => {
+  test('1.2 fields accept multi-digit typing without losing focus', async ({ page }) => {
+    await page.goto(`/clients/${testClientId}/measurements`)
+    const weight = page.locator('input[data-field="weight"]')
+    await weight.click()
+    // Real keystrokes (not fill): the old bug dropped focus after the first digit.
+    await page.keyboard.type('165', { delay: 40 })
+    await expect(weight).toHaveValue('165')
+    await expect(weight).toBeFocused()
+
+    const chest = page.locator('input[name="coat.chest"]')
+    await chest.click()
+    await page.keyboard.type('42', { delay: 40 })
+    await page.keyboard.press('Backspace')
+    await page.keyboard.type('4', { delay: 40 })
+    await expect(chest).toHaveValue('44')
+    await expect(chest).toBeFocused()
+  })
+
+  test('1.3 height is feet + inches, displays as 5\' 9", and persists', async ({ page }) => {
+    await page.goto(`/clients/${testClientId}/measurements`)
+    await expect(page.getByText('Feet', { exact: true })).toBeVisible()
+    await page.locator('input[name="height_feet"]').fill('5')
+    await page.locator('input[name="height_inches"]').fill('9')
+    await expect(page.getByTestId('height-display')).toHaveText('5\' 9"')
+    // no fraction dropdown on the height row
+    await expect(page.locator('select[name="body.height.fraction"]')).toHaveCount(0)
+
+    await page.getByTestId('save-measurements').click()
+    await expect(page.getByTestId('measurements-saved')).toBeVisible()
+
+    await page.reload()
+    await expect(page.locator('input[name="height_feet"]')).toHaveValue('5')
+    await expect(page.locator('input[name="height_inches"]')).toHaveValue('9')
+    await expect(page.getByTestId('height-display')).toHaveText('5\' 9"')
+  })
+
+  test('1.4 + 1.5 Incline sits above Shoulder Reading (L) and (R)', async ({ page }) => {
+    await page.goto(`/clients/${testClientId}/measurements`)
+    const incline = page.getByText('Incline', { exact: true })
+    const left = page.getByText('Shoulder Reading (L)', { exact: true })
+    const right = page.getByText('Shoulder Reading (R)', { exact: true })
+    await expect(incline).toBeVisible()
+    await expect(left).toBeVisible()
+    await expect(right).toBeVisible()
+    const [iy, ly, ry] = await Promise.all([incline, left, right].map(async (l) => (await l.boundingBox())!.y))
+    expect(iy).toBeLessThan(ly)
+    expect(ly).toBeLessThan(ry)
+    await expect(page.locator('input[name="body.incline"]')).toBeVisible()
+    await expect(page.locator('select[name="body.incline.fraction"]')).toBeVisible()
+  })
+})
+
+test.describe('1. Email', () => {
+  test('1.6 + 1.7 sent email has the real first name, real line breaks, and sends successfully', async ({ page }) => {
+    // Body deliberately uses the broken stored form: raw placeholder + literal backslash-n.
+    const res = await page.request.post('/api/email/send', {
+      data: {
+        clientId: testClientId,
+        to: E2E_SINK_EMAIL, // Resend's test inbox — never a real client
+        subject: 'E2E hello {FIRST_NAME}',
+        emailBody: 'Hi {FIRST_NAME},\\n\\nLine two.\\n\\nAll my best,\\nKatie',
+      },
+    })
+    const json = await res.json()
+    expect(res.status(), JSON.stringify(json)).toBe(200)
+    expect(json.from).toMatch(/Katie Fore <katie@(mail\.)?theelevatedstag\.com>/)
+    console.log(`      sender used: ${json.from}`)
+
+    const { data: rows } = await db
+      .from('sent_emails')
+      .select('subject, body, client_id')
+      .eq('to_email', E2E_SINK_EMAIL)
+      .order('sent_at', { ascending: false })
+      .limit(1)
+    const sent = rows![0]
+    expect(sent.client_id).toBe(testClientId)
+    expect(sent.subject).toBe('E2E hello Testy')
+    expect(sent.body).toContain('Hi Testy,')
+    expect(sent.body).not.toContain('{FIRST_NAME}')
+    expect(sent.body).not.toContain('\\n') // no literal backslash-n
+    expect(sent.body.split('\n').length).toBeGreaterThan(3) // real line breaks
+  })
+
+  test('1.6 choosing a template shows real line breaks in the editor', async ({ page }) => {
+    await page.goto('/email/compose?template=')
+    await page.locator('select').filter({ hasText: 'No template' }).selectOption({ label: 'Appointment Outreach' })
+    const body = page.locator('textarea')
+    await expect(body).toHaveValue(/Hi \{FIRST_NAME\},\n\nI hope all is well!/)
+    expect(await body.inputValue()).not.toContain('\\n')
+  })
+})
+
+test.describe('1. Client care (mobile)', () => {
+  test('1.8 Add Item works at 375px with a 44px tap target', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto(`/clients/${testClientId}`)
+    const add = page.getByTestId('care-add-item')
+    await add.scrollIntoViewIfNeeded()
+    const box = (await add.boundingBox())!
+    expect(box.height).toBeGreaterThanOrEqual(44)
+    expect(box.width).toBeGreaterThanOrEqual(44)
+    await add.tap()
+    await page.getByTestId('care-title-input').fill('E2E thank-you note')
+    await page.getByTestId('care-save').tap()
+    await expect(page.getByText('E2E thank-you note')).toBeVisible()
+  })
+})
+
+test.describe('1. Dashboard', () => {
+  test('1.9 revenue = custom + ready-made for the right months (checked against the database)', async ({ page }) => {
+    const now = new Date()
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const thisStart = iso(new Date(now.getFullYear(), now.getMonth(), 1))
+    const lastStart = iso(new Date(now.getFullYear(), now.getMonth() - 1, 1))
+    const lastEnd = iso(new Date(now.getFullYear(), now.getMonth(), 0))
+    const [{ data: co }, { data: rm }] = await Promise.all([
+      db.from('custom_orders').select('order_date, price').gte('order_date', lastStart),
+      db.from('ready_made_purchases').select('purchase_date, price, quantity').gte('purchase_date', lastStart),
+    ])
+    const sum = (from: string, to?: string) =>
+      (co || []).filter((o) => o.order_date >= from && (!to || o.order_date <= to)).reduce((a, o) => a + Number(o.price || 0), 0) +
+      (rm || []).filter((p) => p.purchase_date >= from && (!to || p.purchase_date <= to)).reduce((a, p) => a + Number(p.price || 0) * (Number(p.quantity) > 0 ? Number(p.quantity) : 1), 0)
+    const fmt = (n: number) => `$${Math.round(n * 100) / 100 === 0 ? '0' : (Math.round(n * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+
+    await page.goto('/')
+    await expect(page.getByTestId('revenue-this-month')).toHaveText(fmt(sum(thisStart)))
+    await expect(page.getByTestId('revenue-last-month')).toHaveText(fmt(sum(lastStart, lastEnd)))
+
+    // When the newest sale on file is over a month old, say so instead of showing a bare $0.
+    const { data: newest } = await db.from('custom_orders').select('order_date').order('order_date', { ascending: false }).limit(1)
+    const ageDays = newest?.[0] ? (Date.now() - new Date(newest[0].order_date).getTime()) / 86_400_000 : 0
+    if (ageDays > 40) await expect(page.getByTestId('sales-data-stale')).toBeVisible()
+  })
+
+  test('1.10 In Progress only counts recent, undelivered orders', async ({ page }) => {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 180)
+    const { count } = await db
+      .from('custom_orders')
+      .select('id', { count: 'exact', head: true })
+      .neq('status', 'delivered')
+      .gte('order_date', cutoff.toISOString().slice(0, 10))
+    await page.goto('/')
+    await expect(page.getByTestId('stat-in-progress')).toHaveText(String(count ?? 0))
+    expect(count ?? 0).toBeLessThan(100) // was 361 — every imported historical order
+  })
+
+  test('3.7 / 6.3 follow-up never shows fake day counts and the threshold is adjustable', async ({ page }) => {
+    await page.goto('/')
+    const section = page.getByTestId('follow-up')
+    await expect(section.getByTestId('follow-up-days')).toHaveValue('90')
+    await expect(section).not.toContainText('999')
+    await expect(section).not.toContainText('Never' + 'd')
+    const rows = section.getByTestId('follow-up-row')
+    await expect(rows.first()).toBeVisible()
+    await section.getByTestId('follow-up-days').selectOption('365')
+    await expect(section.getByTestId('follow-up-days')).toHaveValue('365')
+  })
+
+  test('3.8 / 6.2 recent orders show one row per client per order date', async ({ page }) => {
+    await page.goto('/')
+    const rows = page.getByTestId('recent-order-row')
+    await expect(rows.first()).toBeVisible()
+    const texts = await rows.allInnerTexts()
+    const keys = texts.map((t) => t.split('\n').slice(0, 2).join('|').replace(/ · .*/, ''))
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(texts.join(' ')).toMatch(/\d+ items?/)
+  })
+
+  test('6.1 stage filter chips link to the filtered client list', async ({ page }) => {
+    await page.goto('/')
+    await page.getByTestId('stage-filter-active').click()
+    await expect(page).toHaveURL(/\/clients\?stage=active/)
+  })
+})

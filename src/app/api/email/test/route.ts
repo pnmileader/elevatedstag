@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         <p>This is a test message from the Elevated Stag CRM, sent via Resend.</p>
         <p>If you received this, the integration is working:</p>
         <ul>
-          <li>From: <code>katie@mail.theelevatedstag.com</code></li>
+          <li>From: <code>katie@theelevatedstag.com</code> (falls back to <code>katie@mail.theelevatedstag.com</code> until the root domain is verified in Resend)</li>
           <li>Reply-to: <code>katie@theelevatedstag.com</code></li>
         </ul>
         <p style="color: #6B6560; font-size: 12px; margin-top: 32px;">

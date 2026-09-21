@@ -14,14 +14,18 @@ interface Field {
   key: string
   label: string
   fraction?: boolean
+  /** 'height' renders feet + inches boxes instead of whole + fraction */
+  kind?: 'height'
 }
 
 const BODY_FIELDS: Field[] = [
-  { key: 'height', label: 'Height', fraction: true },
-  { key: 'weight', label: 'Weight' },
+  { key: 'height', label: 'Height', kind: 'height' },
+  { key: 'weight', label: 'Weight', fraction: false },
   { key: 'coat_fit', label: 'Coat Fit' },
   { key: 'pant_fit', label: 'Pant Fit' },
-  { key: 'shoulder_reading', label: 'Shoulder Reading' },
+  { key: 'incline', label: 'Incline', fraction: true },
+  { key: 'shoulder_reading_left', label: 'Shoulder Reading (L)', fraction: true },
+  { key: 'shoulder_reading_right', label: 'Shoulder Reading (R)', fraction: true },
 ]
 
 const COAT_FIELDS: Field[] = [
@@ -77,6 +81,7 @@ const ALL_CATEGORIES = [
 
 // Key measurements that appear in the highlight box (category.key references)
 const KEY_MEASUREMENTS: { category: string; key: string; label: string }[] = [
+  { category: 'body', key: 'height', label: 'Height' },
   { category: 'shirt', key: 'finished_collar', label: 'Finished Neck' },
   { category: 'coat', key: 'chest', label: 'Chest' },
   { category: 'coat', key: 'coat_waist', label: 'Coat Waist' },
@@ -107,10 +112,141 @@ function combineValue(v: MeasurementValue): string {
   return v.whole
 }
 
-function displayValue(v: MeasurementValue | undefined): string {
+// Height is feet + inches, stored as 5' 9". For height, `whole` holds feet and
+// `fraction` holds inches. Older rows stored a bare number ("5", "5 3/8", or
+// total inches like "69") — read those sensibly rather than dropping them.
+function parseHeight(raw: string): MeasurementValue {
+  const str = String(raw).trim()
+  const ftIn = str.match(/^(\d+)\s*'\s*(\d+)?\s*"?$/)
+  if (ftIn) return { whole: ftIn[1], fraction: ftIn[2] || '' }
+  const num = str.match(/^(\d+)/)
+  if (!num) return { whole: '', fraction: '' }
+  const n = parseInt(num[1], 10)
+  if (n > 11) return { whole: String(Math.floor(n / 12)), fraction: String(n % 12) }
+  return { whole: String(n), fraction: '' }
+}
+
+function combineHeight(v: MeasurementValue): string {
+  if (!v.whole && !v.fraction) return ''
+  return `${v.whole || '0'}' ${v.fraction || '0'}"`
+}
+
+function onlyDigits(value: string, maxLen: number): string {
+  return value.replace(/\D/g, '').slice(0, maxLen)
+}
+
+function displayValue(v: MeasurementValue | undefined, kind?: 'height'): string {
   if (!v) return '--'
-  const combined = combineValue(v)
+  const combined = kind === 'height' ? combineHeight(v) : combineValue(v)
   return combined || '--'
+}
+
+// ---------------------------------------------------------------------------
+// Input row
+//
+// This MUST be a module-level component. It used to be declared inside
+// MeasurementsPage, which gave React a brand-new component type on every
+// render — so each keystroke unmounted and remounted the <input>, dropping
+// focus (and the iOS keyboard) after a single digit.
+// ---------------------------------------------------------------------------
+
+const INPUT_CLASS =
+  'h-[44px] px-2 border border-gray-med rounded-md font-body text-sm text-center bg-white focus:outline-none focus:border-gold'
+
+function MeasurementInput({
+  category,
+  field,
+  value,
+  onChange,
+}: {
+  category: string
+  field: Field
+  value: MeasurementValue | undefined
+  onChange: (category: string, field: string, type: 'whole' | 'fraction', value: string) => void
+}) {
+  const id = `${category}-${field.key}`
+
+  if (field.kind === 'height') {
+    return (
+      <div className="flex items-center justify-between gap-2 py-1.5">
+        <label htmlFor={`${id}-feet`} className="font-body text-sm text-gray-dark whitespace-nowrap">{field.label}</label>
+        <div className="flex items-center gap-1.5">
+          <input
+            id={`${id}-feet`}
+            name="height_feet"
+            data-field="height_feet"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
+            aria-label="Height feet"
+            value={value?.whole || ''}
+            onChange={(e) => {
+              const n = onlyDigits(e.target.value, 1)
+              onChange(category, field.key, 'whole', n && (Number(n) < 3 || Number(n) > 8) ? '' : n)
+            }}
+            placeholder="5"
+            className={`${INPUT_CLASS} w-12`}
+          />
+          <span className="font-body text-xs text-gray-dark">Feet</span>
+          <input
+            id={`${id}-inches`}
+            name="height_inches"
+            data-field="height_inches"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
+            aria-label="Height inches"
+            value={value?.fraction || ''}
+            onChange={(e) => {
+              const n = onlyDigits(e.target.value, 2)
+              onChange(category, field.key, 'fraction', n && Number(n) > 11 ? n.slice(0, 1) : n)
+            }}
+            placeholder="9"
+            className={`${INPUT_CLASS} w-12`}
+          />
+          <span className="font-body text-xs text-gray-dark">Inches</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2 py-1.5">
+      <label htmlFor={id} className="font-body text-sm text-gray-dark">{field.label}</label>
+      <div className="flex gap-1.5 flex-shrink-0">
+        <input
+          id={id}
+          name={`${category}.${field.key}`}
+          data-field={field.key}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="off"
+          value={value?.whole || ''}
+          onChange={(e) => onChange(category, field.key, 'whole', onlyDigits(e.target.value, 3))}
+          placeholder="0"
+          className={`${INPUT_CLASS} w-16`}
+        />
+        {field.fraction !== false && (
+          <select
+            aria-label={`${field.label} fraction`}
+            name={`${category}.${field.key}.fraction`}
+            value={value?.fraction || ''}
+            onChange={(e) => onChange(category, field.key, 'fraction', e.target.value)}
+            className="h-[44px] w-[4.5rem] px-1 border border-gray-med rounded-md font-body text-sm focus:outline-none focus:border-gold bg-white"
+          >
+            {FRACTIONS.map((f) => (
+              <option key={f} value={f}>
+                {f || '\u2014'}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -125,6 +261,7 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // ---- Data fetching ----
   useEffect(() => {
@@ -162,8 +299,11 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
           }
           if (row.measurements && initial[row.category]) {
             Object.entries(row.measurements as Record<string, string>).forEach(([key, value]) => {
-              if (initial[row.category][key]) {
-                initial[row.category][key] = parseValue(value)
+              // Shoulder Reading used to be one box; carry an old value into (L).
+              const targetKey = row.category === 'body' && key === 'shoulder_reading' ? 'shoulder_reading_left' : key
+              if (initial[row.category][targetKey]) {
+                initial[row.category][targetKey] =
+                  row.category === 'body' && targetKey === 'height' ? parseHeight(value) : parseValue(value)
               }
             })
           }
@@ -206,7 +346,7 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
           const v = measurements[category]?.[f.key]
           if (v && (v.whole || v.fraction)) {
             hasValues = true
-            vals[f.key] = combineValue(v)
+            vals[f.key] = f.kind === 'height' ? combineHeight(v) : combineValue(v)
           }
         })
 
@@ -216,21 +356,21 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
             .select('id')
             .eq('client_id', id)
             .eq('category', category)
-            .single()
+            .limit(1)
+            .maybeSingle()
 
-          if (existing) {
-            await supabase
-              .from('measurements')
-              .update({ measurements: vals, updated_at: new Date().toISOString() })
-              .eq('id', existing.id)
-          } else {
-            await supabase.from('measurements').insert({
-              client_id: id,
-              category,
-              measurements: vals,
-              source: 'manual',
-            })
-          }
+          const { error } = existing
+            ? await supabase
+                .from('measurements')
+                .update({ measurements: vals, updated_at: new Date().toISOString() })
+                .eq('id', existing.id)
+            : await supabase.from('measurements').insert({
+                client_id: id,
+                category,
+                measurements: vals,
+                source: 'manual',
+              })
+          if (error) throw error
         }
       }
 
@@ -241,7 +381,8 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
           .select('id')
           .eq('client_id', id)
           .eq('category', 'notes')
-          .single()
+          .limit(1)
+          .maybeSingle()
 
         const notesPayload = { fitting_notes: fittingNotes }
 
@@ -261,43 +402,13 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
       }
 
       setLastSaved(new Date())
+      setSaveError(null)
     } catch (err) {
       console.error('Error saving measurements:', err)
+      setSaveError('Could not save measurements. Check your connection and try again.')
     } finally {
       setSaving(false)
     }
-  }
-
-  // ---- Reusable input row ----
-  function MeasurementInput({ category, field }: { category: string; field: Field }) {
-    const v = measurements[category]?.[field.key]
-    return (
-      <div className="flex items-center justify-between gap-2 py-1.5">
-        <label className="font-body text-sm text-gray-dark whitespace-nowrap">{field.label}</label>
-        <div className="flex gap-1.5">
-          <input
-            type="number"
-            value={v?.whole || ''}
-            onChange={(e) => updateMeasurement(category, field.key, 'whole', e.target.value)}
-            placeholder="0"
-            className="w-16 px-2 py-1.5 border border-gray-med rounded-md font-body text-sm focus:outline-none focus:border-body text-center"
-          />
-          {field.fraction !== false && (
-            <select
-              value={v?.fraction || ''}
-              onChange={(e) => updateMeasurement(category, field.key, 'fraction', e.target.value)}
-              className="w-[4.5rem] px-1 py-1.5 border border-gray-med rounded-md font-body text-sm focus:outline-none focus:border-body bg-white"
-            >
-              {FRACTIONS.map((f) => (
-                <option key={f} value={f}>
-                  {f || '\u2014'}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      </div>
-    )
   }
 
   // ---- Loading state ----
@@ -334,15 +445,18 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
           </div>
 
           <div className="flex items-center gap-4">
-            {lastSaved && (
-              <span className="font-body text-sm text-gray-dark">
+            {saveError ? (
+              <span role="alert" className="font-body text-sm text-error">{saveError}</span>
+            ) : lastSaved && (
+              <span className="font-body text-sm text-gray-dark" data-testid="measurements-saved">
                 Saved {lastSaved.toLocaleTimeString()}
               </span>
             )}
             <button
               onClick={handleSave}
               disabled={saving}
-              className="bg-body hover:bg-body-hover disabled:bg-gray-med text-white px-5 py-2.5 rounded font-body font-medium text-sm flex items-center gap-2 transition-colors"
+              data-testid="save-measurements"
+              className="bg-body hover:bg-body-hover disabled:bg-gray-med text-white px-5 min-h-[44px] rounded font-body font-medium text-sm flex items-center gap-2 transition-colors"
             >
               {saving ? (
                 <>
@@ -370,8 +484,11 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
             {KEY_MEASUREMENTS.map((km) => (
               <div key={`${km.category}-${km.key}`} className="text-center min-w-[100px]">
                 <p className="font-body text-xs text-gray-dark mb-1">{km.label}</p>
-                <p className="font-heading text-lg font-medium text-body">
-                  {displayValue(measurements[km.category]?.[km.key])}
+                <p
+                  className="font-heading text-lg font-medium text-body"
+                  data-testid={km.key === 'height' ? 'height-display' : undefined}
+                >
+                  {displayValue(measurements[km.category]?.[km.key], km.key === 'height' ? 'height' : undefined)}
                 </p>
               </div>
             ))}
@@ -389,7 +506,13 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
             </h3>
             <div className="space-y-1">
               {BODY_FIELDS.map((field) => (
-                <MeasurementInput key={field.key} category="body" field={field} />
+                <MeasurementInput
+                  key={field.key}
+                  category="body"
+                  field={field}
+                  value={measurements.body?.[field.key]}
+                  onChange={updateMeasurement}
+                />
               ))}
             </div>
           </div>
@@ -401,7 +524,13 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
             </h3>
             <div className="space-y-1">
               {COAT_FIELDS.map((field) => (
-                <MeasurementInput key={field.key} category="coat" field={field} />
+                <MeasurementInput
+                  key={field.key}
+                  category="coat"
+                  field={field}
+                  value={measurements.coat?.[field.key]}
+                  onChange={updateMeasurement}
+                />
               ))}
             </div>
           </div>
@@ -413,7 +542,13 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
             </h3>
             <div className="space-y-1">
               {PANT_FIELDS.map((field) => (
-                <MeasurementInput key={field.key} category="pant" field={field} />
+                <MeasurementInput
+                  key={field.key}
+                  category="pant"
+                  field={field}
+                  value={measurements.pant?.[field.key]}
+                  onChange={updateMeasurement}
+                />
               ))}
             </div>
           </div>
@@ -428,7 +563,13 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-1">
             {SHIRT_FIELDS.map((field) => (
-              <MeasurementInput key={field.key} category="shirt" field={field} />
+              <MeasurementInput
+                  key={field.key}
+                  category="shirt"
+                  field={field}
+                  value={measurements.shirt?.[field.key]}
+                  onChange={updateMeasurement}
+                />
             ))}
           </div>
         </div>

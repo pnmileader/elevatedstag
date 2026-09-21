@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/email'
 import { renderTemplate } from '@/lib/emailAutomation'
+import { renderEmail } from '@/lib/emailRender'
 
 type QueueRow = {
   id: string
@@ -54,13 +55,17 @@ export async function POST(request: Request) {
       last_name: client?.last_name ?? '',
     }
 
-    const renderedSubject = renderTemplate(email.subject, vars)
-    const renderedBody = renderTemplate(email.body, vars)
+    const rendered = renderEmail(
+      { subject: renderTemplate(email.subject, vars), body: renderTemplate(email.body, vars) },
+      client,
+    )
+    const renderedSubject = rendered.subject
+    const renderedBody = rendered.text
 
     const result = await sendEmail({
       to: email.to_email,
       subject: renderedSubject,
-      html: renderedBody,
+      html: rendered.html,
     })
 
     if (!result.success) {
