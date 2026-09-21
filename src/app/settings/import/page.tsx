@@ -119,6 +119,8 @@ type PurchasesResult = {
   success: boolean
   customCreated: number
   readyMadeCreated: number
+  updated?: number
+  unchanged?: number
   skipped: number
   deduped: number
   serviceLines: number
@@ -132,6 +134,67 @@ type PurchasesResult = {
   errors: Array<{ row: number; error: string }>
   errorsTruncated?: number
 } | { error: string }
+
+// A full-history report can be thousands of lines — too much for one request.
+// Send it in batches, always cutting BETWEEN customers so every line of an
+// invoice is planned together, then add the results up.
+const PURCHASE_BATCH_ROWS = 400
+
+function batchByCustomer(rows: Array<Record<string, string>>): Array<Array<Record<string, string>>> {
+  const batches: Array<Array<Record<string, string>>> = []
+  let current: Array<Record<string, string>> = []
+  let lastCustomer: string | undefined
+  for (const row of rows) {
+    if (current.length >= PURCHASE_BATCH_ROWS && row.customer !== lastCustomer) {
+      batches.push(current)
+      current = []
+    }
+    current.push(row)
+    lastCustomer = row.customer
+  }
+  if (current.length) batches.push(current)
+  return batches
+}
+
+async function importPurchasesInBatches(apiPath: string, rows: Array<Record<string, string>>): Promise<PurchasesResult> {
+  const total: Exclude<PurchasesResult, { error: string }> = {
+    success: true, customCreated: 0, readyMadeCreated: 0, updated: 0, unchanged: 0, skipped: 0, deduped: 0,
+    serviceLines: 0, discountLines: 0, outOfScopeLines: 0, refundLines: 0, insertErrors: 0, total: 0,
+    unmatched: [], needsReview: [], errors: [], errorsTruncated: 0,
+  }
+  let offset = 0
+  for (const batch of batchByCustomer(rows)) {
+    const response = await fetch(apiPath, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: batch }),
+    })
+    const data = (await response.json()) as PurchasesResult
+    if ('error' in data) {
+      return { error: `${data.error} (after ${offset} of ${rows.length} lines — it is safe to run the import again)` }
+    }
+    total.customCreated += data.customCreated
+    total.readyMadeCreated += data.readyMadeCreated
+    total.updated = (total.updated || 0) + (data.updated || 0)
+    total.unchanged = (total.unchanged || 0) + (data.unchanged || 0)
+    total.deduped += data.deduped
+    total.skipped += data.skipped
+    total.serviceLines += data.serviceLines
+    total.discountLines += data.discountLines
+    total.outOfScopeLines = (total.outOfScopeLines || 0) + (data.outOfScopeLines || 0)
+    total.refundLines = (total.refundLines || 0) + (data.refundLines || 0)
+    total.insertErrors = (total.insertErrors || 0) + (data.insertErrors || 0)
+    total.total += data.total
+    // Row numbers come back relative to the batch — shift them to file positions.
+    total.unmatched.push(...data.unmatched.map((u) => ({ ...u, row: u.row + offset })))
+    total.needsReview.push(...data.needsReview.map((n) => ({ ...n, row: n.row + offset })))
+    total.errors.push(...data.errors.map((e) => ({ ...e, row: e.row ? e.row + offset : 0 })))
+    total.errorsTruncated = (total.errorsTruncated || 0) + (data.errorsTruncated || 0)
+    offset += batch.length
+  }
+  return total
+}
+
 
 function extensionOf(fileName: string): 'csv' | 'xls' | 'xlsx' | 'unknown' {
   const lower = fileName.toLowerCase()
@@ -193,7 +256,7 @@ function UploadZone({
   const subtitle =
     mode === 'clients'
       ? 'Upload the QBO Customers export (CSV or Excel).'
-      : 'Upload the QBO "Sales by Customer Detail" report (CSV). Grouped reports are auto-detected and flattened.'
+      : 'Upload the QBO "Sales by Customer Detail" report (CSV). Set the report period to "All Dates" to bring in full history — the CRM only knows about the dates the report covers. Re-importing is safe: existing items are matched and corrected, never duplicated.'
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -323,6 +386,10 @@ function UploadZone({
         }
         return out
       })
+      if (mode === 'purchases') {
+        setResult(await importPurchasesInBatches(apiPath, transformed))
+        return
+      }
       const response = await fetch(apiPath, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -600,9 +667,12 @@ function PurchasesSummary({
         Import complete
       </div>
       <div className="font-body text-sm text-body space-y-1">
-        <p>{result.customCreated} custom orders created</p>
-        <p>{result.readyMadeCreated} ready-made purchases created</p>
-        <p>{result.deduped} duplicates skipped</p>
+        <p data-testid="import-custom-created">{result.customCreated} custom garments added</p>
+        <p data-testid="import-ready-created">{result.readyMadeCreated} ready-made purchases added</p>
+        {result.updated !== undefined && (
+          <p data-testid="import-updated">{result.updated} existing items corrected (per-item price / quantity)</p>
+        )}
+        <p>{result.unchanged ?? result.deduped} already in the CRM and unchanged</p>
         <p>
           {result.skipped} lines skipped total (
           {result.serviceLines} service, {result.discountLines} discount,
