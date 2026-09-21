@@ -147,8 +147,9 @@ export default function ReferralsPage() {
     printWindow.print()
   }
 
-  const SortHeader = ({ field, label }: { field: SortField; label: string }) => (
+  const sortHeader = (field: SortField, label: string) => (
     <th
+      key={field}
       aria-sort={sortField === field ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
       className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-gray-dark font-medium"
     >
@@ -205,11 +206,11 @@ export default function ReferralsPage() {
               <table className="w-full" ref={printRef}>
                 <thead className="bg-gray-light">
                   <tr>
-                    <SortHeader field="name" label="Name" />
-                    <SortHeader field="phone" label="Phone" />
-                    <SortHeader field="referred_by" label="Referred By" />
-                    <SortHeader field="last_contact_date" label="Last Contact" />
-                    <SortHeader field="stage" label="Status" />
+                    {sortHeader('name', 'Name')}
+                    {sortHeader('phone', 'Phone')}
+                    {sortHeader('referred_by', 'Referred By')}
+                    {sortHeader('last_contact_date', 'Last Contact')}
+                    {sortHeader('stage', 'Status')}
                   </tr>
                 </thead>
                 <tbody>

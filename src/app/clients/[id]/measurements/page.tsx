@@ -189,7 +189,7 @@ function MeasurementInput({
               onChange(category, field.key, 'whole', n && (Number(n) < 3 || Number(n) > 8) ? '' : n)
             }}
             placeholder="5"
-            className={`${INPUT_CLASS} w-12`}
+            className={`${INPUT_CLASS} w-[48px]`}
           />
           <span className="font-body text-xs text-gray-dark">Feet</span>
           <input
@@ -207,7 +207,7 @@ function MeasurementInput({
               onChange(category, field.key, 'fraction', n && Number(n) > 11 ? n.slice(0, 1) : n)
             }}
             placeholder="9"
-            className={`${INPUT_CLASS} w-12`}
+            className={`${INPUT_CLASS} w-[48px]`}
           />
           <span className="font-body text-xs text-gray-dark">Inches</span>
         </div>

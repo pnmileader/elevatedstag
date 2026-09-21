@@ -47,6 +47,24 @@
    which crushed the layout and shrank tap targets on mobile. */
 @layer base {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* === Touch targets: 44x44 minimum, app-wide ===
+     This is an iPad/iPhone-first tool, so the floor applies everywhere rather
+     than per component. It sits in the base layer on purpose: any Tailwind
+     min-h-* / min-w-* utility can still override it for a deliberate exception. */
+  button, [role="button"], [role="tab"], select, summary,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]) {
+    min-height: 44px;
+  }
+  button, [role="button"] { min-width: 44px; }
+  /* Stand-alone text links ("Back to Clients", "+ Add Order", "Use →"). Links that
+     wrap a row/card are already tall; links inside a sentence stay inline. */
+  main a:not(:has(div, section, article, img, table, ul, h1, h2, h3)):not(p a):not(p *) {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
 }
 
 html {
@@ -192,7 +210,7 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; }
   font-weight: 600;
 }
 .es-btn-ghost:active { color: var(--color-gold-light); }
-.es-btn-sm { height: 36px; padding: 0 14px; font-size: 13px; }
+.es-btn-sm { height: 44px; padding: 0 14px; font-size: 13px; } /* compact padding, full-height tap target */
 
 /* Status dot */
 .es-status {
@@ -337,11 +355,9 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin: -6px -4px -6px 0; /* 44px-tall hit area inside a 32px chip */
-  padding: 6px 0;
-  box-sizing: content-box;
+  width: 44px;
+  height: 44px;
+  margin: -6px -6px -6px -8px; /* 44x44 hit area inside a 32px-tall chip */
   color: var(--color-gold);
   background: transparent;
   border: none;

@@ -9,7 +9,7 @@ type Activity = {
   activity_type: string
   title: string
   description: string | null
-  metadata: Record<string, any> | null
+  metadata: Record<string, unknown> | null
   created_at: string
 }
 

@@ -57,9 +57,6 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
   const [quantity, setQuantity] = useState('1')
   const [purchaseDate, setPurchaseDate] = useState('')
 
-  useEffect(() => {
-    fetchData()
-  }, [id])
 
   async function fetchData() {
     const supabase = createClient()
@@ -81,6 +78,11 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
     setPurchases(purchasesData || [])
     setLoading(false)
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount; state is only set after the await
+    fetchData()
+  }, [id])
 
   function resetForm() {
     setCategory('shoes')

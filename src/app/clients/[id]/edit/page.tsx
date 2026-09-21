@@ -278,7 +278,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
       </header>
 
       <div className="max-w-3xl mx-auto px-4 lg:px-3 py-3">
-        <Link href={`/clients/${clientId}`} className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm">
+        <Link href={`/clients/${clientId}`} className="inline-flex items-center gap-2 text-gray-dark hover:text-body mb-3 font-body text-sm min-h-[44px]">
           <ArrowLeft className="w-4 h-4" />
           Back to Client
         </Link>

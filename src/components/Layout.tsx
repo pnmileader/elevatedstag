@@ -62,7 +62,7 @@ export default function Layout({
           <>
             {/* Left: brand + title */}
             <div className="flex items-center gap-3 min-w-0">
-              <Link href="/" className="flex items-center gap-2 flex-shrink-0" aria-label="Dashboard home">
+              <Link href="/" className="w-[44px] h-[44px] -ml-1.5 flex items-center justify-center flex-shrink-0" aria-label="Dashboard home">
                 <div className="w-8 h-8 bg-charcoal flex items-center justify-center rounded-sm">
                   <span className="font-serif text-paper text-[11px] font-bold tracking-wider">ES</span>
                 </div>

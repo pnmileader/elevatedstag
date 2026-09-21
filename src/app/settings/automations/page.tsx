@@ -92,9 +92,6 @@ export default function AutomationsPage() {
   const [processing, setProcessing] = useState(false)
   const [checkingReactivation, setCheckingReactivation] = useState(false)
 
-  useEffect(() => {
-    fetchData()
-  }, [])
 
   async function fetchData() {
     const supabase = createClient()
@@ -121,6 +118,11 @@ export default function AutomationsPage() {
     setTemplates(templatesRes.data || [])
     setLoading(false)
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount; state is only set after the await
+    fetchData()
+  }, [])
 
   async function toggleRule(ruleId: string, isActive: boolean) {
     const supabase = createClient()

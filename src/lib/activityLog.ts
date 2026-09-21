@@ -22,7 +22,7 @@ export async function logActivity({
   activityType: ActivityType
   title: string
   description?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }) {
   const supabase = createClient()
   

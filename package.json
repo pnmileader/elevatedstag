@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "dev:3001": "next dev -p 3001",
+    "test:unit": "for f in import quickbooks calendar purchaseImport emailRender dashboard clientFilters; do npx tsx src/lib/__tests__/$f.test.ts || exit 1; done",
+    "test:e2e": "playwright test",
+    "test:taps": "node scripts/tap-audit.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

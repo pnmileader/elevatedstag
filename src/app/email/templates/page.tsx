@@ -30,9 +30,6 @@ export default function TemplatesPage() {
   const [body, setBody] = useState('')
   const [category, setCategory] = useState('general')
 
-  useEffect(() => {
-    fetchTemplates()
-  }, [])
 
   async function fetchTemplates() {
     const supabase = createClient()
@@ -44,6 +41,11 @@ export default function TemplatesPage() {
     setTemplates(data || [])
     setLoading(false)
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount; state is only set after the await
+    fetchTemplates()
+  }, [])
 
   function resetForm() {
     setName('')

@@ -231,7 +231,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
           </div>
 
           {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2 mt-5 pb-2 overflow-x-auto">
+          <div className="flex flex-wrap items-center gap-2 mt-5 pb-2">
             <Link
               href={`/calendar/new?client=${client.id}`}
               className="flex items-center gap-2 px-4 py-2 border border-gray-med text-body hover:border-gold hover:text-gold rounded font-body text-xs font-semibold transition-colors whitespace-nowrap"

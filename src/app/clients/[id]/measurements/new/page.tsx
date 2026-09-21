@@ -180,7 +180,7 @@ export default function NewMeasurementsPage({ params }: { params: Promise<{ id: 
             </div>
 
             <p className="font-body text-sm text-gray-dark">
-              Tip: Enter measurements with fractions like "42 1/2" or decimals like "42.5"
+              Tip: Enter measurements with fractions like &ldquo;42 1/2&rdquo; or decimals like &ldquo;42.5&rdquo;
             </p>
 
             {/* Submit Button */}
