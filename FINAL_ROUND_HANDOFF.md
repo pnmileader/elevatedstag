@@ -2,13 +2,13 @@
 
 Everything below is outside what code alone can do. Each item is independent.
 
-## 1. Deploy — production is still on the May build
-Pushing to `main` does **not** deploy: the GitHub → Vercel integration is disconnected
-(no deployment/status appears on any commit). Either
-- run `vercel login` once on this machine, then `vercel --prod` from the repo, or
-- Vercel dashboard → project `test-crm` → Settings → Git → reconnect `pnmileader/elevatedstag`, production branch `main`.
-
-Production data was already repaired (see 3), and the old build reads it correctly, so nothing is broken in the meantime.
+## 1. Deploy — DONE 2026-09-22 (commit 7e13723 is live on app.theelevatedstag.com)
+Pushing to `main` still does **not** deploy: the project has no Git integration. Until that is connected
+(Vercel → `test-crm` → Settings → Git → Connect → GitHub → "Only select repositories" → `pnmileader/elevatedstag`),
+deploy with `node scripts/deploy-api.mjs`. It needs a `VERCEL_TOKEN` in `.env.local` (Vercel → Account Settings →
+Tokens, scope "The Elevated Stag"). Note: `vercel deploy` itself rejects team-scoped tokens ("User not found");
+the script talks to the same API directly and works. The 1-day token used on 2026-09-22 should be deleted from the
+Vercel dashboard.
 
 ## 2. Email "From" address — DNS, then it switches itself
 Katie wants `Katie Fore <katie@theelevatedstag.com>`. Resend will only send from a verified domain, and today only
