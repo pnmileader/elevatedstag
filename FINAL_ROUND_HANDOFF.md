@@ -3,9 +3,8 @@
 Everything below is outside what code alone can do. Each item is independent.
 
 ## 1. Deploy — DONE 2026-09-22 (commit 7e13723 is live on app.theelevatedstag.com)
-Pushing to `main` still does **not** deploy: the project has no Git integration. Until that is connected
-(Vercel → `test-crm` → Settings → Git → Connect → GitHub → "Only select repositories" → `pnmileader/elevatedstag`),
-deploy with `node scripts/deploy-api.mjs`. It needs a `VERCEL_TOKEN` in `.env.local` (Vercel → Account Settings →
+GitHub is now connected to the Vercel project (2026-09-22), so every push to `main` deploys on its own.
+If that ever breaks, `node scripts/deploy-api.mjs` deploys directly. It needs a `VERCEL_TOKEN` in `.env.local` (Vercel → Account Settings →
 Tokens, scope "The Elevated Stag"). Note: `vercel deploy` itself rejects team-scoped tokens ("User not found");
 the script talks to the same API directly and works. The 1-day token used on 2026-09-22 should be deleted from the
 Vercel dashboard.
@@ -34,10 +33,9 @@ Already done with the 12-month file: the importer bug that dropped same-product 
 **Do the All Dates import before bulk-deleting "Last Purchase: Never" clients** — until then, "Never" also includes real
 wardrobe clients whose purchases are older than May 2025.
 
-## 4. Referred-By link column (optional, 1 minute)
-Referrals work today by matching the referrer's name. Running `supabase/migrations/20260920_add_referred_by_id.sql`
-in Supabase Studio → SQL Editor adds a real id link (survives renames / duplicate names) and backfills it. The app
-detects the column on its own.
+## 4. Referred-By link column — DONE 2026-09-22
+`supabase/migrations/20260920_add_referred_by_id.sql` was run; the `referred_by_id` column exists and the existing
+referral was backfilled. New referrals made in the app are linked by id from now on.
 
 ## 5. Known, not addressed this round
 - `/api/email/process-queue` (the automation cron) uses the anonymous Supabase client, and anonymous access to the
