@@ -54,3 +54,7 @@ security-audit/checkpoint.json
 /test-results/
 /playwright-report/
 /blob-report/
+
+# transitions.dev: free recipes are single .md files (fine to commit); Pro recipes
+# arrive as folders and are licensed — never push them to this public repo.
+/transitions/*/
