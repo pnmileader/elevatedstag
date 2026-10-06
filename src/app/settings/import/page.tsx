@@ -806,10 +806,23 @@ function PurchasesSummary({
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const missing = useMemo(() => distinctUnmatchedNames(result.unmatched), [result.unmatched])
-  const n = missing.length
+  // Couples ("Melissa & Eric Almgren") can't be split into one first/last name, so they start unticked.
+  const [unticked, setUnticked] = useState<Set<string>>(() => new Set(missing.filter((m) => looksLikeCouple(m.name)).map((m) => m.name)))
+  const selected = missing.filter((m) => !unticked.has(m.name))
+  const n = selected.length
+  const coupleCount = missing.filter((m) => looksLikeCouple(m.name)).length
+
+  function toggleName(name: string) {
+    setUnticked((prev) => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }
 
   async function confirmCreate() {
-    await onCreateClients(missing.map((m) => m.name))
+    await onCreateClients(selected.map((m) => m.name))
     setConfirmOpen(false)
   }
 
@@ -839,21 +852,31 @@ function PurchasesSummary({
       {result.unmatched.length > 0 && (
         <details className="mt-3" open data-testid="unmatched-customers">
           <summary className="font-body text-sm font-medium text-yellow-800 cursor-pointer">
-            {n > 0
-              ? `${n} customer${n === 1 ? '' : 's'} not in the CRM (${result.unmatched.length} line${result.unmatched.length === 1 ? '' : 's'} skipped)`
+            {missing.length > 0
+              ? `${missing.length} customer${missing.length === 1 ? '' : 's'} not in the CRM (${result.unmatched.length} line${result.unmatched.length === 1 ? '' : 's'} skipped)`
               : `Could not match ${result.unmatched.length} line${result.unmatched.length === 1 ? '' : 's'} (no customer name)`}
           </summary>
-          {n > 0 && (
+          {missing.length > 0 && (
             <>
               <p className="text-xs font-body text-gray-dark mt-1 mb-2">
-                Their purchases were skipped because no client has that name. Create them as new clients (name only — you can
-                add email and phone later) and the import runs again to bring their purchases in.
+                Their purchases were skipped because no client has that name. Untick anyone you don&apos;t want, then create
+                the rest as new clients (name only — you can add email and phone later) and the import runs again to bring
+                their purchases in.
+                {coupleCount > 0 && ' Couples (names with “&” or “and”) start unticked — add them by hand so first and last names come out right.'}
               </p>
-              <ul className="text-xs font-body text-gray-dark space-y-1 max-h-40 overflow-auto" data-testid="unmatched-names">
+              <ul className="text-sm font-body text-gray-dark max-h-72 overflow-auto border border-gray-med rounded bg-white divide-y divide-gray-light" data-testid="unmatched-names">
                 {missing.map((m) => (
                   <li key={m.name}>
-                    <span className="text-body">{m.name}</span>
-                    <span> · {m.lines} line{m.lines === 1 ? '' : 's'}</span>
+                    <label className="flex items-center gap-3 min-h-[44px] px-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!unticked.has(m.name)}
+                        onChange={() => toggleName(m.name)}
+                        className="w-5 h-5 accent-gold flex-shrink-0"
+                      />
+                      <span className="text-body flex-1 min-w-0 truncate">{m.name}</span>
+                      <span className="text-xs flex-shrink-0">{m.lines} line{m.lines === 1 ? '' : 's'}</span>
+                    </label>
                   </li>
                 ))}
               </ul>
@@ -861,7 +884,7 @@ function PurchasesSummary({
                 <button
                   type="button"
                   onClick={() => setConfirmOpen(true)}
-                  disabled={creatingClients}
+                  disabled={creatingClients || n === 0}
                   className="es-btn es-btn-primary h-[44px] mt-3"
                   data-testid="create-missing-clients"
                 >
@@ -1009,4 +1032,8 @@ export default function ImportPage() {
       </div>
     </Layout>
   )
+}
+
+function looksLikeCouple(name: string): boolean {
+  return /\s(&|and)\s/i.test(name)
 }
