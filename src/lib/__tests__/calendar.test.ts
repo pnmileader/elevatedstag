@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { generateAppointmentIcs } from '../calendar'
+import { generateAppointmentIcs, generateOwnerAppointmentIcs } from '../calendar'
 import { sendEmail } from '../email'
 
 const SEND_REAL_EMAIL = process.env.SEND_TEST_EMAIL === '1'
@@ -51,6 +51,19 @@ async function run() {
   assert.match(unfolded, /Wardrobe Appointment - James Bettersworth/, 'should embed title')
   assert.match(unfolded, /TES Studio/, 'should embed location')
   assert.match(unfolded, /Bring fabric swatches/, 'should embed notes')
+  assert.match(unfolded, /METHOD:REQUEST/, 'should be an invitation so mail apps offer/auto-add it')
+
+  // Katie's own copy: lands on her Google Calendar as an invitation from the CRM.
+  const owner = generateOwnerAppointmentIcs(appointment, client, 'katie@theelevatedstag.com')
+  assert.ok(owner.success)
+  const ownerIcs = owner.success ? owner.value.replace(/\r\n[ \t]/g, '') : ''
+  assert.match(ownerIcs, /METHOD:REQUEST/)
+  assert.match(ownerIcs, new RegExp(`UID:appointment-${appointment.id}-owner@theelevatedstag.com`), 'owner copy has its own UID')
+  assert.match(ownerIcs, /ORGANIZER;CN="?The Elevated Stag CRM"?:mailto:calendar@mail.theelevatedstag.com/i, 'organizer is the CRM, not Katie')
+  assert.match(ownerIcs, /ATTENDEE[^\n]*PARTSTAT="?ACCEPTED"?[^\n]*mailto:katie@theelevatedstag.com/i, 'Katie is the (accepted) attendee')
+  assert.doesNotMatch(ownerIcs, new RegExp(`ATTENDEE[^\n]*${TEST_TO}`, 'i'), 'the client is not invited by the owner copy')
+  assert.match(ownerIcs, /Wardrobe Appointment - James Bettersworth/)
+  assert.match(ownerIcs, /Phone: \(512\) 555-1234/)
   console.log('All assertions passed.')
 
   if (!SEND_REAL_EMAIL) {

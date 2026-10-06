@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { generateAppointmentIcs } from '@/lib/calendar'
+import { generateAppointmentIcs, generateOwnerAppointmentIcs } from '@/lib/calendar'
 import { sendEmail } from '@/lib/email'
 import { parseJson, CreateAppointmentSchema } from '@/lib/validation'
 
 const TZ = 'America/Chicago'
+/** Where Katie's own copy of each appointment goes (her Google Workspace calendar). */
+const OWNER_CALENDAR_EMAIL = process.env.OWNER_CALENDAR_EMAIL || 'katie@theelevatedstag.com'
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -99,12 +101,13 @@ export async function POST(request: NextRequest) {
     last_name: string | null
     email: string | null
     phone: string | null
+    source?: string | null
   } | null = null
 
   if (client_id) {
     const { data: clientRow } = await supabase
       .from('clients')
-      .select('id, first_name, last_name, email, phone')
+      .select('id, first_name, last_name, email, phone, source')
       .eq('id', client_id)
       .single()
     client = clientRow
@@ -174,10 +177,43 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Katie's own copy, so the appointment lands on her Google Calendar. Test fixtures never email her.
+  let ownerInviteSent = false
+  if (client?.source !== 'e2e_test') {
+    const calendarClient = client ?? { id: '', first_name: null, last_name: null, email: null, phone: null }
+    const ownerIcs = generateOwnerAppointmentIcs(appointment, calendarClient, OWNER_CALENDAR_EMAIL)
+    if (!ownerIcs.success) {
+      console.error('[appointments] owner ics generation failed:', ownerIcs.error)
+    } else {
+      const who = client ? `${client.first_name ?? ''} ${client.last_name ?? ''}`.trim() : ''
+      const what = appointment.title || [prettyType(appointment.appointment_type), who].filter(Boolean).join(' with ')
+      const when = `${formatDate(appointment.start_time)} at ${formatTime(appointment.start_time)}`
+      const ownerResult = await sendEmail({
+        to: OWNER_CALENDAR_EMAIL,
+        subject: `${what} — ${when}`,
+        html: `<p style="font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 15px; color: #222;">Scheduled in the CRM: <strong>${escapeHtml(what)}</strong>, ${escapeHtml(when)}${appointment.location ? ` at ${escapeHtml(appointment.location)}` : ''}.</p>`,
+        attachments: [
+          {
+            filename: 'invite.ics',
+            content: ownerIcs.value,
+            contentType: 'text/calendar; charset=utf-8; method=REQUEST',
+          },
+        ],
+      })
+      ownerInviteSent = ownerResult.success
+      if (!ownerResult.success) console.error('[appointments] owner calendar invite failed:', ownerResult.error)
+    }
+  }
+
   return NextResponse.json({
     success: true,
     appointment,
     inviteSent,
     inviteError,
+    ownerInviteSent,
   })
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }

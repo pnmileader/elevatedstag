@@ -5,6 +5,7 @@ import { UserPlus, Printer, ArrowUpDown, Loader2 } from 'lucide-react'
 import Layout from '@/components/Layout'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import { formatDateOnly } from '@/lib/dates'
 
 interface Referral {
   id: string
@@ -125,7 +126,7 @@ export default function ReferralsPage() {
         `${r.first_name} ${r.last_name}`,
         r.phone || '\u2014',
         r.referred_by || '\u2014',
-        r.last_contact_date ? new Date(r.last_contact_date).toLocaleDateString() : 'Never',
+        r.last_contact_date ? formatDateOnly(r.last_contact_date) : 'Never',
       ]
       values.forEach(val => {
         const td = doc.createElement('td')
@@ -228,7 +229,7 @@ export default function ReferralsPage() {
                       <td className="px-4 py-4 font-body text-sm">{referral.referred_by || '\u2014'}</td>
                       <td className="px-4 py-4 font-body text-sm">
                         {referral.last_contact_date
-                          ? new Date(referral.last_contact_date).toLocaleDateString()
+                          ? formatDateOnly(referral.last_contact_date)
                           : <span className="text-gray-dark">Never</span>
                         }
                       </td>

@@ -3,6 +3,15 @@
 import { useState } from 'react'
 import { Plus, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import {
+  CARE_TYPE_OPTIONS,
+  THANK_YOU_TYPE,
+  careLabel,
+  formatDueDate,
+  isOverdue,
+  latestThankYouNote,
+  listableCareItems,
+} from '@/lib/careItems'
 
 type CareItem = {
   id: string
@@ -12,6 +21,7 @@ type CareItem = {
   completed: boolean
   completed_at: string | null
   due_date: string | null
+  created_at?: string | null
 }
 
 type CareItemsCardProps = {
@@ -26,11 +36,49 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null)
 
+  const [savingThankYou, setSavingThankYou] = useState(false)
+
   const [newItem, setNewItem] = useState({
     title: '',
-    item_type: 'custom',
+    item_type: 'to_do',
     due_date: '',
   })
+
+  const thankYou = latestThankYouNote(items)
+
+  // The fixed Thank You Note line: checking it records the note as sent (creating the
+  // item the first time); unchecking it reopens the same item.
+  const handleThankYouToggle = async () => {
+    setSavingThankYou(true)
+    const supabase = createClient()
+    const nowIso = new Date().toISOString()
+
+    if (thankYou) {
+      const newCompleted = !thankYou.completed
+      const completed_at = newCompleted ? nowIso : null
+      const { error } = await supabase
+        .from('client_care_items')
+        .update({ completed: newCompleted, completed_at })
+        .eq('id', thankYou.id)
+      if (!error) {
+        setItems((prev) => prev.map((i) => (i.id === thankYou.id ? { ...i, completed: newCompleted, completed_at } : i)))
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('client_care_items')
+        .insert({
+          client_id: clientId,
+          item_type: THANK_YOU_TYPE,
+          title: 'Thank You Note',
+          completed: true,
+          completed_at: nowIso,
+        })
+        .select()
+        .single()
+      if (!error && data) setItems((prev) => [...prev, data])
+    }
+    setSavingThankYou(false)
+  }
 
   const handleToggle = async (item: CareItem) => {
     setTogglingId(item.id)
@@ -76,7 +124,7 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
 
     if (!error && data) {
       setItems([...items, data])
-      setNewItem({ title: '', item_type: 'custom', due_date: '' })
+      setNewItem({ title: '', item_type: 'to_do', due_date: '' })
       setShowForm(false)
     }
     setSaving(false)
@@ -95,10 +143,10 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
     setConfirmingDeleteId(null)
   }
 
-  // Sort: incomplete first (by due date), then completed
-  const sortedItems = [...items].sort((a, b) => {
+  // Sort: incomplete first (by due date), then completed. Due dates are YYYY-MM-DD, so they sort as text.
+  const sortedItems = listableCareItems(items).sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1
-    if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+    if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
     if (a.due_date) return -1
     if (b.due_date) return 1
     return 0
@@ -125,35 +173,37 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
       {showForm && (
         <form onSubmit={handleAddItem} className="mb-4 p-3 bg-gray-light rounded">
           <div className="space-y-3">
-            <div>
-              <input
-                type="text"
-                value={newItem.title}
-                onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
-                placeholder="e.g., Send thank you note"
-                data-testid="care-title-input"
-                className="w-full min-h-[44px] px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold"
-                autoFocus
-              />
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <select
                 value={newItem.item_type}
                 onChange={(e) => setNewItem({ ...newItem, item_type: e.target.value })}
+                aria-label="Type"
+                data-testid="care-type-select"
                 className="min-h-[44px] min-w-0 px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold bg-white"
               >
-                <option value="custom">Custom</option>
-                <option value="thank_you_note">Thank You Note</option>
-                <option value="follow_up_2week">2-Week Follow Up</option>
-                <option value="follow_up_3month">3-Month Check-In</option>
+                {CARE_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
               <input
                 type="date"
                 value={newItem.due_date}
                 onChange={(e) => setNewItem({ ...newItem, due_date: e.target.value })}
-                className="min-h-[44px] min-w-0 px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold"
+                aria-label="Due date"
+                data-testid="care-due-input"
+                className="min-h-[44px] min-w-0 px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold bg-white"
               />
             </div>
+            <input
+              type="text"
+              value={newItem.title}
+              onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
+              placeholder="Brief description, e.g. Needs shirts"
+              aria-label="Description"
+              data-testid="care-title-input"
+              className="w-full min-h-[44px] px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold"
+              autoFocus
+            />
             <div className="flex gap-2">
               <button
                 type="button"
@@ -175,9 +225,33 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
         </form>
       )}
 
+      {/* Fixed Thank You Note line */}
+      <div className="flex items-center gap-4 p-4 rounded hover:bg-gray-light" data-testid="care-thank-you">
+        <button
+          type="button"
+          onClick={handleThankYouToggle}
+          disabled={savingThankYou}
+          role="checkbox"
+          aria-checked={!!thankYou?.completed}
+          aria-label={thankYou?.completed ? 'Thank You Note sent — tap to mark as not sent' : 'Mark Thank You Note as sent'}
+          data-testid="care-thank-you-toggle"
+          className="w-[44px] h-[44px] -m-3 flex items-center justify-center flex-shrink-0 touch-manipulation"
+        >
+          <CheckSquare checked={!!thankYou?.completed} busy={savingThankYou} />
+        </button>
+        <div className="flex-1 min-w-0">
+          <p className="font-body text-sm font-semibold leading-relaxed">Thank You Note</p>
+          <p className="font-body text-xs text-gray-dark mt-1" data-testid="care-thank-you-status">
+            {thankYou?.completed && thankYou.completed_at
+              ? `Sent ${new Date(thankYou.completed_at).toLocaleDateString()}`
+              : 'Not sent yet'}
+          </p>
+        </div>
+      </div>
+
       {/* Care Items List */}
       {sortedItems.length === 0 ? (
-        <p className="text-gray-dark font-body text-sm">No care items yet.</p>
+        <p className="text-gray-dark font-body text-sm px-4 pt-2">No to-dos or follow-ups yet.</p>
       ) : (
         <div className="space-y-2">
           {sortedItems.map((item) => (
@@ -215,10 +289,11 @@ function CareItemRow({
   onDeleteConfirm: () => void
   onDeleteCancel: () => void
 }) {
-  const isOverdue = item.due_date && !item.completed && new Date(item.due_date) < new Date()
+  const overdue = isOverdue(item)
+  const label = careLabel(item.item_type)
 
   return (
-    <div className={`flex items-center gap-4 p-4 rounded group ${isOverdue ? 'bg-red-50' : 'hover:bg-gray-light'}`}>
+    <div className={`flex items-center gap-4 p-4 rounded group ${overdue ? 'bg-red-50' : 'hover:bg-gray-light'}`}>
       <button
         onClick={onToggle}
         disabled={toggling}
@@ -228,26 +303,16 @@ function CareItemRow({
         aria-label={`Mark "${item.title}" as ${item.completed ? 'incomplete' : 'complete'}`}
         className="w-[44px] h-[44px] -m-3 flex items-center justify-center flex-shrink-0 touch-manipulation"
       >
-        <span
-          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-            item.completed ? 'bg-gold border-gold' : 'border-gray-med'
-          }`}
-        >
-          {toggling ? (
-            <Loader2 className="w-3 h-3 animate-spin text-gold" />
-          ) : item.completed ? (
-            <span className="text-white text-xs">&#10003;</span>
-          ) : null}
-        </span>
+        <CheckSquare checked={item.completed} busy={toggling} />
       </button>
 
       <div className="flex-1 min-w-0">
         <p id={`care-title-${item.id}`} className={`font-body text-sm leading-relaxed ${item.completed ? 'line-through text-gray-dark' : ''}`}>
-          {item.title}
+          <span className="font-semibold">{label}:</span> {item.title}
         </p>
         {item.due_date && !item.completed && (
-          <p className={`font-body text-xs mt-1 ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-dark'}`}>
-            Due: {new Date(item.due_date).toLocaleDateString()}
+          <p className={`font-body text-xs mt-1 ${overdue ? 'text-red-600 font-medium' : 'text-gray-dark'}`}>
+            Due: {formatDueDate(item.due_date)}
           </p>
         )}
         {item.completed_at && (
@@ -285,5 +350,21 @@ function CareItemRow({
         </button>
       )}
     </div>
+  )
+}
+
+function CheckSquare({ checked, busy }: { checked: boolean; busy: boolean }) {
+  return (
+    <span
+      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+        checked ? 'bg-gold border-gold' : 'border-gray-med'
+      }`}
+    >
+      {busy ? (
+        <Loader2 className="w-3 h-3 animate-spin text-gold" />
+      ) : checked ? (
+        <span className="text-white text-xs">&#10003;</span>
+      ) : null}
+    </span>
   )
 }

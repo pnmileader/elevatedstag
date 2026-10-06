@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Layout from '@/components/Layout'
 import { createClient } from '@/lib/supabase'
 import { queuePostDeliveryFollowUp } from '@/lib/emailAutomation'
+import { formatDateOnly } from '@/lib/dates'
 
 interface CustomOrder {
   id: string
@@ -449,7 +450,7 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                           </p>
                         )}
                         <p className="font-body text-xs text-gray-dark">
-                          Ordered {new Date(order.order_date).toLocaleDateString()}
+                          Ordered {formatDateOnly(order.order_date)}
                         </p>
                       </div>
                     </div>
@@ -463,12 +464,12 @@ export default function ClientOrdersPage({ params }: { params: Promise<{ id: str
                         {order.eta_start && order.eta_end && order.status !== 'delivered' && (
                           <span className="font-body text-xs text-gray-dark flex items-center gap-1">
                             <Truck className="w-3 h-3" />
-                            ETA: {new Date(order.eta_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(order.eta_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            ETA: {formatDateOnly(order.eta_start, { month: 'short', day: 'numeric' })} - {formatDateOnly(order.eta_end, { month: 'short', day: 'numeric' })}
                           </span>
                         )}
                         {order.delivered_date && (
                           <span className="font-body text-xs text-green-600 flex items-center gap-1">
-                            Delivered {new Date(order.delivered_date).toLocaleDateString()}
+                            Delivered {formatDateOnly(order.delivered_date)}
                           </span>
                         )}
                       </div>

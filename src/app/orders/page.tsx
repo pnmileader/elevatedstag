@@ -6,6 +6,7 @@ import { Clock, Loader2 } from 'lucide-react'
 import Layout from '@/components/Layout'
 import StatusBadge from '@/components/StatusBadge'
 import { createClient } from '@/lib/supabase'
+import { formatDateOnly } from '@/lib/dates'
 
 type Client = {
   id: string
@@ -244,11 +245,11 @@ function OrderRow({ order }: { order: CustomOrder }) {
       <td className="px-4 py-4 font-body text-sm hidden lg:table-cell">
         {isDelivered ? (
           <span className="text-gray-dark">
-            {new Date(order.order_date).toLocaleDateString()}
+            {formatDateOnly(order.order_date)}
           </span>
         ) : order.eta_start && order.eta_end ? (
           <span>
-            {new Date(order.eta_start).toLocaleDateString()} - {new Date(order.eta_end).toLocaleDateString()}
+            {formatDateOnly(order.eta_start)} - {formatDateOnly(order.eta_end)}
           </span>
         ) : (
           <span className="text-gray-dark">—</span>

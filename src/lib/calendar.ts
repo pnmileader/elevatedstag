@@ -47,9 +47,35 @@ function prettyAppointmentType(type: string | null | undefined): string {
   }
 }
 
+/** Organizer of the copy that goes on Katie's own calendar. Google won't treat an invite
+ *  "from yourself" as something to add, so the CRM is the organizer and Katie the attendee. */
+const CRM_ORGANIZER = { name: 'The Elevated Stag CRM', email: 'calendar@mail.theelevatedstag.com' }
+
+type IcsVariant =
+  | { kind: 'client' }
+  | { kind: 'owner'; ownerEmail: string }
+
+/** The invite emailed to the client (Katie organizes, the client is asked to RSVP). */
 export function generateAppointmentIcs(
   appointment: CalendarAppointment,
   client: CalendarClient,
+): GenerateIcsResult {
+  return buildIcs(appointment, client, { kind: 'client' })
+}
+
+/** Katie's own copy, so CRM appointments land on her Google Calendar. */
+export function generateOwnerAppointmentIcs(
+  appointment: CalendarAppointment,
+  client: CalendarClient,
+  ownerEmail: string,
+): GenerateIcsResult {
+  return buildIcs(appointment, client, { kind: 'owner', ownerEmail })
+}
+
+function buildIcs(
+  appointment: CalendarAppointment,
+  client: CalendarClient,
+  variant: IcsVariant,
 ): GenerateIcsResult {
   try {
     const clientFullName = `${client.first_name ?? ''} ${client.last_name ?? ''}`.trim() || 'Client'
@@ -68,7 +94,10 @@ export function generateAppointmentIcs(
     const end = toUtcDateArray(appointment.end_time)
 
     const event: EventAttributes = {
-      uid: `appointment-${appointment.id}@theelevatedstag.com`,
+      uid: variant.kind === 'owner'
+        ? `appointment-${appointment.id}-owner@theelevatedstag.com`
+        : `appointment-${appointment.id}@theelevatedstag.com`,
+      method: 'REQUEST',
       title: titleBase,
       start,
       startInputType: 'utc',
@@ -78,7 +107,7 @@ export function generateAppointmentIcs(
       endOutputType: 'utc',
       description: descriptionLines.join('\n'),
       status: 'CONFIRMED',
-      organizer: { name: 'Katie Fore', email: 'katie@theelevatedstag.com' },
+      organizer: variant.kind === 'owner' ? CRM_ORGANIZER : { name: 'Katie Fore', email: 'katie@theelevatedstag.com' },
       productId: 'TheElevatedStag/CRM',
       calName: 'The Elevated Stag',
     }
@@ -87,7 +116,11 @@ export function generateAppointmentIcs(
       event.location = appointment.location.trim()
     }
 
-    if (client.email) {
+    if (variant.kind === 'owner') {
+      event.attendees = [
+        { name: 'Katie Fore', email: variant.ownerEmail, rsvp: false, partstat: 'ACCEPTED', role: 'REQ-PARTICIPANT' },
+      ]
+    } else if (client.email) {
       event.attendees = [
         { name: clientFullName, email: client.email, rsvp: true, partstat: 'NEEDS-ACTION' },
       ]

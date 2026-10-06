@@ -6,6 +6,7 @@ import Layout from '@/components/Layout'
 import PopNumber from '@/components/motion/PopNumber'
 import { createClient } from '@/lib/supabase'
 import { clientDisplayName, clientInitials } from '@/lib/clientDisplay'
+import { careLabel, formatDueDate, isOverdue } from '@/lib/careItems'
 import {
   daysSince,
   groupRecentOrders,
@@ -16,6 +17,7 @@ import {
   type OrderGroup,
   type SaleLine,
 } from '@/lib/dashboard'
+import { daysUntil } from '@/lib/dates'
 
 interface ClientDeadline {
   id: string
@@ -36,6 +38,7 @@ interface ClientFollowUp {
 interface CareItemDue {
   id: string
   title: string
+  item_type: string | null
   due_date: string
   client: { id: string; first_name: string; last_name: string }
 }
@@ -123,7 +126,7 @@ export default function DashboardPage() {
           .limit(10),
         supabase
           .from('client_care_items')
-          .select('id, title, due_date, client:clients(id, first_name, last_name)')
+          .select('id, title, item_type, due_date, client:clients(id, first_name, last_name)')
           .eq('completed', false)
           .not('due_date', 'is', null)
           .lte('due_date', localISODate(careHorizon))
@@ -344,7 +347,7 @@ export default function DashboardPage() {
               Deadlines <span className="text-error ml-1 normal-case tracking-normal">{stats.upcomingDeadlines.length}</span>
             </div>
             {stats.upcomingDeadlines.map(client => {
-              const daysLeft = Math.ceil((new Date(client.need_by_date).getTime() - now.getTime()) / 86_400_000)
+              const daysLeft = daysUntil(client.need_by_date, now) ?? 0
               const urgent = daysLeft <= 14
               return (
                 <Link key={client.id} href={`/clients/${client.id}`}>
@@ -460,16 +463,16 @@ export default function DashboardPage() {
           <section>
             <div className="es-section-header">Care Items Due</div>
             {stats.careItemsDue.map(item => {
-              const overdue = new Date(item.due_date) < now
+              const overdue = isOverdue({ due_date: item.due_date, completed: false }, now)
               return (
                 <Link key={item.id} href={`/clients/${item.client?.id}`}>
                   <div className="es-row justify-between">
                     <div className="min-w-0 mr-4">
-                      <div className="font-semibold truncate">{item.title}</div>
+                      <div className="truncate"><span className="font-semibold">{careLabel(item.item_type)}:</span> {item.title}</div>
                       <div className="text-ink-muted text-[12px] truncate">{item.client?.first_name} {item.client?.last_name}</div>
                     </div>
                     <div className={`flex-shrink-0 font-semibold ${overdue ? 'text-error' : 'text-ink-secondary'}`}>
-                      {overdue ? 'Overdue' : new Date(item.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {overdue ? 'Overdue' : formatDueDate(item.due_date, { month: 'short', day: 'numeric' })}
                     </div>
                   </div>
                 </Link>

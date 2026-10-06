@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, useRef, use } from 'react'
 import Link from 'next/link'
 import Layout from '@/components/Layout'
 import { createClient } from '@/lib/supabase'
@@ -10,13 +10,17 @@ import {
   X,
   Upload,
   Package,
-  Image,
+  Image as ImageIcon,
   Loader2,
   ArrowLeft,
   Eye,
   Calendar,
   Hash,
+  Camera,
 } from 'lucide-react'
+import { formatDateOnly } from '@/lib/dates'
+import { uploadSwatch } from '@/lib/swatchUpload'
+import { useToast } from '@/components/motion/Toast'
 
 interface CustomOrder {
   id: string
@@ -92,7 +96,11 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
   const [garmentFilter, setGarmentFilter] = useState<GarmentTab>('All')
   const [statusFilter, setStatusFilter] = useState<StatusTab>('Active')
   const [selectedOrder, setSelectedOrder] = useState<CustomOrder | null>(null)
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [choosingOrder, setChoosingOrder] = useState(false)
+  const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const pendingOrderRef = useRef<CustomOrder | null>(null)
+  const toast = useToast()
 
   useEffect(() => {
     fetchData()
@@ -117,13 +125,36 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
     setLoading(false)
   }
 
-  function showToast(message: string) {
-    setToastMessage(message)
-    setTimeout(() => setToastMessage(null), 3000)
+  // Opening the file picker has to happen inside the tap, so callers invoke this from a click handler.
+  function pickPhotoFor(order: CustomOrder) {
+    pendingOrderRef.current = order
+    setChoosingOrder(false)
+    fileInputRef.current?.click()
   }
 
-  function handleUploadClick() {
-    showToast('Coming soon -- Supabase Storage integration is not yet wired up.')
+  async function handleFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    const order = pendingOrderRef.current
+    e.target.value = '' // let the same file be picked again
+    if (!file || !order) return
+
+    setUploadingOrderId(order.id)
+    try {
+      const url = await uploadSwatch(createClient(), {
+        file,
+        clientId: id,
+        orderId: order.id,
+        previousUrl: order.swatch_image_url,
+      })
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, swatch_image_url: url } : o)))
+      setSelectedOrder((prev) => (prev && prev.id === order.id ? { ...prev, swatch_image_url: url } : prev))
+      toast.success('Swatch photo saved')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'The photo didn’t upload. Please try again.')
+    } finally {
+      setUploadingOrderId(null)
+      pendingOrderRef.current = null
+    }
   }
 
   const filteredOrders = orders.filter((order) => {
@@ -169,8 +200,10 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
             </div>
 
             <button
-              onClick={handleUploadClick}
-              className="inline-flex items-center gap-2 bg-body hover:bg-body-hover text-white px-4 py-2 rounded font-body text-sm transition-colors self-start"
+              onClick={() => setChoosingOrder(true)}
+              disabled={orders.length === 0}
+              data-testid="swatch-upload-open"
+              className="inline-flex items-center gap-2 min-h-[44px] bg-body hover:bg-body-hover disabled:bg-gray-med text-white px-4 py-2 rounded font-body text-sm transition-colors self-start"
             >
               <Upload className="w-4 h-4" />
               Upload Swatch
@@ -279,22 +312,36 @@ export default function SwatchGalleryPage({ params }: { params: Promise<{ id: st
           )
         )}
 
+        {/* One hidden picker serves every order; on iPad it offers Take Photo or Photo Library. */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChosen}
+          data-testid="swatch-file-input"
+        />
+
         {/* Detail Modal */}
         {selectedOrder && (
           <SwatchDetailModal
             order={selectedOrder}
             clientId={id}
             clientName={clientName}
+            uploading={uploadingOrderId === selectedOrder.id}
+            onAddPhoto={() => pickPhotoFor(selectedOrder)}
             onClose={() => setSelectedOrder(null)}
           />
         )}
 
-        {/* Toast Notification */}
-        {toastMessage && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-gray-dark text-white px-3 py-3 rounded  font-body text-sm flex items-center gap-2 animate-fade-in">
-            <Image className="w-4 h-4 text-gray-dark" />
-            {toastMessage}
-          </div>
+        {/* "Upload Swatch": choose which order the photo belongs to */}
+        {choosingOrder && (
+          <OrderChooserModal
+            orders={orders}
+            uploadingOrderId={uploadingOrderId}
+            onChoose={pickPhotoFor}
+            onClose={() => setChoosingOrder(false)}
+          />
         )}
       </div>
     </Layout>
@@ -333,7 +380,7 @@ function SwatchCard({
           <div
             className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center gap-2 p-4`}
           >
-            <Image className="w-8 h-8 text-white/40" />
+            <ImageIcon className="w-8 h-8 text-white/40" />
             {order.fabric_code && (
               <span className="font-heading text-white/70 text-sm font-bold tracking-wider text-center leading-tight">
                 {order.fabric_code}
@@ -366,7 +413,7 @@ function SwatchCard({
         </p>
         <p className="font-body text-xs text-gray-dark mt-0.5 flex items-center gap-1">
           <Calendar className="w-3 h-3" />
-          {new Date(order.order_date).toLocaleDateString()}
+          {formatDateOnly(order.order_date)}
         </p>
         <div className="mt-2">
           <span
@@ -388,11 +435,15 @@ function SwatchDetailModal({
   order,
   clientId,
   clientName,
+  uploading,
+  onAddPhoto,
   onClose,
 }: {
   order: CustomOrder
   clientId: string
   clientName: string
+  uploading: boolean
+  onAddPhoto: () => void
   onClose: () => void
 }) {
   const gradient = getGradient(order.garment_type)
@@ -427,7 +478,7 @@ function SwatchDetailModal({
             <div
               className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center gap-3`}
             >
-              <Image className="w-16 h-16 text-white/30" />
+              <ImageIcon className="w-16 h-16 text-white/30" />
               {order.fabric_code && (
                 <span className="font-heading text-white/60 text-lg font-bold tracking-wider">
                   {order.fabric_code}
@@ -440,7 +491,8 @@ function SwatchDetailModal({
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded flex items-center justify-center transition-colors"
+            aria-label="Close"
+            className="absolute top-3 right-3 w-[44px] h-[44px] bg-black/50 hover:bg-black/70 text-white rounded flex items-center justify-center transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -480,7 +532,7 @@ function SwatchDetailModal({
             <div>
               <p className="font-body text-xs text-gray-dark uppercase tracking-wide mb-0.5">Order Date</p>
               <p className="font-body text-sm font-medium">
-                {new Date(order.order_date).toLocaleDateString()}
+                {formatDateOnly(order.order_date)}
               </p>
             </div>
             {order.price != null && (
@@ -493,8 +545,8 @@ function SwatchDetailModal({
               <div className="col-span-2">
                 <p className="font-body text-xs text-gray-dark uppercase tracking-wide mb-0.5">ETA</p>
                 <p className="font-body text-sm font-medium">
-                  {new Date(order.eta_start).toLocaleDateString()} &ndash;{' '}
-                  {new Date(order.eta_end).toLocaleDateString()}
+                  {formatDateOnly(order.eta_start)} &ndash;{' '}
+                  {formatDateOnly(order.eta_end)}
                 </p>
               </div>
             )}
@@ -502,7 +554,7 @@ function SwatchDetailModal({
               <div className="col-span-2">
                 <p className="font-body text-xs text-gray-dark uppercase tracking-wide mb-0.5">Delivered</p>
                 <p className="font-body text-sm font-medium">
-                  {new Date(order.delivered_date).toLocaleDateString()}
+                  {formatDateOnly(order.delivered_date)}
                 </p>
               </div>
             )}
@@ -510,20 +562,116 @@ function SwatchDetailModal({
 
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-med">
+            <button
+              type="button"
+              onClick={onAddPhoto}
+              disabled={uploading}
+              data-testid="swatch-add-photo"
+              className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-light text-body border border-body px-4 py-2.5 rounded font-body text-sm font-medium transition-colors disabled:opacity-60"
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+              {uploading ? 'Uploading…' : order.swatch_image_url ? 'Replace Photo' : 'Add Swatch Photo'}
+            </button>
             <Link
               href={`/clients/${clientId}/orders/${order.id}/edit`}
-              className="flex-1 bg-body hover:bg-body-hover text-white text-center px-4 py-2.5 rounded font-body text-sm font-medium transition-colors"
+              className="flex-1 min-h-[44px] inline-flex items-center justify-center bg-body hover:bg-body-hover text-white text-center px-4 py-2.5 rounded font-body text-sm font-medium transition-colors"
             >
               Edit Order
             </Link>
             <button
               onClick={onClose}
-              className="flex-1 bg-white hover:bg-gray-light text-gray-dark border border-gray-med text-center px-4 py-2.5 rounded font-body text-sm font-medium transition-colors"
+              className="flex-1 min-h-[44px] bg-white hover:bg-gray-light text-gray-dark border border-gray-med text-center px-4 py-2.5 rounded font-body text-sm font-medium transition-colors"
             >
               Close
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Order chooser (header "Upload Swatch")                                    */
+/* -------------------------------------------------------------------------- */
+
+function OrderChooserModal({
+  orders,
+  uploadingOrderId,
+  onChoose,
+  onClose,
+}: {
+  orders: CustomOrder[]
+  uploadingOrderId: string | null
+  onChoose: (order: CustomOrder) => void
+  onClose: () => void
+}) {
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 t-backdrop-mount"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="swatch-chooser-title"
+        data-testid="swatch-order-chooser"
+        className="bg-white rounded shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col t-modal-mount"
+      >
+        <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-gray-med">
+          <div>
+            <h2 id="swatch-chooser-title" className="font-heading text-base font-medium text-body">Which order is this swatch for?</h2>
+            <p className="font-body text-xs text-gray-dark mt-0.5">Tap an order, then take or choose the photo.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="w-[44px] h-[44px] -mr-2 flex items-center justify-center text-gray-dark hover:text-body"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <ul className="overflow-y-auto divide-y divide-gray-light">
+          {orders.map((order) => (
+            <li key={order.id}>
+              <button
+                type="button"
+                onClick={() => onChoose(order)}
+                disabled={uploadingOrderId === order.id}
+                className="w-full min-h-[56px] px-5 py-2 flex items-center gap-3 text-left hover:bg-gray-light active:bg-gray-light"
+              >
+                <span className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-gray-light flex items-center justify-center">
+                  {order.swatch_image_url ? (
+                    <img src={order.swatch_image_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-4 h-4 text-gray-dark" />
+                  )}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block font-body text-sm font-medium text-body truncate">
+                    {order.garment_type}{order.fabric_name ? ` · ${order.fabric_name}` : ''}
+                  </span>
+                  <span className="block font-body text-xs text-gray-dark truncate">
+                    {[order.fabric_code, formatDateOnly(order.order_date)].filter(Boolean).join(' · ')}
+                    {order.swatch_image_url ? ' · has photo' : ''}
+                  </span>
+                </span>
+                {uploadingOrderId === order.id && <Loader2 className="w-4 h-4 animate-spin text-gray-dark" />}
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   )

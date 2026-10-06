@@ -11,6 +11,7 @@ import StatusBadge from '@/components/StatusBadge'
 import Layout from '@/components/Layout'
 import ClientTagsCard from '@/components/ClientTagsCard'
 import ClientReferralsCard from '@/components/ClientReferralsCard'
+import { formatDateOnly } from '@/lib/dates'
 
 type UpcomingEvent = { event: string; date: string }
 
@@ -327,7 +328,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                   </h2>
                   {recentOrderDate && (
                     <span className="font-body text-sm text-gray-dark">
-                      {new Date(recentOrderDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      {formatDateOnly(recentOrderDate, { month: 'long', day: 'numeric', year: 'numeric' })}
                     </span>
                   )}
                 </div>
@@ -559,7 +560,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                           <span>{evt.event}</span>
                           {evt.date && (
                             <span className="text-gray-dark text-xs font-medium">
-                              {new Date(evt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              {formatDateOnly(evt.date, { month: 'short', day: 'numeric' })}
                             </span>
                           )}
                         </div>
@@ -674,26 +675,26 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                 {client.first_contact_date && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-dark">Client Since</span>
-                    <span className="font-semibold">{new Date(client.first_contact_date).toLocaleDateString()}</span>
+                    <span className="font-semibold">{formatDateOnly(client.first_contact_date)}</span>
                   </div>
                 )}
                 {client.last_contact_date && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-dark">Last Contact</span>
-                    <span className="font-semibold">{new Date(client.last_contact_date).toLocaleDateString()}</span>
+                    <span className="font-semibold">{formatDateOnly(client.last_contact_date)}</span>
                   </div>
                 )}
                 {client.birthday && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-dark">Birthday</span>
-                    <span className="font-semibold">{new Date(client.birthday).toLocaleDateString()}</span>
+                    <span className="font-semibold">{formatDateOnly(client.birthday)}</span>
                   </div>
                 )}
                 {client.need_by_date && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-dark">Need By</span>
                     <span className="font-semibold">
-                      {new Date(client.need_by_date).toLocaleDateString()}
+                      {formatDateOnly(client.need_by_date)}
                       {client.need_by_description && ` \u2014 ${client.need_by_description}`}
                     </span>
                   </div>
@@ -738,7 +739,7 @@ function OrderRow({ order, clientId }: { order: CustomOrder; clientId: string })
         <div className="min-w-0 flex-1 pr-4">
           <p className="font-body font-semibold">{order.garment_type}</p>
           <p className="font-body text-sm text-gray-dark">{order.fabric_name || 'No fabric specified'}</p>
-          <p className="font-body text-xs text-gray-dark mt-1">{new Date(order.order_date).toLocaleDateString()}</p>
+          <p className="font-body text-xs text-gray-dark mt-1">{formatDateOnly(order.order_date)}</p>
         </div>
         <div className="text-right flex-shrink-0">
           <span className={`inline-block px-3 py-1.5 rounded text-xs font-semibold uppercase ${statusColors[order.status] || statusColors.ordered}`}>
@@ -749,7 +750,7 @@ function OrderRow({ order, clientId }: { order: CustomOrder; clientId: string })
           )}
           {order.eta_start && order.eta_end && order.status !== 'delivered' && (
             <p className="font-body text-xs text-gray-dark mt-1">
-              ETA: {new Date(order.eta_start).toLocaleDateString()} - {new Date(order.eta_end).toLocaleDateString()}
+              ETA: {formatDateOnly(order.eta_start)} - {formatDateOnly(order.eta_end)}
             </p>
           )}
         </div>
@@ -787,7 +788,7 @@ function PurchaseRow({ purchase, clientId }: { purchase: ReadyMadePurchase; clie
           )}
           {purchase.purchase_date && (
             <p className="font-body text-xs text-gray-dark mt-1">
-              {new Date(purchase.purchase_date).toLocaleDateString()}
+              {formatDateOnly(purchase.purchase_date)}
             </p>
           )}
         </div>

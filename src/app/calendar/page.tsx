@@ -1,33 +1,26 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, MapPin, User, Loader2, Calendar, Download } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, MapPin, User, Loader2, Calendar, Download, CheckSquare } from 'lucide-react'
 import Layout from '@/components/Layout'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import { localISODate } from '@/lib/dashboard'
+import { parseDateOnly } from '@/lib/dates'
+import { buildCalendarDays, type AppointmentInput, type CalendarEntry, type CareInput } from '@/lib/calendarView'
+import type { ExternalEvent } from '@/lib/googleIcal'
 
-interface AppointmentRow {
-  id: string
-  title: string | null
-  appointment_type: string | null
-  start_time: string
-  end_time: string
-  location: string | null
-  notes: string | null
-  status: string | null
-  client_id: string | null
-  client?: { first_name: string | null; last_name: string | null; email: string | null } | null
+type Person = { first_name: string | null; last_name: string | null } | null
+/** Supabase types an embedded relation as object-or-array; normalise to one row. */
+function one<T>(v: T | T[] | null | undefined): T | null {
+  return Array.isArray(v) ? v[0] ?? null : v ?? null
 }
 
-function prettyType(type: string | null | undefined): string {
-  if (!type) return 'Appointment'
-  if (type.toLowerCase() === 'wardrobe') return 'Wardrobe Appointment'
-  if (type.toLowerCase() === 'fitting') return 'Fitting'
-  return type.charAt(0).toUpperCase() + type.slice(1)
-}
+type GoogleStatus = 'loading' | 'off' | 'on' | 'error'
 
 export default function CalendarPage() {
-  const [appointments, setAppointments] = useState<AppointmentRow[]>([])
+  const [days, setDays] = useState<Array<{ day: string; entries: CalendarEntry[] }>>([])
+  const [googleStatus, setGoogleStatus] = useState<GoogleStatus>('loading')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -54,40 +47,56 @@ export default function CalendarPage() {
   }, [currentDate, view])
 
   useEffect(() => {
-    async function fetchAppointments() {
+    let cancelled = false
+    async function fetchEntries() {
       setLoading(true)
       setError(null)
       const { start, end } = getDateRange()
+      const supabase = createClient()
+
+      const google = fetch(`/api/calendar/google?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`)
+        .then(async (res) => {
+          const body = (await res.json()) as { configured?: boolean; events?: ExternalEvent[]; error?: string }
+          return { status: (!body.configured ? 'off' : body.error ? 'error' : 'on') as GoogleStatus, events: body.events ?? [] }
+        })
+        .catch(() => ({ status: 'error' as GoogleStatus, events: [] as ExternalEvent[] }))
 
       try {
-        const supabase = createClient()
-        const { data, error: queryError } = await supabase
-          .from('appointments')
-          .select('id, title, appointment_type, start_time, end_time, location, notes, status, client_id, client:clients(first_name, last_name, email)')
-          .gte('start_time', start.toISOString())
-          .lte('start_time', end.toISOString())
-          .order('start_time', { ascending: true })
+        const [aptRes, careRes, googleRes] = await Promise.all([
+          supabase
+            .from('appointments')
+            .select('id, title, appointment_type, start_time, location, client_id, client:clients(first_name, last_name)')
+            .gte('start_time', start.toISOString())
+            .lte('start_time', end.toISOString())
+            .order('start_time', { ascending: true }),
+          supabase
+            .from('client_care_items')
+            .select('id, title, item_type, due_date, client_id, client:clients(first_name, last_name)')
+            .eq('completed', false)
+            .gte('due_date', localISODate(start))
+            .lte('due_date', localISODate(end)),
+          google,
+        ])
+        if (aptRes.error) throw new Error(aptRes.error.message)
+        if (careRes.error) throw new Error(careRes.error.message)
 
-        if (queryError) throw new Error(queryError.message)
-
-        const rows: AppointmentRow[] = (data || []).map((row) => {
-          const r = row as unknown as AppointmentRow & {
-            client: AppointmentRow['client'] | Array<NonNullable<AppointmentRow['client']>>
-          }
-          return {
-            ...r,
-            client: Array.isArray(r.client) ? r.client[0] : r.client,
-          }
-        })
-        setAppointments(rows)
+        const appointments = (aptRes.data || []).map((r) => ({ ...r, client: one(r.client as Person | Person[]) })) as AppointmentInput[]
+        const care = (careRes.data || []).map((r) => ({ ...r, client: one(r.client as Person | Person[]) })) as CareInput[]
+        if (!cancelled) {
+          setDays(buildCalendarDays(appointments, care, googleRes.events))
+          setGoogleStatus(googleRes.status)
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load appointments')
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load the calendar')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
-    fetchAppointments()
+    fetchEntries()
+    return () => {
+      cancelled = true
+    }
   }, [getDateRange])
 
   function navigatePrev() {
@@ -125,31 +134,19 @@ export default function CalendarPage() {
     }
   }
 
-  function formatAppointmentTime(iso: string) {
-    return new Date(iso).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    })
-  }
-
-  function groupByDate(): Array<[string, AppointmentRow[]]> {
-    const grouped: Record<string, AppointmentRow[]> = {}
-    for (const apt of appointments) {
-      const dateStr = new Date(apt.start_time).toDateString()
-      if (!grouped[dateStr]) grouped[dateStr] = []
-      grouped[dateStr].push(apt)
-    }
-    return Object.entries(grouped).sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-  }
-
   return (
     <Layout currentPage="calendar">
       <div className="max-w-4xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
           <div>
             <h1 className="font-heading text-lg font-medium text-body">Calendar</h1>
-            <p className="font-body text-gray-dark">Manage appointments and fittings</p>
+            <p className="font-body text-gray-dark">
+              Appointments, client care due dates
+              {googleStatus === 'on' ? ', and your Google Calendar' : ''}
+            </p>
+            {googleStatus === 'error' && (
+              <p className="font-body text-xs text-error mt-1" role="status">Couldn&rsquo;t load your Google Calendar right now.</p>
+            )}
           </div>
 
           <Link
@@ -218,14 +215,14 @@ export default function CalendarPage() {
             <div className="p-3 text-center">
               <p className="text-red-500 font-body mb-2">{error}</p>
             </div>
-          ) : appointments.length === 0 ? (
+          ) : days.length === 0 ? (
             <div className="px-5 py-8 text-center" data-testid="calendar-empty">
               <Calendar className="w-12 h-12 text-gray-med mx-auto mb-4" />
-              <p className="font-body text-body font-medium mb-1">No appointments scheduled for this period</p>
+              <p className="font-body text-body font-medium mb-1">Nothing scheduled for this period</p>
               <p className="font-body text-sm text-gray-dark mb-4 max-w-md mx-auto">
-                This calendar shows appointments you schedule here in the CRM. It doesn&rsquo;t pull events in from
-                Google Calendar. When you schedule one, the client is emailed an invite, and you can use
-                &ldquo;Add to calendar&rdquo; on any appointment to put it on your own Google or Apple calendar.
+                This calendar shows appointments you schedule in the CRM and Client Care items with a due date
+                {googleStatus === 'on' ? ', plus the events on your Google Calendar' : ''}. Each appointment you
+                schedule here is also sent to your own calendar as an invite, and the client gets one too.
               </p>
               <Link href="/calendar/new" className="es-btn es-btn-primary">
                 Schedule an appointment
@@ -233,64 +230,17 @@ export default function CalendarPage() {
             </div>
           ) : (
             <div className="divide-y divide-gray-med">
-              {groupByDate().map(([dateStr, dayAppointments]) => (
-                <div key={dateStr}>
+              {days.map(({ day, entries }) => (
+                <div key={day}>
                   <div className="bg-gray-light px-4 py-2">
                     <h3 className="font-body font-medium text-sm text-gray-dark">
-                      {new Date(dateStr).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
+                      {parseDateOnly(day)!.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                     </h3>
                   </div>
                   <div className="divide-y divide-gray-light">
-                    {dayAppointments.map((apt) => {
-                      const fullName = apt.client
-                        ? `${apt.client.first_name ?? ''} ${apt.client.last_name ?? ''}`.trim()
-                        : ''
-                      const titleDisplay = apt.title || prettyType(apt.appointment_type)
-                      return (
-                        <div key={apt.id} className="p-5 flex items-start gap-2">
-                          <div className="w-20 flex-shrink-0 text-right">
-                            <span className="font-body text-sm font-medium text-body">
-                              {formatAppointmentTime(apt.start_time)}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-body font-medium text-body truncate">
-                              {titleDisplay}
-                            </h4>
-                            {fullName && (
-                              <p className="font-body text-sm text-gray-dark flex items-center gap-1 mt-1">
-                                <User className="w-3 h-3" />
-                                {apt.client_id ? (
-                                  <Link href={`/clients/${apt.client_id}`} className="hover:text-body underline-offset-2 hover:underline">
-                                    {fullName}
-                                  </Link>
-                                ) : (
-                                  fullName
-                                )}
-                              </p>
-                            )}
-                            {apt.location && (
-                              <p className="font-body text-sm text-gray-dark flex items-center gap-1 mt-1">
-                                <MapPin className="w-3 h-3" />
-                                {apt.location}
-                              </p>
-                            )}
-                          </div>
-                          <a
-                            href={`/api/appointments/${apt.id}/ics`}
-                            className="flex items-center gap-1 px-2 py-1 text-xs font-body text-gray-dark hover:text-body border border-gray-med hover:border-body rounded transition-colors"
-                            title="Download .ics file"
-                          >
-                            <Download className="w-3 h-3" />
-                            .ics
-                          </a>
-                        </div>
-                      )
-                    })}
+                    {entries.map((entry) => (
+                      <CalendarEntryRow key={entry.key} entry={entry} />
+                    ))}
                   </div>
                 </div>
               ))}
@@ -299,5 +249,57 @@ export default function CalendarPage() {
         </div>
       </div>
     </Layout>
+  )
+}
+
+function CalendarEntryRow({ entry }: { entry: CalendarEntry }) {
+  const isGoogle = entry.kind === 'google'
+  const time = entry.allDay
+    ? entry.kind === 'care' ? 'Due' : 'All day'
+    : new Date(entry.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+
+  return (
+    <div className={`p-5 flex items-start gap-2 ${isGoogle ? 'bg-surface-alt/40' : ''}`} data-testid={`cal-entry-${entry.kind}`}>
+      <div className="w-20 flex-shrink-0 text-right">
+        <span className={`font-body text-sm font-medium ${isGoogle ? 'text-gray-dark' : 'text-body'}`}>{time}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <h4 className={`font-body font-medium truncate flex items-center gap-1.5 ${isGoogle ? 'text-gray-dark' : 'text-body'}`}>
+          {entry.kind === 'care' && <CheckSquare className="w-4 h-4 flex-shrink-0 text-gold" aria-hidden />}
+          <span className="truncate">{entry.title}</span>
+          {isGoogle && (
+            <span className="flex-shrink-0 px-1.5 py-0.5 rounded border border-gray-med text-[10px] uppercase tracking-wide text-gray-dark">Google</span>
+          )}
+        </h4>
+        {entry.clientName && (
+          <p className="font-body text-sm text-gray-dark flex items-center gap-1 mt-1">
+            <User className="w-3 h-3" />
+            {entry.clientId ? (
+              <Link href={`/clients/${entry.clientId}`} className="hover:text-body underline-offset-2 hover:underline">
+                {entry.clientName}
+              </Link>
+            ) : (
+              entry.clientName
+            )}
+          </p>
+        )}
+        {entry.location && (
+          <p className="font-body text-sm text-gray-dark flex items-center gap-1 mt-1">
+            <MapPin className="w-3 h-3" />
+            {entry.location}
+          </p>
+        )}
+      </div>
+      {entry.appointmentId && (
+        <a
+          href={`/api/appointments/${entry.appointmentId}/ics`}
+          className="flex items-center gap-1 min-h-[44px] px-2 text-xs font-body text-gray-dark hover:text-body border border-gray-med hover:border-body rounded transition-colors"
+          title="Download .ics file"
+        >
+          <Download className="w-3 h-3" />
+          .ics
+        </a>
+      )}
+    </div>
   )
 }

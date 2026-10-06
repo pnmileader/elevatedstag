@@ -5,6 +5,7 @@ import { ArrowLeft, Plus, Loader2, ShoppingBag, X, Save, Trash2 } from 'lucide-r
 import Link from 'next/link'
 import Layout from '@/components/Layout'
 import { createClient } from '@/lib/supabase'
+import { formatDateOnly } from '@/lib/dates'
 
 interface Purchase {
   id: string
@@ -435,7 +436,7 @@ export default function PurchasesPage({ params }: { params: Promise<{ id: string
                       )}
                       {purchase.purchase_date && (
                         <p className="font-body text-xs text-gray-dark">
-                          {new Date(purchase.purchase_date).toLocaleDateString('en-US', {
+                          {formatDateOnly(purchase.purchase_date, {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric',
