@@ -300,6 +300,50 @@ const cases: Case[] = [
     expect: { category: 'service' },
   },
 
+  // ===== "All Dates" report: Wardrobe Styling lines that used to land in Needs review =====
+  {
+    name: 'Wardrobe Styling deposit (retainer for hourly styling) → service',
+    product: 'Wardrobe Styling:Deposit - Wardrobe',
+    description: 'Retainer for hourly styling billed @ $150/hr',
+    expect: { category: 'service' },
+  },
+  {
+    name: 'Wardrobe Styling hourly rate → service',
+    product: 'Wardrobe Styling:Hourly rate',
+    description: '1 hour of in-person shopping time',
+    expect: { category: 'service' },
+  },
+  {
+    name: 'Retainer line → service',
+    product: 'Wardrobe Styling:Styling Retainer',
+    description: '',
+    expect: { category: 'service' },
+  },
+  {
+    name: 'Sene T-Shirt → ready-made, brand Sene',
+    product: 'Wardrobe Styling:Sene T-Shirt',
+    description: 'White V-neck - M',
+    expect: { category: 'ready_made', brand: 'Sene' },
+  },
+  {
+    name: 'Georg Roth Long Sleeve → ready-made, brand Georg Roth',
+    product: 'Wardrobe Styling:Georg Roth Long Sleeve',
+    description: 'Zip Mock Black LS Shirt - M',
+    expect: { category: 'ready_made', brand: 'Georg Roth' },
+  },
+  {
+    name: 'Georg Roth T-shirt (V neck) → ready-made, brand Georg Roth',
+    product: 'Wardrobe Styling:Georg Roth T-shirt',
+    description: 'White V neck T-Shirt - M',
+    expect: { category: 'ready_made', brand: 'Georg Roth' },
+  },
+  {
+    name: 'Georg Roth T-shirt (crew neck) → ready-made, brand Georg Roth',
+    product: 'Wardrobe Styling:Georg Roth T-shirt',
+    description: 'Crew neck t-shirt',
+    expect: { category: 'ready_made', brand: 'Georg Roth' },
+  },
+
   // ===== Other fixtures =====
   {
     name: 'Kohler tub → skip',
@@ -442,6 +486,11 @@ const fullCatalog = [
   'Wardrobe Styling:Custom Sweater',
   'Wardrobe Styling:CV - Custom Vest',
   'Wardrobe Styling:Dead Soxy Socks',
+  'Wardrobe Styling:Deposit - Wardrobe',
+  'Wardrobe Styling:Georg Roth Long Sleeve',
+  'Wardrobe Styling:Georg Roth T-shirt',
+  'Wardrobe Styling:Hourly rate',
+  'Wardrobe Styling:Sene T-Shirt',
   'Wardrobe Styling:Dry Cleaning',
   'Wardrobe Styling:Friends & Family Discount - Styling',
   'Wardrobe Styling:Holderness & Bourne',

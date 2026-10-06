@@ -1,0 +1,10 @@
+The Elevated Stag,,,,,,,,,
+Sales by Customer Detail,,,,,,,,,
+All Dates,,,,,,,,,
+
+,Transaction date,Transaction type,Num,Product/Service full name,Description,Quantity,Sales price,Amount,Balance
+Rowan Q Zz-E2E-Playwright,,,,,,,,,
+,01/15/2024,Invoice,E2E-1,Wardrobe Styling:Georg Roth T-shirt,White V neck T-Shirt - M,1.00,68.00,68.00,68.00
+,01/15/2024,Invoice,E2E-1,Wardrobe Styling:Hourly rate,1 hour of in-person shopping time,1.00,150.00,150.00,218.00
+Total for Rowan Q Zz-E2E-Playwright,,,,,,2.00,,$218.00,
+TOTAL,,,,,,2.00,,$218.00,

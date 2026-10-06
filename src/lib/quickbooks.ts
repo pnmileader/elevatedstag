@@ -58,6 +58,8 @@ const READY_MADE_BRANDS: Array<{ pattern: RegExp; brand: string }> = [
   { pattern: /\bliverpool\b/i,                brand: 'Liverpool' },
   { pattern: /\bmagnann?i\b/i,                brand: 'Magnanni' },
   { pattern: /\bpaige\b/i,                    brand: 'Paige' },
+  { pattern: /\bgeorg\s+roth\b/i,             brand: 'Georg Roth' }, // "Wardrobe Styling:Georg Roth T-shirt"
+  { pattern: /\bsene\b/i,                     brand: 'Sene' },       // "Wardrobe Styling:Sene T-Shirt"
   // J&M / JM — short tokens, require word boundaries and the ampersand or specific context to avoid false matches
   { pattern: /\bJ\s*&\s*M\b/,                 brand: 'Johnston & Murphy' },
   { pattern: /(^|[:\s])JM\b/,                 brand: 'Johnston & Murphy' },
@@ -96,6 +98,11 @@ const WARDROBE_SERVICE_LABELS = [
   /\binterest\s+earned\b/i,
   /\bstyling\s+fee\b/i,
   /\bconsultation\b/i,
+  // Styling time billed by the hour: "Wardrobe Styling:Deposit - Wardrobe"
+  // (a retainer for hourly styling) and "Wardrobe Styling:Hourly rate".
+  /\bdeposit\b/i,
+  /\bretainer\b/i,
+  /\bhourly\b/i,
 ]
 
 // Discount/credit/complimentary tokens.

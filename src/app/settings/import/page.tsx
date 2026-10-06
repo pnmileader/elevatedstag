@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
@@ -16,6 +16,8 @@ import {
   Sparkles,
 } from 'lucide-react'
 import Layout from '@/components/Layout'
+import ConfirmModal from '@/components/ConfirmModal'
+import { distinctUnmatchedNames } from '@/lib/purchaseImport'
 import {
   isQboGroupedReport,
   parseQboGroupedSalesReport,
@@ -196,6 +198,42 @@ async function importPurchasesInBatches(apiPath: string, rows: Array<Record<stri
 }
 
 
+// A flattened Sales by Customer Detail report always has these columns, already
+// mapped — whichever zone it was dropped into.
+const GROUPED_HEADERS = ['customer_name', 'date', 'transaction_type', 'num', 'product', 'description', 'quantity', 'sales_price', 'amount']
+const GROUPED_MAPPING: Record<string, string> = {
+  customer_name: 'customer',
+  date: 'date',
+  transaction_type: '',
+  num: 'invoice_id',
+  product: 'product',
+  description: 'description',
+  quantity: 'quantity',
+  sales_price: '',
+  amount: 'amount',
+}
+
+function groupedReportToParsedFile(
+  report: { rows: FlatSalesRow[]; skippedHeaderRows: number },
+  fileName: string,
+  fileKind: 'csv' | 'xls',
+): ParsedFile {
+  const rows = report.rows.map((r) => ({
+    customer_name: r.customer_name,
+    date: r.date,
+    transaction_type: r.transaction_type,
+    num: r.num,
+    product: r.product,
+    description: r.description,
+    quantity: r.quantity,
+    sales_price: r.sales_price,
+    amount: r.amount,
+  }))
+  return { headers: GROUPED_HEADERS, rows, fileName, fileKind, groupedReport: report }
+}
+
+type CreateClientsResult = { success: true; created: number; alreadyMatched: number; errors: Array<{ name: string; error: string }> } | { error: string }
+
 function extensionOf(fileName: string): 'csv' | 'xls' | 'xlsx' | 'unknown' {
   const lower = fileName.toLowerCase()
   if (lower.endsWith('.csv')) return 'csv'
@@ -238,16 +276,23 @@ function UploadZone({
   mode,
   parsed,
   setParsed,
+  onMoveToPurchases,
 }: {
   mode: Mode
   parsed: ParsedFile | null
   setParsed: (p: ParsedFile | null) => void
+  /** Clients zone only: hand a dropped Sales by Customer Detail report to the purchases zone. */
+  onMoveToPurchases?: (p: ParsedFile) => void
 }) {
   const [dragOver, setDragOver] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<ClientsResult | PurchasesResult | null>(null)
+  // Purchases: the rows last sent, so "Create N clients and re-import" can re-run them.
+  const [lastRows, setLastRows] = useState<Array<Record<string, string>> | null>(null)
+  const [creatingClients, setCreatingClients] = useState(false)
+  const [createNote, setCreateNote] = useState<{ ok: boolean; text: string } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const fields = mode === 'clients' ? CLIENT_FIELDS : PURCHASE_FIELDS
@@ -262,6 +307,7 @@ function UploadZone({
     async (file: File) => {
       setParseError(null)
       setResult(null)
+      setCreateNote(null)
 
       const ext = extensionOf(file.name)
       if (ext === 'unknown') {
@@ -290,38 +336,21 @@ function UploadZone({
             setParseError(result.error)
             return
           }
-          const headers = ['customer_name', 'date', 'transaction_type', 'num', 'product', 'description', 'quantity', 'sales_price', 'amount']
-          const rows = result.rows.map((r) => ({
-            customer_name: r.customer_name,
-            date: r.date,
-            transaction_type: r.transaction_type,
-            num: r.num,
-            product: r.product,
-            description: r.description,
-            quantity: r.quantity,
-            sales_price: r.sales_price,
-            amount: r.amount,
-          }))
           // Pre-set the mapping so the user doesn't have to do it.
-          setMapping({
-            customer_name: 'customer',
-            date: 'date',
-            transaction_type: '',
-            num: 'invoice_id',
-            product: 'product',
-            description: 'description',
-            quantity: 'quantity',
-            sales_price: '',
-            amount: 'amount',
-          })
-          setParsed({
-            headers,
-            rows,
-            fileName: file.name,
-            fileKind,
-            groupedReport: { rows: result.rows, skippedHeaderRows: result.skippedHeaderRows },
-          })
+          setMapping(GROUPED_MAPPING)
+          setParsed(groupedReportToParsedFile(result, file.name, fileKind))
           return
+        }
+
+        // Clients: the sales report dropped in the wrong zone. Keep the parsed
+        // report so the notice can hand it straight to Purchase History.
+        if (mode === 'clients' && isQboGroupedReport(matrix)) {
+          const report = parseQboGroupedSalesReport(matrix)
+          if (report.success) {
+            setMapping({})
+            setParsed(groupedReportToParsedFile(report, file.name, fileKind))
+            return
+          }
         }
 
         // Flat table path — first row is headers.
@@ -356,10 +385,16 @@ function UploadZone({
   const preview = useMemo(() => parsed?.rows.slice(0, 5) ?? [], [parsed])
 
   const isGroupedReport = !!parsed?.groupedReport
+  // The sales report in the Clients zone: show the "belongs in Purchase History" notice instead.
+  const isMisplacedSalesReport = mode === 'clients' && isGroupedReport
+  // A grouped report's mapping is fixed — also when it was handed over from the Clients zone.
+  const effectiveMapping = isGroupedReport ? GROUPED_MAPPING : mapping
+  // e.g. a report with a title row on top: the "header row" is one cell like "The Elevated Stag".
+  const singleHeader = !!parsed && !isGroupedReport && parsed.headers.length === 1 ? parsed.headers[0] : null
 
   const requiredMissing = useMemo(() => {
     if (!parsed) return []
-    const mapped = new Set(Object.values(mapping).filter(Boolean))
+    const mapped = new Set(Object.values(effectiveMapping).filter(Boolean))
     const missing: string[] = []
     if (mode === 'clients') {
       const hasName = mapped.has('full_name') || mapped.has('first_name') || mapped.has('last_name')
@@ -371,22 +406,24 @@ function UploadZone({
       if (!mapped.has('product')) missing.push('product')
     }
     return missing
-  }, [mapping, mode, parsed])
+  }, [effectiveMapping, mode, parsed])
 
   async function handleSubmit() {
     if (!parsed) return
     setSubmitting(true)
     setResult(null)
+    setCreateNote(null)
     try {
       const transformed = parsed.rows.map((raw) => {
         const out: Record<string, string> = {}
         for (const header of parsed.headers) {
-          const field = mapping[header]
+          const field = effectiveMapping[header]
           if (field && raw[header] !== undefined) out[field] = raw[header]
         }
         return out
       })
       if (mode === 'purchases') {
+        setLastRows(transformed)
         setResult(await importPurchasesInBatches(apiPath, transformed))
         return
       }
@@ -404,16 +441,48 @@ function UploadZone({
     }
   }
 
+  // Purchases: create name-only clients for the unmatched customers, then run the
+  // same rows again so their purchases land.
+  async function createMissingAndReimport(names: string[]) {
+    if (!lastRows || names.length === 0) return
+    setCreatingClients(true)
+    setCreateNote(null)
+    try {
+      const response = await fetch('/api/import/missing-clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ names }),
+      })
+      const data = (await response.json()) as CreateClientsResult
+      if ('error' in data) {
+        setCreateNote({ ok: false, text: `Could not create the clients: ${data.error}` })
+        return
+      }
+      const failed = data.errors.length
+      const parts = [`Created ${data.created} client${data.created === 1 ? '' : 's'} and re-ran the import.`]
+      if (data.alreadyMatched > 0) parts.push(`${data.alreadyMatched} name${data.alreadyMatched === 1 ? '' : 's'} already matched a client.`)
+      if (failed > 0) parts.push(`${failed} could not be created (${data.errors.slice(0, 3).map((e) => e.name).join(', ')}${failed > 3 ? '…' : ''}).`)
+      setCreateNote({ ok: failed === 0, text: parts.join(' ') })
+      setResult(await importPurchasesInBatches(apiPath, lastRows))
+    } catch (err) {
+      setCreateNote({ ok: false, text: err instanceof Error ? err.message : 'Could not create the clients' })
+    } finally {
+      setCreatingClients(false)
+    }
+  }
+
   function reset() {
     setParsed(null)
     setMapping({})
     setResult(null)
     setParseError(null)
+    setLastRows(null)
+    setCreateNote(null)
     if (inputRef.current) inputRef.current.value = ''
   }
 
   return (
-    <div className="bg-white rounded p-4 border border-gray-med">
+    <div className="bg-white rounded p-4 border border-gray-med" data-testid={`import-zone-${mode}`}>
       <div className="flex items-start justify-between mb-3">
         <div>
           <h2 className="font-heading text-base font-medium text-body">{title}</h2>
@@ -466,7 +535,40 @@ function UploadZone({
         </div>
       )}
 
-      {parsed && !result && (
+      {parsed && !result && isMisplacedSalesReport && (
+        <div
+          className="mt-3 bg-blue-50 border border-blue-200 text-blue-900 px-4 py-3 rounded font-body text-sm space-y-3"
+          role="status"
+          data-testid="sales-report-notice"
+        >
+          <div className="flex items-center gap-2 text-gray-dark">
+            <FileText className="w-4 h-4" />
+            <span className="font-medium text-body">{parsed.fileName}</span>
+            <span>·</span>
+            <span>{parsed.rows.length} sales lines</span>
+          </div>
+          <p className="font-medium">This is the QuickBooks &ldquo;Sales by Customer Detail&rdquo; report.</p>
+          <p>
+            That report is your purchase history, so it belongs in <span className="font-medium">Import Purchase History</span> below.
+            This box is for the Customers list (Sales → Customers → ⚙ → Export to Excel).
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => onMoveToPurchases?.(parsed)}
+              className="es-btn es-btn-primary h-[44px]"
+              data-testid="move-to-purchases"
+            >
+              Move it to Purchase History
+            </button>
+            <button type="button" onClick={reset} className="es-btn es-btn-secondary h-[44px]">
+              Choose a different file
+            </button>
+          </div>
+        </div>
+      )}
+
+      {parsed && !result && !isMisplacedSalesReport && (
         <div className="mt-3 space-y-4">
           <div className="flex items-center gap-2 text-sm font-body text-gray-dark">
             <FileText className="w-4 h-4" />
@@ -554,7 +656,27 @@ function UploadZone({
             </div>
           </div>
 
-          {requiredMissing.length > 0 && !isGroupedReport && (
+          {singleHeader !== null && (
+            <div
+              className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-2 rounded font-body text-sm space-y-1"
+              data-testid="single-header-notice"
+            >
+              <p className="font-medium flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                Only one column heading was found: &ldquo;{singleHeader}&rdquo;.
+              </p>
+              <p>
+                The first row of the file needs to be the column headings
+                {mode === 'clients' ? ' (Name, Email, Phone…)' : ' (Customer, Date, Product…)'}.
+                If the file starts with a title such as your company name, it is probably a QuickBooks report rather than a list.
+                {mode === 'clients'
+                  ? ' For clients, export the Customers list: Sales → Customers → ⚙ → Export to Excel.'
+                  : ' For purchases, export Reports → Sales by Customer Detail → Export to CSV.'}
+              </p>
+            </div>
+          )}
+
+          {requiredMissing.length > 0 && !isGroupedReport && singleHeader === null && (
             <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-2 rounded font-body text-sm flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" />
               Map at least: {requiredMissing.join(', ')}
@@ -587,6 +709,16 @@ function UploadZone({
         </div>
       )}
 
+      {createNote && (
+        <div
+          className={`mt-3 px-3 py-2 rounded font-body text-sm border ${createNote.ok ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-700'}`}
+          role="status"
+          data-testid="create-clients-note"
+        >
+          {createNote.text}
+        </div>
+      )}
+
       {result && 'error' in result && (
         <div className="mt-3 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded font-body text-sm flex items-center gap-2">
           <XCircle className="w-4 h-4" />
@@ -599,7 +731,13 @@ function UploadZone({
       )}
 
       {result && !('error' in result) && mode === 'purchases' && (
-        <PurchasesSummary result={result as Exclude<PurchasesResult, { error: string }>} onReset={reset} />
+        <PurchasesSummary
+          result={result as Exclude<PurchasesResult, { error: string }>}
+          onReset={reset}
+          canCreateClients={!!lastRows}
+          creatingClients={creatingClients}
+          onCreateClients={createMissingAndReimport}
+        />
       )}
     </div>
   )
@@ -656,10 +794,25 @@ function ClientsSummary({
 function PurchasesSummary({
   result,
   onReset,
+  canCreateClients,
+  creatingClients,
+  onCreateClients,
 }: {
   result: Exclude<PurchasesResult, { error: string }>
   onReset: () => void
+  canCreateClients: boolean
+  creatingClients: boolean
+  onCreateClients: (names: string[]) => Promise<void>
 }) {
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const missing = useMemo(() => distinctUnmatchedNames(result.unmatched), [result.unmatched])
+  const n = missing.length
+
+  async function confirmCreate() {
+    await onCreateClients(missing.map((m) => m.name))
+    setConfirmOpen(false)
+  }
+
   return (
     <div className="mt-3 bg-green-50 border border-green-200 rounded px-4 py-3">
       <div className="flex items-center gap-2 text-green-700 font-body font-medium mb-2">
@@ -684,20 +837,57 @@ function PurchasesSummary({
       </div>
 
       {result.unmatched.length > 0 && (
-        <details className="mt-3" open>
+        <details className="mt-3" open data-testid="unmatched-customers">
           <summary className="font-body text-sm font-medium text-yellow-800 cursor-pointer">
-            Could not match {result.unmatched.length} customer{result.unmatched.length === 1 ? '' : 's'}
+            {n > 0
+              ? `${n} customer${n === 1 ? '' : 's'} not in the CRM (${result.unmatched.length} line${result.unmatched.length === 1 ? '' : 's'} skipped)`
+              : `Could not match ${result.unmatched.length} line${result.unmatched.length === 1 ? '' : 's'} (no customer name)`}
           </summary>
-          <p className="text-xs font-body text-gray-dark mt-1 mb-2">
-            Add these clients manually (or import them via the Clients CSV first), then re-run this import.
-          </p>
-          <ul className="text-xs font-body text-gray-dark space-y-1 max-h-40 overflow-auto">
-            {result.unmatched.map((u, i) => (
-              <li key={i}>Row {u.row}: <span className="text-body">{u.customer}</span></li>
-            ))}
-          </ul>
+          {n > 0 && (
+            <>
+              <p className="text-xs font-body text-gray-dark mt-1 mb-2">
+                Their purchases were skipped because no client has that name. Create them as new clients (name only — you can
+                add email and phone later) and the import runs again to bring their purchases in.
+              </p>
+              <ul className="text-xs font-body text-gray-dark space-y-1 max-h-40 overflow-auto" data-testid="unmatched-names">
+                {missing.map((m) => (
+                  <li key={m.name}>
+                    <span className="text-body">{m.name}</span>
+                    <span> · {m.lines} line{m.lines === 1 ? '' : 's'}</span>
+                  </li>
+                ))}
+              </ul>
+              {canCreateClients && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={creatingClients}
+                  className="es-btn es-btn-primary h-[44px] mt-3"
+                  data-testid="create-missing-clients"
+                >
+                  {creatingClients && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Create {n} client{n === 1 ? '' : 's'} and re-import
+                </button>
+              )}
+            </>
+          )}
         </details>
       )}
+
+      <ConfirmModal
+        open={confirmOpen}
+        title={`Create ${n} new client${n === 1 ? '' : 's'}?`}
+        message={
+          <>
+            {n} client{n === 1 ? '' : 's'} will be added with just a name (stage Active, source QuickBooks import), then
+            this file is imported again so their purchases are added. Names that already match a client are skipped.
+          </>
+        }
+        confirmLabel={`Create ${n} and re-import`}
+        busy={creatingClients}
+        onConfirm={confirmCreate}
+        onCancel={() => setConfirmOpen(false)}
+      />
 
       {result.needsReview.length > 0 && (
         <details className="mt-3" open>
@@ -753,6 +943,28 @@ function PurchasesSummary({
 export default function ImportPage() {
   const [clientsParsed, setClientsParsed] = useState<ParsedFile | null>(null)
   const [purchasesParsed, setPurchasesParsed] = useState<ParsedFile | null>(null)
+  // Bumped when a file is handed over, so the purchases zone starts fresh
+  // (no leftover result from an earlier import hiding the new file).
+  const [purchasesZoneKey, setPurchasesZoneKey] = useState(0)
+  const purchasesZoneRef = useRef<HTMLDivElement>(null)
+
+  // The Sales by Customer Detail report was dropped into Import Clients: move the
+  // already-parsed file to Import Purchase History and take her there.
+  function moveToPurchases(file: ParsedFile) {
+    setPurchasesParsed(file)
+    setPurchasesZoneKey((k) => k + 1)
+    setClientsParsed(null)
+  }
+
+  // After the hand-over renders (the clients zone has collapsed), bring the
+  // purchases zone into view and move focus there for keyboard / VoiceOver users.
+  useEffect(() => {
+    if (purchasesZoneKey === 0) return
+    const zone = purchasesZoneRef.current
+    if (!zone) return
+    zone.scrollIntoView({ block: 'start' })
+    zone.focus({ preventScroll: true })
+  }, [purchasesZoneKey])
 
   return (
     <Layout currentPage="settings">
@@ -783,8 +995,16 @@ export default function ImportPage() {
         </div>
 
         <div className="space-y-4">
-          <UploadZone mode="clients" parsed={clientsParsed} setParsed={setClientsParsed} />
-          <UploadZone mode="purchases" parsed={purchasesParsed} setParsed={setPurchasesParsed} />
+          <UploadZone mode="clients" parsed={clientsParsed} setParsed={setClientsParsed} onMoveToPurchases={moveToPurchases} />
+          <div
+            ref={purchasesZoneRef}
+            tabIndex={-1}
+            aria-label="Import Purchase History"
+            className="outline-none scroll-mt-4"
+            data-testid="purchases-zone-anchor"
+          >
+            <UploadZone key={purchasesZoneKey} mode="purchases" parsed={purchasesParsed} setParsed={setPurchasesParsed} />
+          </div>
         </div>
       </div>
     </Layout>

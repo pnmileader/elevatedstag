@@ -86,6 +86,8 @@ const READY_MADE_CATEGORY: Record<string, string> = {
   Paige: 'jeans',
   Liverpool: 'jeans',
   '7Diamonds': 'other',
+  'Georg Roth': 'other', // tees / long sleeves — the CRM has no shirt category
+  Sene: 'other',
   Accessory: 'accessories',
 }
 
@@ -122,15 +124,43 @@ export function parseNumber(v: unknown): number | null {
   return isNaN(n) ? null : n
 }
 
-export function splitCustomerName(name: string): { first: string; last: string } {
-  const trimmed = name.trim()
+/**
+ * Split a QuickBooks customer name into first / last, the same way the client
+ * importer splits a "Full Name" column: "Last, First" -> First + Last, otherwise
+ * the first word is the first name and the rest is the last name.
+ *
+ * QBO display names can also be "Company (Person)", e.g. "Acme Corp (John Smith)".
+ * When the parenthetical holds a name of two or more words, that is the person
+ * and the outer text is the company. A one-word parenthetical ("John Smith (Acme)")
+ * is treated as the company and left out of the name.
+ */
+export function parseCustomerName(name: string): { first: string; last: string; company: string | null } {
+  let trimmed = name.trim().replace(/\s+/g, ' ')
+  let company: string | null = null
+  const paren = trimmed.match(/^(.*?)\s*\(([^()]+)\)$/)
+  if (paren && paren[1].trim() && paren[2].trim()) {
+    const outer = paren[1].trim()
+    const inner = paren[2].trim()
+    if (inner.split(' ').length >= 2) {
+      trimmed = inner
+      company = outer
+    } else {
+      trimmed = outer
+      company = inner
+    }
+  }
   if (trimmed.includes(',')) {
     const [last, first] = trimmed.split(',').map((p) => p.trim())
-    return { first: first || '', last: last || '' }
+    return { first: first || '', last: last || '', company }
   }
-  const parts = trimmed.split(/\s+/)
-  if (parts.length === 1) return { first: parts[0], last: '' }
-  return { first: parts[0], last: parts.slice(1).join(' ') }
+  const parts = trimmed.split(' ')
+  if (parts.length === 1) return { first: parts[0], last: '', company }
+  return { first: parts[0], last: parts.slice(1).join(' '), company }
+}
+
+export function splitCustomerName(name: string): { first: string; last: string } {
+  const { first, last } = parseCustomerName(name)
+  return { first, last }
 }
 
 /** price = line Amount / Qty, to the cent. */
@@ -143,27 +173,106 @@ export function unitPrice(amount: number | null, quantity: number): number | nul
 const norm = (s: string | null | undefined) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ')
 const money = (n: number | null | undefined) => (n === null || n === undefined ? null : Math.round(Number(n) * 100) / 100)
 
-function buildClientMatcher(clients: ImportClient[]) {
+/**
+ * "Andrew S. Cohen" -> "andrew cohen": first word of the first name + last word of
+ * the last name, punctuation dropped. Two names with the same key differ only in
+ * middle names / initials. null when there is no first AND last word to compare.
+ */
+function relaxedKey(first: string | null | undefined, last: string | null | undefined): string | null {
+  const words = `${first || ''} ${last || ''}`.toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean)
+  if (words.length < 2) return null
+  return `${words[0]} ${words[words.length - 1]}`
+}
+
+/**
+ * Index of CRM clients for matching QuickBooks customer names. `add` registers a
+ * client the caller is about to create, so later names match it too.
+ *
+ * Match order (never guesses between two clients):
+ *   1. exact first + last name
+ *   2. a one-word name against first-name-only clients
+ *   3. same first + last word, ignoring middle names / initials on either side
+ *      ("Andrew S Cohen" <-> "Andrew Cohen"), only when exactly ONE client fits
+ *   4. the last name alone, only when exactly one client has it
+ */
+export function createClientIndex(clients: ImportClient[] = []) {
   const byName = new Map<string, ImportClient>()
   const byLast = new Map<string, ImportClient[]>()
   const bySingle = new Map<string, ImportClient>()
-  for (const c of clients) {
+  const byRelaxed = new Map<string, ImportClient[]>()
+
+  const add = (c: ImportClient) => {
     const first = norm(c.first_name)
     const last = norm(c.last_name)
     if (first && last) byName.set(`${first} ${last}`, c)
     if (first && !last) bySingle.set(first, c)
     if (last) byLast.set(last, [...(byLast.get(last) || []), c])
+    const relaxed = relaxedKey(c.first_name, c.last_name)
+    if (relaxed) byRelaxed.set(relaxed, [...(byRelaxed.get(relaxed) || []), c])
   }
-  return (rawName: string | null): ImportClient | null => {
+  clients.forEach(add)
+
+  const match = (rawName: string | null): ImportClient | null => {
     if (!rawName) return null
     const { first, last } = splitCustomerName(rawName)
     const exact = byName.get(`${norm(first)} ${norm(last)}`.trim())
     if (exact) return exact
     if (!last) return bySingle.get(norm(first)) || null
+    const relaxed = relaxedKey(first, last)
+    const near = relaxed ? byRelaxed.get(relaxed) : undefined
+    if (near && near.length === 1) return near[0]
     const candidates = byLast.get(norm(last))
     if (candidates && candidates.length === 1) return candidates[0]
     return null
   }
+
+  return { match, add }
+}
+
+export function buildClientMatcher(clients: ImportClient[]) {
+  return createClientIndex(clients).match
+}
+
+/**
+ * The import result lists one unmatched entry per report LINE; collapse that to
+ * one entry per customer (first-seen order) with how many lines they had. Blank
+ * customers are dropped — there is no name to create a client from.
+ */
+export function distinctUnmatchedNames(unmatched: Array<{ customer: string }>): Array<{ name: string; lines: number }> {
+  const seen = new Map<string, { name: string; lines: number }>()
+  for (const u of unmatched) {
+    const name = (u.customer || '').trim().replace(/\s+/g, ' ')
+    if (!name || name === '(blank)') continue
+    const key = name.toLowerCase()
+    const entry = seen.get(key)
+    if (entry) entry.lines++
+    else seen.set(key, { name, lines: 1 })
+  }
+  return [...seen.values()]
+}
+
+export type PlannedClient = { name: string; first_name: string; last_name: string; company: string | null }
+
+/**
+ * Which of these QuickBooks names need a new CRM client. A name that already
+ * matches a client (same matcher as the purchase import) is skipped, so running
+ * this twice creates nothing the second time. Two spellings of one person in the
+ * same request ("Andrew S Cohen", "Andrew Cohen") create a single client.
+ */
+export function planMissingClients(names: string[], clients: ImportClient[]): { create: PlannedClient[]; existing: string[] } {
+  const index = createClientIndex(clients)
+  const create: PlannedClient[] = []
+  const existing: string[] = []
+  for (const raw of names) {
+    const name = raw.trim().replace(/\s+/g, ' ')
+    if (!name || name === '(blank)') continue
+    if (index.match(name)) { existing.push(name); continue }
+    const { first, last, company } = parseCustomerName(name)
+    const planned: PlannedClient = { name, first_name: first || 'Unknown', last_name: last, company }
+    create.push(planned)
+    index.add({ id: `planned:${create.length}`, first_name: planned.first_name, last_name: planned.last_name })
+  }
+  return { create, existing }
 }
 
 function isoDaysAgo(today: Date, days: number): string {
