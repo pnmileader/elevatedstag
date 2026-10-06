@@ -415,10 +415,11 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                     {[
                       // The measurements page stores the neck as shirt.finished_collar; `neck` is the legacy key.
                       { label: 'Neck', value: shirtMeasurements?.measurements?.finished_collar || shirtMeasurements?.measurements?.neck },
-                      { label: 'Chest', value: coatMeasurements?.measurements?.skin_chest },
-                      { label: 'Coat Waist', value: coatMeasurements?.measurements?.skin_coat_waist },
-                      { label: 'Waist', value: pantMeasurements?.measurements?.waist },
-                      { label: 'Seat', value: pantMeasurements?.measurements?.seat },
+                      // Keys match what the measurements page saves; the second key is the legacy name.
+                      { label: 'Chest', value: coatMeasurements?.measurements?.chest || coatMeasurements?.measurements?.skin_chest },
+                      { label: 'Coat Waist', value: coatMeasurements?.measurements?.coat_waist || coatMeasurements?.measurements?.skin_coat_waist },
+                      { label: 'Waist', value: pantMeasurements?.measurements?.skin_waist || pantMeasurements?.measurements?.waist },
+                      { label: 'Seat', value: pantMeasurements?.measurements?.skin_seat || pantMeasurements?.measurements?.seat },
                     ].map(({ label, value }) => (
                       <div key={label} className="text-center p-2 bg-gray-light border border-gray-med rounded">
                         <p className="font-heading text-lg font-medium text-body">{value || '\u2014'}</p>
