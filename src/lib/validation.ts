@@ -102,3 +102,10 @@ export const ImportRowsSchema = z.object({
   rows: z.array(importRow).max(5000),
 })
 export type ImportRowsInput = z.infer<typeof ImportRowsSchema>
+
+// "Create missing clients" from the purchase-history import: the distinct
+// QuickBooks customer names that matched no CRM client.
+export const CreateMissingClientsSchema = z.object({
+  names: z.array(z.string().trim().min(1).max(255)).min(1).max(2000),
+})
+export type CreateMissingClientsInput = z.infer<typeof CreateMissingClientsSchema>

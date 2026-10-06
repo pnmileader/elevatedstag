@@ -81,6 +81,16 @@ if (fs.existsSync(FIXTURE_PATH)) {
   console.log('(skipping real-fixture parse — file not present)')
 }
 
+// ===== Test 3b: the Playwright fixture really is a grouped report (kept in sync with the e2e spec) =====
+const E2E_FIXTURE = `${process.cwd()}/tests/e2e/fixtures/sales-by-customer-detail.csv`
+if (fs.existsSync(E2E_FIXTURE)) {
+  const m = csvToMatrix(fs.readFileSync(E2E_FIXTURE, 'utf8'))
+  assert.equal(isQboGroupedReport(m), true, 'e2e fixture should detect as grouped')
+  const r = parseQboGroupedSalesReport(m)
+  assert.ok(r.success && r.rows.length === 2 && r.rows.every((row) => row.customer_name.endsWith('Zz-E2E-Playwright')))
+  console.log('✓ e2e sales-report fixture parses: 2 lines, throwaway customer only')
+}
+
 // ===== Test 4: matrixToRowObjects =====
 const flat: CellMatrix = [
   ['Name', 'Email', 'Phone'],

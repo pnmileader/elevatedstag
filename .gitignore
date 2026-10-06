@@ -43,6 +43,8 @@ next-env.d.ts
 # local handoff docs (personal, not part of repo)
 CLAUDE_PROJECT_GUIDE.md
 fixtures/
+# ...except the synthetic e2e fixtures (throwaway Zz-E2E-Playwright names only, no client data)
+!/tests/e2e/fixtures/
 
 # Security audit working files — raw scanner outputs may contain secret excerpts
 # from grep matches; keep them local. SECURITY_AUDIT.md (the summary) IS committed.

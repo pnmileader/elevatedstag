@@ -5,7 +5,8 @@ import * as fs from 'node:fs'
 import Papa from 'papaparse'
 import { parseQboGroupedSalesReport, type CellMatrix } from '../import'
 import {
-  planPurchaseImport, unitPrice,
+  planPurchaseImport, unitPrice, buildClientMatcher, parseCustomerName, splitCustomerName,
+  distinctUnmatchedNames, planMissingClients,
   type ExistingPurchaseRow, type ImportClient, type IncomingPurchaseRow, type ImportPlan,
 } from '../purchaseImport'
 
@@ -139,6 +140,110 @@ t('same product + description at two prices on one invoice stays stable across r
   const again = planPurchaseImport(twoPrices, clients, db, TODAY)
   assert.equal(again.updates.length, 0)
   assert.equal(again.inserts.length, 0)
+})
+
+// ---- Round 2: name matching, missing clients, Wardrobe Styling lines ----
+
+t('splits QBO names like the client importer, incl. "Last, First" and "Company (Person)"', () => {
+  assert.deepEqual(parseCustomerName('Andrew S Cohen'), { first: 'Andrew', last: 'S Cohen', company: null })
+  assert.deepEqual(parseCustomerName('Cohen, Andrew'), { first: 'Andrew', last: 'Cohen', company: null })
+  assert.deepEqual(parseCustomerName('Acme Corp (John Smith)'), { first: 'John', last: 'Smith', company: 'Acme Corp' })
+  assert.deepEqual(parseCustomerName('John Smith (Acme)'), { first: 'John', last: 'Smith', company: 'Acme' })
+  assert.deepEqual(parseCustomerName('Madonna'), { first: 'Madonna', last: '', company: null })
+  assert.deepEqual(splitCustomerName('  Alex   Ditullio '), { first: 'Alex', last: 'Ditullio' })
+})
+
+t('middle initial / middle name in QBO but not in the CRM matches when unique', () => {
+  const crm: ImportClient[] = [
+    { id: 'cohen', first_name: 'Andrew', last_name: 'Cohen' },
+    { id: 'linahan', first_name: 'Jason', last_name: 'Linahan' },
+  ]
+  const match = buildClientMatcher(crm)
+  assert.equal(match('Andrew S Cohen')?.id, 'cohen')
+  assert.equal(match('Andrew S. Cohen')?.id, 'cohen')
+  assert.equal(match('Andrew Scott Cohen')?.id, 'cohen')
+  assert.equal(match('Cohen, Andrew S.')?.id, 'cohen')
+  assert.equal(match('Jason A. Linahan')?.id, 'linahan')
+  assert.equal(match('Barry S Cohen'), null, 'different first name is not a middle-initial match')
+})
+
+t('and vice versa: CRM has the middle initial, QBO does not', () => {
+  const match = buildClientMatcher([
+    { id: 'cohen', first_name: 'Andrew', last_name: 'S. Cohen' },
+    { id: 'kimbro', first_name: 'Lance P.', last_name: 'Kimbro' },
+  ])
+  assert.equal(match('Andrew Cohen')?.id, 'cohen')
+  assert.equal(match('Lance Kimbro')?.id, 'kimbro')
+})
+
+t('relaxed match never guesses between two clients', () => {
+  const match = buildClientMatcher([
+    { id: 'a', first_name: 'Andrew', last_name: 'Cohen' },
+    { id: 'b', first_name: 'Andrew', last_name: 'J Cohen' },
+  ])
+  assert.equal(match('Andrew Cohen')?.id, 'a', 'exact match still wins')
+  assert.equal(match('Andrew J Cohen')?.id, 'b', 'exact match still wins')
+  assert.equal(match('Andrew S Cohen'), null, 'two Andrew ... Cohens -> unmatched, not a guess')
+})
+
+t('relaxed match flows through the planner: "Andrew S Cohen" lines land on Andrew Cohen', () => {
+  const plan = planPurchaseImport(
+    [{ customer: 'Andrew S Cohen', date: '03/02/2024', invoice_id: '1001', product: 'Wardrobe Styling:Paige Jeans', description: 'Lennox 32', quantity: 1, amount: 225 }],
+    [{ id: 'cohen', first_name: 'Andrew', last_name: 'Cohen' }], [], TODAY,
+  )
+  assert.equal(plan.unmatched.length, 0)
+  assert.equal(plan.inserts[0].payload.client_id, 'cohen')
+})
+
+t('unmatched lines collapse to one entry per customer with a line count', () => {
+  const names = distinctUnmatchedNames([
+    { customer: 'Alex Ditullio' }, { customer: 'Aron Donatiello' }, { customer: 'Alex Ditullio' },
+    { customer: 'alex  ditullio' }, { customer: '(blank)' }, { customer: '' },
+  ])
+  assert.deepEqual(names, [{ name: 'Alex Ditullio', lines: 3 }, { name: 'Aron Donatiello', lines: 1 }])
+})
+
+t('planMissingClients: creates only names with no match, once each, and is idempotent', () => {
+  const crm: ImportClient[] = [{ id: 'cohen', first_name: 'Andrew', last_name: 'Cohen' }]
+  const names = ['Andrew S Cohen', 'Alex Ditullio', 'Aron Donatiello', 'Ditullio, Alex', 'Acme Corp (Jane Roe)', '(blank)']
+  const first = planMissingClients(names, crm)
+  assert.deepEqual(first.existing, ['Andrew S Cohen', 'Ditullio, Alex'], 'matches a CRM client, or one created earlier in this request')
+  assert.deepEqual(first.create.map((c) => [c.first_name, c.last_name, c.company]), [
+    ['Alex', 'Ditullio', null],
+    ['Aron', 'Donatiello', null],
+    ['Jane', 'Roe', 'Acme Corp'],
+  ], '"Ditullio, Alex" is the same person as "Alex Ditullio"')
+  // Pretend they were created; running again creates nothing.
+  const after = [...crm, ...first.create.map((c, i) => ({ id: `n${i}`, first_name: c.first_name, last_name: c.last_name }))]
+  assert.equal(planMissingClients(names, after).create.length, 0)
+  // ...and the purchase import now matches every one of those names.
+  const match = buildClientMatcher(after)
+  for (const n of names.filter((x) => x !== '(blank)')) assert.ok(match(n), `${n} should match after creation`)
+})
+
+t('Wardrobe Styling deposit / hourly lines count as service; item lines import as ready-made', () => {
+  const lines: IncomingPurchaseRow[] = [
+    { customer: 'Shane Bailey', date: '02/01/2024', invoice_id: '900', product: 'Wardrobe Styling:Deposit - Wardrobe', description: 'Retainer for hourly styling billed @ $150/hr', quantity: 4, amount: 600 },
+    { customer: 'Shane Bailey', date: '02/01/2024', invoice_id: '900', product: 'Wardrobe Styling:Hourly rate', description: '1 hour of in-person shopping time', quantity: 1, amount: 150 },
+    { customer: 'Shane Bailey', date: '02/01/2024', invoice_id: '900', product: 'Wardrobe Styling:Sene T-Shirt', description: 'White V-neck - M', quantity: 2, amount: 130 },
+    { customer: 'Shane Bailey', date: '02/01/2024', invoice_id: '900', product: 'Wardrobe Styling:Georg Roth Long Sleeve', description: 'Zip Mock Black LS Shirt - M', quantity: 1, amount: 98 },
+    { customer: 'Shane Bailey', date: '02/01/2024', invoice_id: '900', product: 'Wardrobe Styling:Georg Roth T-shirt', description: 'White V neck T-Shirt - M', quantity: 1, amount: 68 },
+    { customer: 'Shane Bailey', date: '02/01/2024', invoice_id: '900', product: 'Wardrobe Styling:Georg Roth T-shirt', description: 'Crew neck t-shirt', quantity: 1, amount: 68 },
+  ]
+  const plan = planPurchaseImport(lines, clients, [], TODAY)
+  assert.equal(plan.needsReview.length, 0, 'nothing left for manual review')
+  assert.equal(plan.serviceLines, 2, 'deposit + hourly rate')
+  const ready = plan.inserts.filter((i) => i.kind === 'ready_made').map((i) => i.payload)
+  assert.deepEqual(ready.map((p) => p.brand), ['Sene', 'Georg Roth', 'Georg Roth', 'Georg Roth'])
+  assert.deepEqual(ready.map((p) => p.product_name), [
+    'Wardrobe Styling:Sene T-Shirt', 'Wardrobe Styling:Georg Roth Long Sleeve',
+    'Wardrobe Styling:Georg Roth T-shirt', 'Wardrobe Styling:Georg Roth T-shirt',
+  ], 'product name follows the existing brand lines (e.g. "Wardrobe Styling:Paige Jeans")')
+  assert.equal(ready[0].price, 65, 'per item: $130 / 2 tees')
+  assert.equal(ready[0].quantity, 2)
+  assert.ok(ready.every((p) => p.category === 'other'))
+  const db = apply([], plan)
+  assert.equal(planPurchaseImport(lines, clients, db, TODAY).inserts.length, 0, 're-import adds nothing')
 })
 
 const REAL = '/Users/emersonsmith/Documents/test-crm-fixtures/sales_by_customer_detail.csv'
