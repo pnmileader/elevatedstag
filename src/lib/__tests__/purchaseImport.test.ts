@@ -98,11 +98,11 @@ t('invoice total is preserved exactly', () => {
   assert.equal(total(db, 'kline'), 675)
 })
 
-t('historical orders import as delivered, recent ones as ordered', () => {
+t('every imported order comes in as delivered, however recent (Katie tracks progress in Trinity)', () => {
   const plan = planPurchaseImport(rows, clients, [], TODAY)
   assert.ok(plan.inserts.filter((i) => i.kind === 'custom').every((i) => i.payload.status === 'delivered'))
   const recent = planPurchaseImport([{ customer: 'Shane Bailey', date: '09/10/2026', invoice_id: '3000', product: 'Wardrobe Styling:CSHT - Custom Shirt', description: 'New', quantity: 1, amount: 249 }], clients, [], TODAY)
-  assert.equal(recent.inserts[0].payload.status, 'ordered')
+  assert.equal(recent.inserts[0].payload.status, 'delivered')
 })
 
 t('re-importing the same file changes nothing (no duplicates)', () => {

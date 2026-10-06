@@ -93,8 +93,9 @@ const READY_MADE_CATEGORY: Record<string, string> = {
 
 /** A custom line with a quantity becomes that many garments. Guard against typos like qty 250. */
 const MAX_GARMENTS_PER_LINE = 25
-/** Imported history older than this is treated as already delivered (see dashboard "In Progress"). */
-const ASSUME_DELIVERED_AFTER_DAYS = 90
+/** Imported orders always land as delivered: Katie tracks production progress in Trinity, and nothing
+ *  in the CRM would ever move an imported order along. She can still change a status by hand. */
+const IMPORTED_ORDER_STATUS = 'delivered'
 
 export function clean(v: unknown): string | null {
   if (v === undefined || v === null) return null
@@ -275,12 +276,6 @@ export function planMissingClients(names: string[], clients: ImportClient[]): { 
   return { create, existing }
 }
 
-function isoDaysAgo(today: Date, days: number): string {
-  const d = new Date(today)
-  d.setDate(d.getDate() - days)
-  return d.toISOString().split('T')[0]
-}
-
 export function planPurchaseImport(
   rows: IncomingPurchaseRow[],
   clients: ImportClient[],
@@ -288,7 +283,6 @@ export function planPurchaseImport(
   today: Date = new Date(),
 ): ImportPlan {
   const matchClient = buildClientMatcher(clients)
-  const deliveredCutoff = isoDaysAgo(today, ASSUME_DELIVERED_AFTER_DAYS)
 
   // Pool of existing rows, bucketed by where a line "lives" (client + invoice, or
   // client + date when the report has no invoice number) and what it is.
@@ -384,7 +378,7 @@ export function planPurchaseImport(
             fabric_name: description || null,
             price,
             order_date: orderDate,
-            status: orderDate < deliveredCutoff ? 'delivered' : 'ordered',
+            status: IMPORTED_ORDER_STATUS,
             quickbooks_invoice_id: invoiceId,
           },
         })

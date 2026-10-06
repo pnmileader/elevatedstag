@@ -110,8 +110,8 @@ export default function DashboardPage() {
       ] = await Promise.all([
         supabase.from('clients').select('id', { count: 'exact', head: true }),
         stageCount('lead'), stageCount('active'), stageCount('vip'), stageCount('dormant'),
-        // In progress = not delivered AND ordered recently. Imported history
-        // lands as 'ordered', so a bare status check counted every old order.
+        // In progress = not delivered AND ordered recently. Imports now land as
+        // 'delivered'; the window still guards older rows set by hand.
         supabase
           .from('custom_orders')
           .select('id', { count: 'exact', head: true })
