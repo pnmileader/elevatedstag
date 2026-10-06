@@ -9,16 +9,20 @@ Tokens, scope "The Elevated Stag"). Note: `vercel deploy` itself rejects team-sc
 the script talks to the same API directly and works. The 1-day token used on 2026-09-22 should be deleted from the
 Vercel dashboard.
 
-## 2. Email "From" address — DNS, then it switches itself
-Katie wants `Katie Fore <katie@theelevatedstag.com>`. Resend will only send from a verified domain, and today only
-`mail.theelevatedstag.com` is verified (the root domain has no Resend DKIM/SPF records, and the API key is scoped to the
-`mail.` domain). The code now *tries* the root address first and falls back to `mail.` automatically, so nothing breaks.
-To finish:
-1. Resend → Domains → Add `theelevatedstag.com`, add the DKIM (`resend._domainkey`) + SPF/MX (`send.`) records it shows at the DNS host. The root domain's Google Workspace MX/SPF stay as they are.
-2. Create a Resend API key with access to that domain (or all domains) and set it as `RESEND_API_KEY` in Vercel.
-3. Done — the next email goes out from the root address. Optional env overrides: `EMAIL_FROM`, `EMAIL_FROM_FALLBACK`, `EMAIL_REPLY_TO`.
-
-Reply-To has always been `katie@theelevatedstag.com`.
+## 2. Email "From" address — two Resend fixes still needed (checked 2026-10-05)
+Katie wants `Katie Fore <katie@theelevatedstag.com>`. The code tries the root address first and falls back to
+`mail.` automatically, so nothing breaks meanwhile. After Katie added the DNS records (Oct 4), two things still block it:
+1. **API key scope.** Resend answers the CRM's key with "This API key is not authorized to send emails from
+   theelevatedstag.com" — the key in Vercel only covers `mail.`. Create a key with access to the root domain (or all
+   domains) and set it as `RESEND_API_KEY` in Vercel.
+2. **`send.` name collision.** `send.theelevatedstag.com` was already a CNAME to `send.forge.rmta.net` (some other
+   mail tool Katie set up earlier — that's the "duplicate" she noticed). A CNAME hides every other record at that name,
+   so Resend's SPF TXT + MX at `send.` can never verify. Fix without breaking that tool: in Resend, remove the root
+   domain and add it again with a **custom return path** (e.g. `bounce`), then have Katie add the new `bounce.` TXT/MX
+   (and the DKIM if it changes) and delete the `send.` records she added for Resend (leave the CNAME). If she confirms
+   the `forge.rmta.net` tool is unused, deleting that CNAME instead also works.
+The DKIM record (`resend._domainkey`) is already live and correct. Optional env overrides: `EMAIL_FROM`,
+`EMAIL_FROM_FALLBACK`, `EMAIL_REPLY_TO`. Reply-To has always been `katie@theelevatedstag.com`.
 
 ## 3. Full QuickBooks history — needs an "All Dates" export
 There is no date filter in the code. History is limited by the report Katie exports; the one on file covers
@@ -43,6 +47,20 @@ referral was backfilled. New referrals made in the app are linked by id from now
   RPC. Manual and group email are unaffected.
 - Google Calendar sync was retired in the May security pass; the calendar shows CRM appointments only (empty state now says so).
 - Security audit items U3–U5 (RLS verification SQL, Supabase auth hardening, Vercel deployment protection) are still open.
+
+## 6. Round 2 (Oct 2026) — setup Katie/Emerson must do
+- **Google Calendar in the CRM (read-only):** Katie → Google Calendar → Settings → her TES calendar → Integrate calendar →
+  *Secret address in iCal format* → send it to Emerson (treat it like a password). Set it as `GOOGLE_CALENDAR_ICAL_URL`
+  in Vercel (Production) and redeploy. Until then the calendar just shows CRM appointments + care items. If the
+  secret address is missing, her Workspace admin setting for calendar sharing is blocking it.
+- **CRM appointments on her Google Calendar:** automatic — every appointment created in the CRM emails an invite to
+  `OWNER_CALENDAR_EMAIL` (default katie@theelevatedstag.com) from "The Elevated Stag CRM". Gmail adds invitations to the
+  calendar if Google Calendar → Settings → *Add invitations to my calendar* allows it ("From everyone", or the sender is
+  known). E2E test clients never trigger it.
+- **Imported Jul–Sep 2026 orders** (128, from her All Dates import) are all status `ordered`, so the dashboard counts
+  them as In Progress. If most are already delivered, they should be bulk-marked delivered (her call).
+- **QuickBooks → CRM auto-sync** (Katie asked about Zapier): not built. Feasible as Zapier "QuickBooks Online → New
+  Customer" → Webhooks by Zapier (paid plan) → a small authenticated CRM endpoint.
 
 ## Data changes made to the live database this round (snapshots in `../test-crm-backup-final-round-20260920-204330/db-snapshots/`)
 - `email_templates`: literal `\n` → real line breaks (5 rows).
