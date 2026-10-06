@@ -187,7 +187,17 @@ test.describe('1. Dashboard', () => {
       .gte('order_date', cutoff.toISOString().slice(0, 10))
     await page.goto('/')
     await expect(page.getByTestId('stat-in-progress')).toHaveText(String(count ?? 0))
-    expect(count ?? 0).toBeLessThan(100) // was 361 — every imported historical order
+    // Orders outside the window never count, however many undelivered ones history holds.
+    const { count: allUndelivered } = await db
+      .from('custom_orders')
+      .select('id', { count: 'exact', head: true })
+      .neq('status', 'delivered')
+    const { count: oldUndelivered } = await db
+      .from('custom_orders')
+      .select('id', { count: 'exact', head: true })
+      .neq('status', 'delivered')
+      .lt('order_date', cutoff.toISOString().slice(0, 10))
+    expect((count ?? 0) + (oldUndelivered ?? 0)).toBe(allUndelivered ?? 0)
   })
 
   test('3.7 / 6.3 follow-up never shows fake day counts and the threshold is adjustable', async ({ page }) => {

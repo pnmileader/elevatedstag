@@ -275,7 +275,7 @@ function CalendarEntryRow({ entry }: { entry: CalendarEntry }) {
           <p className="font-body text-sm text-gray-dark flex items-center gap-1 mt-1">
             <User className="w-3 h-3" />
             {entry.clientId ? (
-              <Link href={`/clients/${entry.clientId}`} className="hover:text-body underline-offset-2 hover:underline">
+              <Link href={`/clients/${entry.clientId}`} className="inline-flex items-center min-h-[44px] -my-3 hover:text-body underline-offset-2 hover:underline">
                 {entry.clientName}
               </Link>
             ) : (
