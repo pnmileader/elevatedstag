@@ -8,6 +8,13 @@ import { createClient } from '@/lib/supabase'
 import Accordion from '@/components/motion/Accordion'
 import { SuccessCheck, useSuccessFlash } from '@/components/motion/SuccessCheck'
 import { useToast } from '@/components/motion/Toast'
+import {
+  FRACTIONS,
+  addFit,
+  formatMeasurement,
+  parseMeasurement,
+  type MeasurementValue,
+} from '@/lib/measurementMath'
 
 // ---------------------------------------------------------------------------
 // Field definitions per category
@@ -58,6 +65,9 @@ const PANT_FIELDS: Field[] = [
   { key: 'bottom', label: 'Bottom', fraction: true },
 ]
 
+// Shirt inputs. Keys are stored as-is in the 'shirt' row's JSON, so never
+// rename one (that would orphan saved data). On-screen order is set by the
+// row layout in the render, not by this list.
 const SHIRT_FIELDS: Field[] = [
   { key: 'finished_collar', label: 'Finished Collar', fraction: true },
   { key: 'finished_yoke', label: 'Finished Yoke', fraction: true },
@@ -68,11 +78,36 @@ const SHIRT_FIELDS: Field[] = [
   { key: 'actual_hips', label: 'Actual Hips', fraction: true },
   { key: 'hips_fit', label: 'Hips Fit', fraction: true },
   { key: 'armhole_sleeve_fit', label: 'Armhole / Sleeve Fit', fraction: true },
+  { key: 'finished_short_sleeve_left', label: 'Finished Short Sleeve (L)', fraction: true },
+  { key: 'finished_short_sleeve_right', label: 'Finished Short Sleeve (R)', fraction: true },
   { key: 'finished_sleeve_left', label: 'Finished Sleeve (L)', fraction: true },
   { key: 'finished_sleeve_right', label: 'Finished Sleeve (R)', fraction: true },
   { key: 'finished_cuff_left', label: 'Finished Cuff (L)', fraction: true },
   { key: 'finished_cuff_right', label: 'Finished Cuff (R)', fraction: true },
+  { key: 'finished_length', label: 'Finished Length', fraction: true },
 ]
+
+const SHIRT: Record<string, Field> = Object.fromEntries(SHIRT_FIELDS.map((f) => [f.key, f]))
+
+// Finished totals = actual + fit. Calculated, never typed: they are written into
+// the shirt JSON on save (so other screens can read them) but recomputed from
+// actual + fit on load rather than trusted.
+interface ShirtTotalDef {
+  key: string
+  label: string
+  actual: string
+  fit: string
+}
+
+const SHIRT_TOTALS: ShirtTotalDef[] = [
+  { key: 'finished_chest', label: 'Finished Chest', actual: 'actual_chest', fit: 'chest_fit' },
+  { key: 'finished_waist', label: 'Finished Waist', actual: 'actual_waist', fit: 'waist_fit' },
+  { key: 'finished_hips', label: 'Finished Hips', actual: 'actual_hips', fit: 'hips_fit' },
+]
+
+function shirtTotal(shirt: Record<string, MeasurementValue> | undefined, def: ShirtTotalDef): MeasurementValue | null {
+  return addFit(shirt?.[def.actual], shirt?.[def.fit])
+}
 
 // All categories that get persisted
 const ALL_CATEGORIES = [
@@ -92,28 +127,14 @@ const KEY_MEASUREMENTS: { category: string; key: string; label: string }[] = [
   { category: 'pant', key: 'skin_seat', label: 'Seat' },
 ]
 
-const FRACTIONS = ['', '1/8', '1/4', '3/8', '1/2', '5/8', '3/4', '7/8']
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-type MeasurementValue = { whole: string; fraction: string }
 type MeasurementsState = Record<string, Record<string, MeasurementValue>>
 
-function parseValue(raw: string): MeasurementValue {
-  const str = String(raw).trim()
-  const match = str.match(/^(\d+)?\s*(\d\/\d)?$/)
-  if (match) {
-    return { whole: match[1] || '', fraction: match[2] || '' }
-  }
-  return { whole: str, fraction: '' }
-}
-
-function combineValue(v: MeasurementValue): string {
-  if (v.fraction) return `${v.whole} ${v.fraction}`.trim()
-  return v.whole
-}
+const parseValue = parseMeasurement
+const combineValue = formatMeasurement
 
 // Height is feet + inches, stored as 5' 9". For height, `whole` holds feet and
 // `fraction` holds inches. Older rows stored a bare number ("5", "5 3/8", or
@@ -253,6 +274,161 @@ function MeasurementInput({
 }
 
 // ---------------------------------------------------------------------------
+// Shirt rows (modeled on Trinity): label on top, whole box + fraction select.
+//
+// Every cell is the same width (whole box + fraction select), and every cell
+// after the first in a row carries a fixed-width "operator" slot (+, =, or a
+// blank spacer), so the columns line up row to row on iPad. On a phone the
+// row wraps at item boundaries: "= Finished Chest" drops under as one unit, so
+// the + / = relation still reads. Blank spacers vanish below `sm`.
+// All module-level (see the note above MeasurementInput).
+// ---------------------------------------------------------------------------
+
+type ShirtChange = (category: string, field: string, type: 'whole' | 'fraction', value: string) => void
+
+const CELL_LABEL = 'font-body text-sm text-gray-dark leading-tight w-0 min-w-full'
+const TOTAL_BOX =
+  // Same 16px as inputs on touch screens (globals.css bumps input/select there).
+  'h-[44px] px-2 border border-gray-med rounded-md font-body text-sm [@media(hover:none)_and_(pointer:coarse)]:text-[16px] font-semibold text-body bg-gray-light flex items-center justify-center'
+
+function ShirtOp({ symbol }: { symbol?: '+' | '=' }) {
+  if (!symbol) return <span aria-hidden="true" className="hidden sm:block w-5 flex-shrink-0" />
+  return (
+    <span aria-hidden="true" className="w-5 h-[44px] flex-shrink-0 flex items-center justify-center font-heading text-lg text-gray-dark">
+      {symbol}
+    </span>
+  )
+}
+
+/** One shirt input. `label` is the visible text (e.g. "Left"); the input's accessible name is always the full field label. */
+function ShirtField({
+  field,
+  label,
+  value,
+  onChange,
+}: {
+  field: Field
+  label?: string
+  value: MeasurementValue | undefined
+  onChange: ShirtChange
+}) {
+  const id = `shirt-${field.key}`
+  return (
+    <div className="flex flex-col gap-1 w-fit">
+      <label htmlFor={id} className={label ? 'font-body text-xs text-gray-dark leading-tight' : CELL_LABEL}>
+        {label ?? field.label}
+      </label>
+      <div className="flex gap-1.5">
+        <input
+          id={id}
+          name={`shirt.${field.key}`}
+          data-field={field.key}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="off"
+          aria-label={label ? field.label : undefined}
+          value={value?.whole || ''}
+          onChange={(e) => onChange('shirt', field.key, 'whole', onlyDigits(e.target.value, 3))}
+          placeholder="0"
+          className={`${INPUT_CLASS} w-16`}
+        />
+        <select
+          aria-label={`${field.label} fraction`}
+          name={`shirt.${field.key}.fraction`}
+          value={value?.fraction || ''}
+          onChange={(e) => onChange('shirt', field.key, 'fraction', e.target.value)}
+          className="h-[44px] w-[4.5rem] px-1 border border-gray-med rounded-md font-body text-sm focus:outline-none focus:border-gold bg-white"
+        >
+          {FRACTIONS.map((f) => (
+            <option key={f} value={f}>
+              {f || '—'}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  )
+}
+
+/** Left + right pair under one label, e.g. "Finished Sleeve" (L) (R). */
+function ShirtPair({
+  label,
+  left,
+  right,
+  values,
+  onChange,
+}: {
+  label: string
+  left: Field
+  right: Field
+  values: Record<string, MeasurementValue> | undefined
+  onChange: ShirtChange
+}) {
+  const labelId = `shirt-${left.key}-group`
+  return (
+    <div role="group" aria-labelledby={labelId} className="flex flex-col gap-1">
+      <span id={labelId} className="font-body text-sm text-gray-dark leading-tight">{label}</span>
+      <div className="flex items-end gap-2">
+        <ShirtField field={left} label="Left" value={values?.[left.key]} onChange={onChange} />
+        <ShirtOp />
+        <ShirtField field={right} label="Right" value={values?.[right.key]} onChange={onChange} />
+      </div>
+    </div>
+  )
+}
+
+/** Read-only calculated total, styled like a whole box + fraction box but filled and not focusable. */
+function ShirtTotal({ def, value }: { def: ShirtTotalDef; value: MeasurementValue | null }) {
+  const id = `shirt-${def.key}`
+  const text = value ? formatMeasurement(value) : ''
+  return (
+    <div className="flex flex-col gap-1 w-fit">
+      <label htmlFor={id} className={CELL_LABEL}>{def.label}</label>
+      <output
+        id={id}
+        htmlFor={`shirt-${def.actual} shirt-${def.fit}`}
+        data-field={def.key}
+        data-value={text}
+        aria-live="polite"
+        className="flex gap-1.5"
+      >
+        <span className="sr-only">{text || 'Not calculated'}</span>
+        <span aria-hidden="true" className={`${TOTAL_BOX} w-16`}>{value?.whole ?? ''}</span>
+        <span aria-hidden="true" className={`${TOTAL_BOX} w-[4.5rem] ${value?.fraction ? '' : 'text-gray-dark font-normal'}`}>
+          {value?.fraction || '—'}
+        </span>
+      </output>
+    </div>
+  )
+}
+
+/** Actual + Fit = Finished total, one row. */
+function ShirtEquation({
+  def,
+  values,
+  onChange,
+}: {
+  def: ShirtTotalDef
+  values: Record<string, MeasurementValue> | undefined
+  onChange: ShirtChange
+}) {
+  return (
+    <div className="flex flex-wrap items-end gap-x-2 gap-y-2" data-testid={`shirt-row-${def.key}`}>
+      <ShirtField field={SHIRT[def.actual]} value={values?.[def.actual]} onChange={onChange} />
+      <div className="flex items-end gap-2">
+        <ShirtOp symbol="+" />
+        <ShirtField field={SHIRT[def.fit]} value={values?.[def.fit]} onChange={onChange} />
+      </div>
+      <div className="flex items-end gap-2">
+        <ShirtOp symbol="=" />
+        <ShirtTotal def={def} value={shirtTotal(values, def)} />
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -306,6 +482,8 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
             Object.entries(row.measurements as Record<string, string>).forEach(([key, value]) => {
               // Shoulder Reading used to be one box; carry an old value into (L).
               const targetKey = row.category === 'body' && key === 'shoulder_reading' ? 'shoulder_reading_left' : key
+              // Only known input keys load. Stored shirt totals (finished_chest etc.)
+              // are skipped on purpose: they are recomputed from actual + fit.
               if (initial[row.category][targetKey]) {
                 initial[row.category][targetKey] =
                   row.category === 'body' && targetKey === 'height' ? parseHeight(value) : parseValue(value)
@@ -354,6 +532,13 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
             vals[f.key] = f.kind === 'height' ? combineHeight(v) : combineValue(v)
           }
         })
+
+        if (category === 'shirt') {
+          for (const def of SHIRT_TOTALS) {
+            const total = shirtTotal(measurements.shirt, def)
+            if (total) vals[def.key] = combineValue(total)
+          }
+        }
 
         if (hasValues) {
           const { data: existing } = await supabase
@@ -587,16 +772,61 @@ export default function MeasurementsPage({ params }: { params: Promise<{ id: str
             testId="acc-shirt"
             title={<h3 className="font-heading text-base font-medium text-body">Shirt Measurements</h3>}
           >
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-1 border-t border-gray-med mt-2 pt-3">
-            {SHIRT_FIELDS.map((field) => (
-              <MeasurementInput
-                  key={field.key}
-                  category="shirt"
-                  field={field}
-                  value={measurements.shirt?.[field.key]}
+          <div className="flex flex-col gap-y-4 border-t border-gray-med mt-2 pt-3" data-testid="shirt-measurements">
+            {/* 1. Finished Collar | Finished Yoke */}
+            <div className="flex flex-wrap items-end gap-x-2 gap-y-2">
+              <ShirtField field={SHIRT.finished_collar} value={measurements.shirt?.finished_collar} onChange={updateMeasurement} />
+              <div className="flex items-end gap-2">
+                <ShirtOp />
+                <ShirtField field={SHIRT.finished_yoke} value={measurements.shirt?.finished_yoke} onChange={updateMeasurement} />
+              </div>
+            </div>
+
+            {/* 2–4. Actual + Fit = Finished (chest, waist, hips) */}
+            {SHIRT_TOTALS.map((def) => (
+              <ShirtEquation key={def.key} def={def} values={measurements.shirt} onChange={updateMeasurement} />
+            ))}
+
+            {/* 5. Armhole / Sleeve Fit | Finished Short Sleeve (L) (R) */}
+            <div className="flex flex-wrap items-end gap-x-2 gap-y-2">
+              <ShirtField field={SHIRT.armhole_sleeve_fit} value={measurements.shirt?.armhole_sleeve_fit} onChange={updateMeasurement} />
+              <div className="flex items-end gap-2">
+                <ShirtOp />
+                <ShirtPair
+                  label="Finished Short Sleeve"
+                  left={SHIRT.finished_short_sleeve_left}
+                  right={SHIRT.finished_short_sleeve_right}
+                  values={measurements.shirt}
                   onChange={updateMeasurement}
                 />
-            ))}
+              </div>
+            </div>
+
+            {/* 6. Finished Sleeve (L) (R) */}
+            <div className="flex flex-wrap items-end gap-x-2 gap-y-2">
+              <ShirtPair
+                label="Finished Sleeve"
+                left={SHIRT.finished_sleeve_left}
+                right={SHIRT.finished_sleeve_right}
+                values={measurements.shirt}
+                onChange={updateMeasurement}
+              />
+            </div>
+
+            {/* 7. Finished Cuff (L) (R) | Finished Length */}
+            <div className="flex flex-wrap items-end gap-x-2 gap-y-2">
+              <ShirtPair
+                label="Finished Cuff"
+                left={SHIRT.finished_cuff_left}
+                right={SHIRT.finished_cuff_right}
+                values={measurements.shirt}
+                onChange={updateMeasurement}
+              />
+              <div className="flex items-end gap-2">
+                <ShirtOp />
+                <ShirtField field={SHIRT.finished_length} value={measurements.shirt?.finished_length} onChange={updateMeasurement} />
+              </div>
+            </div>
           </div>
           </Accordion>
         </div>

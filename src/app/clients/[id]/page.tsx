@@ -412,7 +412,8 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                   {/* Key measurements highlight */}
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-4">
                     {[
-                      { label: 'Neck', value: shirtMeasurements?.measurements?.neck },
+                      // The measurements page stores the neck as shirt.finished_collar; `neck` is the legacy key.
+                      { label: 'Neck', value: shirtMeasurements?.measurements?.finished_collar || shirtMeasurements?.measurements?.neck },
                       { label: 'Chest', value: coatMeasurements?.measurements?.skin_chest },
                       { label: 'Coat Waist', value: coatMeasurements?.measurements?.skin_coat_waist },
                       { label: 'Waist', value: pantMeasurements?.measurements?.waist },
