@@ -246,6 +246,14 @@ t('Wardrobe Styling deposit / hourly lines count as service; item lines import a
   assert.equal(planPurchaseImport(lines, clients, db, TODAY).inserts.length, 0, 're-import adds nothing')
 })
 
+t('the same invoice from Zapier (product names without "Wardrobe Styling:") adds nothing', () => {
+  const db = apply([], planPurchaseImport(rows, clients, [], TODAY))
+  const fromApi = rows.map((r) => ({ ...r, product: String(r.product).replace(/^Wardrobe Styling:/, '') }))
+  const again = planPurchaseImport(fromApi, clients, db, TODAY)
+  assert.equal(again.inserts.length, 0)
+  assert.equal(again.updates.length, 0)
+})
+
 const REAL = '/Users/emersonsmith/Documents/test-crm-fixtures/sales_by_customer_detail.csv'
 if (fs.existsSync(REAL)) {
   t('real 12-month export: nothing is dropped as a "duplicate" any more', () => {

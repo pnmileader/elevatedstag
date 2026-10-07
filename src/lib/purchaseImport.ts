@@ -32,6 +32,10 @@ export type IncomingPurchaseRow = {
 
 export type ImportClient = { id: string; first_name: string | null; last_name: string | null }
 
+/** lastNameFallback: let a unique last name alone match (rule 4 below). On for Katie's reviewed
+ *  manual imports; off for the Zapier webhook, where nobody reviews a guess before it is saved. */
+export type MatchOptions = { lastNameFallback?: boolean }
+
 export type ExistingPurchaseRow = {
   id: string
   kind: 'custom' | 'ready_made'
@@ -172,6 +176,9 @@ export function unitPrice(amount: number | null, quantity: number): number | nul
 }
 
 const norm = (s: string | null | undefined) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ')
+/** Ready-made product names match with or without QuickBooks' "Section:" prefix — the sales report
+ *  says "Wardrobe Styling:Tie", the QuickBooks API (Zapier) may say just "Tie". */
+const productKey = (s: string | null | undefined) => norm(s).replace(/^[^:]*:\s*/, '')
 const money = (n: number | null | undefined) => (n === null || n === undefined ? null : Math.round(Number(n) * 100) / 100)
 
 /**
@@ -194,9 +201,9 @@ function relaxedKey(first: string | null | undefined, last: string | null | unde
  *   2. a one-word name against first-name-only clients
  *   3. same first + last word, ignoring middle names / initials on either side
  *      ("Andrew S Cohen" <-> "Andrew Cohen"), only when exactly ONE client fits
- *   4. the last name alone, only when exactly one client has it
+ *   4. the last name alone, only when exactly one client has it (unless lastNameFallback is false)
  */
-export function createClientIndex(clients: ImportClient[] = []) {
+export function createClientIndex(clients: ImportClient[] = [], { lastNameFallback = true }: MatchOptions = {}) {
   const byName = new Map<string, ImportClient>()
   const byLast = new Map<string, ImportClient[]>()
   const bySingle = new Map<string, ImportClient>()
@@ -222,6 +229,7 @@ export function createClientIndex(clients: ImportClient[] = []) {
     const relaxed = relaxedKey(first, last)
     const near = relaxed ? byRelaxed.get(relaxed) : undefined
     if (near && near.length === 1) return near[0]
+    if (!lastNameFallback) return null
     const candidates = byLast.get(norm(last))
     if (candidates && candidates.length === 1) return candidates[0]
     return null
@@ -230,8 +238,8 @@ export function createClientIndex(clients: ImportClient[] = []) {
   return { match, add }
 }
 
-export function buildClientMatcher(clients: ImportClient[]) {
-  return createClientIndex(clients).match
+export function buildClientMatcher(clients: ImportClient[], options?: MatchOptions) {
+  return createClientIndex(clients, options).match
 }
 
 /**
@@ -260,8 +268,8 @@ export type PlannedClient = { name: string; first_name: string; last_name: strin
  * this twice creates nothing the second time. Two spellings of one person in the
  * same request ("Andrew S Cohen", "Andrew Cohen") create a single client.
  */
-export function planMissingClients(names: string[], clients: ImportClient[]): { create: PlannedClient[]; existing: string[] } {
-  const index = createClientIndex(clients)
+export function planMissingClients(names: string[], clients: ImportClient[], options?: MatchOptions): { create: PlannedClient[]; existing: string[] } {
+  const index = createClientIndex(clients, options)
   const create: PlannedClient[] = []
   const existing: string[] = []
   for (const raw of names) {
@@ -281,14 +289,15 @@ export function planPurchaseImport(
   clients: ImportClient[],
   existing: ExistingPurchaseRow[],
   today: Date = new Date(),
+  options?: MatchOptions,
 ): ImportPlan {
-  const matchClient = buildClientMatcher(clients)
+  const matchClient = buildClientMatcher(clients, options)
 
   // Pool of existing rows, bucketed by where a line "lives" (client + invoice, or
   // client + date when the report has no invoice number) and what it is.
   const pool = new Map<string, ExistingPurchaseRow[]>()
   const bucketKey = (kind: string, clientId: string, invoiceId: string | null, date: string | null, product: string, description: string) =>
-    `${kind}|${clientId}|${invoiceId ? `inv:${norm(invoiceId)}` : `date:${date || ''}`}|${norm(product)}|${norm(description)}`
+    `${kind}|${clientId}|${invoiceId ? `inv:${norm(invoiceId)}` : `date:${date || ''}`}|${kind === 'ready_made' ? productKey(product) : norm(product)}|${norm(description)}`
   for (const e of existing) {
     const key = bucketKey(e.kind, e.client_id, e.invoice_id, e.date, e.product, e.description)
     pool.set(key, [...(pool.get(key) || []), e])
