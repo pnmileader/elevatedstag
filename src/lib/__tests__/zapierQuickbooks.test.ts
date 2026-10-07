@@ -131,4 +131,22 @@ t('customer with only a display name still imports; an empty one does not', () =
   assert.equal(customerFromZapier({ Id: '5' }), null)
 })
 
+t('Zapier invoice trigger: customer arrives as a whole "Customer" record, not CustomerRef', () => {
+  const rest: Record<string, unknown> = { ...INVOICE }
+  delete rest.CustomerRef
+  const zapier = { ...rest, Customer: { Id: '58', GivenName: 'Shane', FamilyName: 'Bailey', DisplayName: 'Shane Bailey' }, Lines: rest.Line }
+  const sale = saleFromZapier(zapier)
+  assert.ok(!('error' in sale), JSON.stringify(sale))
+  assert.equal(sale.customer, 'Shane Bailey')
+  assert.equal(sale.rows.length, 4)
+  const noDisplay = saleFromZapier({ ...rest, Customer: { GivenName: 'Shane', FamilyName: 'Bailey' } })
+  assert.ok(!('error' in noDisplay) && noDisplay.customer === 'Shane Bailey')
+  assert.ok(!('error' in saleFromZapier({ ...rest, Customer__DisplayName: 'Shane Bailey' })))
+})
+
+t('line items in an unknown shape fail loudly instead of saving an empty sale', () => {
+  const sale = saleFromZapier({ CustomerRef: { name: 'Ann Lee' }, Line: [{ foo: 1, bar: 2 }] })
+  assert.ok('error' in sale && /line keys: foo, bar/.test(sale.error))
+})
+
 console.log(`zapierQuickbooks: ${passed} passed`)

@@ -148,17 +148,44 @@ function explicitLines(s: Obj): Array<Omit<IncomingPurchaseRow, 'customer' | 'da
   }))
 }
 
+/**
+ * The QuickBooks API names the customer in CustomerRef.name, but Zapier's invoice and sales
+ * receipt triggers replace that with the whole customer record under "Customer".
+ */
+function customerName(s: Obj): string | undefined {
+  const named = first(s, 'CustomerRef.name', 'Customer.DisplayName', 'Customer.FullyQualifiedName', 'Customer.name', 'customer', 'customer_name')
+  if (named) return named
+  const given = [first(s, 'Customer.GivenName'), first(s, 'Customer.FamilyName')].filter(Boolean).join(' ')
+  return given || first(s, 'Customer.CompanyName')
+}
+
+/** Zapier sends line items as "Line" (QuickBooks' own) and sometimes also as "Lines". */
+function rawLines(s: Obj): unknown[] | undefined {
+  for (const key of ['Line', 'Lines']) {
+    const v = pick(s, key)
+    if (Array.isArray(v) && v.length > 0) return v
+    if (isObj(v)) return [v]
+  }
+  return undefined
+}
+
 export function saleFromZapier(body: unknown): ZapierSale | { error: string } {
   const s = unwrap(body, ['Invoice', 'SalesReceipt', 'invoice', 'sales_receipt', 'sale'])
-  const customer = first(s, 'CustomerRef.name', 'customer', 'customer_name') ?? null
+  const customer = customerName(s) ?? null
   const date = first(s, 'TxnDate', 'date', 'transaction_date') ?? null
   // The sales report's "Num" column is QuickBooks' DocNumber, so manual imports and Zapier agree.
   const invoiceId = first(s, 'DocNumber', 'invoice_number', 'num', 'number') ?? null
 
   let lines: Array<Omit<IncomingPurchaseRow, 'customer' | 'date' | 'invoice_id'>>
-  const raw = pick(s, 'Line') ?? pick(s, 'lines')
-  if (Array.isArray(raw)) {
+  const raw = rawLines(s)
+  if (raw) {
     lines = qboLines(raw)
+    // Lines we can't read at all (no DetailType) mean the payload shape changed: fail loudly
+    // instead of reporting a sale with nothing in it.
+    const unreadable = raw.find((l) => isObj(l) && !text(pick(l, 'DetailType')) && !first(l, 'ItemRef.name', 'product', 'item'))
+    if (lines.length === 0 && unreadable) {
+      return { error: `Couldn't read the line items (line keys: ${Object.keys(unreadable as Obj).slice(0, 20).join(', ')})` }
+    }
   } else {
     const explicit = explicitLines(s)
     if ('error' in explicit) return explicit

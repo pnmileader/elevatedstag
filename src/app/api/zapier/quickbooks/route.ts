@@ -29,6 +29,13 @@ function authorized(req: NextRequest): boolean {
 
 const keysOf = (v: unknown) => (v && typeof v === 'object' ? Object.keys(v as object).slice(0, 40) : [])
 
+/** Key names (never values) of the parts a sale is read from, so a rejected payload can be diagnosed. */
+function saleShape(body: unknown) {
+  const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>
+  const describe = (v: unknown) => (Array.isArray(v) ? { array: v.length, firstKeys: keysOf(v[0]) } : typeof v === 'object' && v ? { keys: keysOf(v) } : typeof v)
+  return { Customer: describe(b.Customer), CustomerRef: describe(b.CustomerRef), Line: describe(b.Line), Lines: describe(b.Lines) }
+}
+
 export async function POST(req: NextRequest) {
   if (!authorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -66,8 +73,8 @@ export async function POST(req: NextRequest) {
 
   const sale = saleFromZapier(body)
   if ('error' in sale) {
-    console.warn('[zapier] sale payload rejected:', sale.error, 'keys:', keysOf(body))
-    return NextResponse.json({ error: sale.error, keys: keysOf(body) }, { status: 422 })
+    console.warn('[zapier] sale payload rejected:', sale.error, 'shape:', JSON.stringify(saleShape(body)))
+    return NextResponse.json({ error: sale.error, keys: keysOf(body), shape: saleShape(body) }, { status: 422 })
   }
   if (sale.rows.length === 0) {
     return NextResponse.json({ success: true, outcome: 'no item lines', customer: sale.customer })
