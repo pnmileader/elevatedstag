@@ -59,10 +59,31 @@ function isCancelled(component: ICAL.Component): boolean {
   return String(component.getFirstPropertyValue('status') || '').toUpperCase() === 'CANCELLED'
 }
 
+const DAY_MS = 86_400_000
+const ymd = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '')
+
+/**
+ * Katie's feed holds every event she has ever had (8,000+, ~4 MB), and a full parse takes seconds.
+ * Before parsing, drop one-off events that can't touch the range, judged from the raw DTSTART/DTEND
+ * dates with a 2-day margin for time zones. Recurring series and their moved/edited occurrences are
+ * always kept, since an old series can still land in range.
+ */
+export function slimIcs(ics: string, rangeStart: Date, rangeEnd: Date): string {
+  const from = ymd(new Date(rangeStart.getTime() - 2 * DAY_MS))
+  const to = ymd(new Date(rangeEnd.getTime() + 2 * DAY_MS))
+  return ics.replace(/BEGIN:VEVENT\r?\n[\s\S]*?END:VEVENT\r?\n?/g, (block) => {
+    if (/^(RRULE|RDATE|RECURRENCE-ID)[;:]/m.test(block)) return block
+    const start = block.match(/^DTSTART[^:\r\n]*:(\d{8})/m)?.[1]
+    if (!start) return block
+    const end = block.match(/^DTEND[^:\r\n]*:(\d{8})/m)?.[1] ?? start
+    return start <= to && end >= from ? block : ''
+  })
+}
+
 export function parseIcalEvents(ics: string, rangeStart: Date, rangeEnd: Date): ExternalEvent[] {
   let root: ICAL.Component
   try {
-    root = new ICAL.Component(ICAL.parse(ics))
+    root = new ICAL.Component(ICAL.parse(slimIcs(ics, rangeStart, rangeEnd)))
   } catch {
     return []
   }

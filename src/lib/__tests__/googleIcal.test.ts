@@ -1,6 +1,6 @@
 // Run with: npx tsx src/lib/__tests__/googleIcal.test.ts
 import assert from 'node:assert/strict'
-import { parseIcalEvents, isAllowedIcalUrl } from '../googleIcal'
+import { parseIcalEvents, isAllowedIcalUrl, slimIcs } from '../googleIcal'
 
 let passed = 0
 const t = (name: string, fn: () => void) => { fn(); passed++; console.log(`  ok  ${name}`) }
@@ -106,6 +106,18 @@ t('leaves out CRM invites, cancelled events, and anything outside the window; so
   assert.ok(!titles.includes('Old thing'))
   assert.deepEqual(titles, ['Staff meeting', 'Trunk show', 'Staff meeting (moved)'])
   assert.equal(new Set(events.map((e) => e.id)).size, events.length)
+})
+
+t('pre-filter drops far-off one-off events but keeps series, moved occurrences, and long events spanning the range', () => {
+  const trip = ['BEGIN:VEVENT', 'UID:trip-1@google.com', 'SUMMARY:Market trip', 'DTSTART;VALUE=DATE:20260920', 'DTEND;VALUE=DATE:20261010', 'END:VEVENT'].join('\r\n')
+  const feed = FEED.replace('END:VCALENDAR', `${trip}\r\nEND:VCALENDAR`)
+  const slim = slimIcs(feed, rangeStart, rangeEnd)
+  assert.ok(!slim.includes('Old thing'))
+  assert.ok(slim.includes('UID:weekly-123@google.com'))
+  assert.ok(slim.includes('Staff meeting (moved)'))
+  assert.ok(slim.includes('Market trip'))
+  assert.ok(slim.includes('BEGIN:VTIMEZONE') && slim.trimEnd().endsWith('END:VCALENDAR'))
+  assert.ok(parseIcalEvents(feed, rangeStart, rangeEnd).some((e) => e.title === 'Market trip'))
 })
 
 t('garbage input yields no events instead of throwing', () => {
