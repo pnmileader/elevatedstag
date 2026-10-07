@@ -10,6 +10,7 @@ export type CalendarEntry = {
   day: string // YYYY-MM-DD, local
   allDay: boolean
   start: string // ISO for timed entries, YYYY-MM-DD for all-day
+  end?: string | null // same format as start; all-day ends are exclusive (the day after)
   title: string
   clientId: string | null
   clientName: string
@@ -24,6 +25,7 @@ export type AppointmentInput = {
   title: string | null
   appointment_type: string | null
   start_time: string
+  end_time?: string | null
   location: string | null
   client_id: string | null
   client?: Person
@@ -61,6 +63,7 @@ export function buildCalendarDays(
       day: localISODate(new Date(a.start_time)),
       allDay: false,
       start: a.start_time,
+      end: a.end_time ?? null,
       title: a.title || prettyAppointmentType(a.appointment_type),
       clientId: a.client_id,
       clientName: fullName(a.client),
@@ -84,6 +87,7 @@ export function buildCalendarDays(
       day: g.allDay ? g.start : localISODate(new Date(g.start)),
       allDay: g.allDay,
       start: g.start,
+      end: g.end,
       title: g.title,
       clientId: null,
       clientName: '',

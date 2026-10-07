@@ -5,16 +5,16 @@ import Link from 'next/link'
 import { Phone } from 'lucide-react'
 import Layout from '@/components/Layout'
 import { createClient } from '@/lib/supabase'
-import { formatDateOnly, monthsAgoISO, parseDateOnly } from '@/lib/dates'
+import { formatDateOnly, localISODate, monthsAgoISO, parseDateOnly } from '@/lib/dates'
 import { THANK_YOU_TYPE } from '@/lib/careItems'
 import { buildCalendarDays, type AppointmentInput, type CalendarEntry } from '@/lib/calendarView'
 import type { ExternalEvent } from '@/lib/googleIcal'
-import CalendarEntryRow from '@/components/CalendarEntryRow'
+import DayCalendar from '@/components/DayCalendar'
 import DashboardCareItems, { type DashboardCareItem } from '@/components/DashboardCareItems'
 import type { ComboClient } from '@/components/ClientCombobox'
 
-// Katie's dashboard (Oct 2026): what she acts on in the field — care items, the week ahead,
-// and a call list. Revenue and client counts live in QuickBooks, which has the full picture.
+// Katie's dashboard (Oct 2026): what she acts on in the field — care items, today's schedule
+// (laid out like Google Calendar's day view), and a call list. Revenue and client counts live in QuickBooks, which has the full picture.
 
 type Person = { first_name: string | null; last_name: string | null } | null
 const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? v[0] ?? null : v ?? null)
@@ -32,7 +32,7 @@ type GoogleStatus = 'off' | 'on' | 'error'
 interface DashboardData {
   careItems: DashboardCareItem[]
   clients: ComboClient[]
-  week: Array<{ day: string; entries: CalendarEntry[] }>
+  today: { day: string; entries: CalendarEntry[] }
   googleStatus: GoogleStatus
   overdue: OverdueClient[]
 }
@@ -48,10 +48,10 @@ export default function DashboardPage() {
     async function load() {
       const supabase = createClient()
       const now = new Date()
-      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      const weekEnd = new Date(weekStart.getTime() + 7 * 86_400_000 - 1)
+      const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
 
-      const google = fetch(`/api/calendar/google?start=${encodeURIComponent(weekStart.toISOString())}&end=${encodeURIComponent(weekEnd.toISOString())}`)
+      const google = fetch(`/api/calendar/google?start=${encodeURIComponent(dayStart.toISOString())}&end=${encodeURIComponent(dayEnd.toISOString())}`)
         .then(async (res) => {
           const body = (await res.json()) as { configured?: boolean; events?: ExternalEvent[]; error?: string }
           return { status: (!body.configured ? 'off' : body.error ? 'error' : 'on') as GoogleStatus, events: body.events ?? [] }
@@ -67,9 +67,10 @@ export default function DashboardPage() {
         supabase.from('clients').select('id, first_name, last_name, email').order('last_name').range(0, 4999),
         supabase
           .from('appointments')
-          .select('id, title, appointment_type, start_time, location, client_id, client:clients(first_name, last_name)')
-          .gte('start_time', weekStart.toISOString())
-          .lte('start_time', weekEnd.toISOString())
+          .select('id, title, appointment_type, start_time, end_time, location, client_id, client:clients(first_name, last_name)')
+          // From yesterday too, so a late-night appointment running past midnight still shows.
+          .gte('start_time', new Date(dayStart.getTime() - 86_400_000).toISOString())
+          .lt('start_time', dayEnd.toISOString())
           .order('start_time', { ascending: true }),
         supabase
           .from('clients')
@@ -86,7 +87,10 @@ export default function DashboardPage() {
       setData({
         careItems: (careRes.data || []).map((r) => ({ ...r, client: one(r.client) })) as unknown as DashboardCareItem[],
         clients: (clientsRes.data || []) as ComboClient[],
-        week: buildCalendarDays(appointments, [], googleRes.events),
+        today: {
+          day: localISODate(dayStart),
+          entries: buildCalendarDays(appointments, [], googleRes.events).flatMap((d) => d.entries),
+        },
         googleStatus: googleRes.status,
         overdue: (overdueRes.data || []) as OverdueClient[],
       })
@@ -107,43 +111,37 @@ export default function DashboardPage() {
     <Layout currentPage="dashboard" title="Dashboard">
       <div className="flex flex-col gap-6 t-skel-content" data-testid="dashboard-content">
         <DashboardCareItems initialItems={data.careItems} clients={data.clients} />
-        <ThisWeek days={data.week} googleStatus={data.googleStatus} />
+        <Today day={data.today.day} entries={data.today.entries} googleStatus={data.googleStatus} />
         <OverdueForAppointment clients={data.overdue} />
       </div>
     </Layout>
   )
 }
 
-function ThisWeek({ days, googleStatus }: { days: Array<{ day: string; entries: CalendarEntry[] }>; googleStatus: GoogleStatus }) {
+function Today({ day, entries, googleStatus }: { day: string; entries: CalendarEntry[]; googleStatus: GoogleStatus }) {
   return (
-    <section data-testid="dash-week">
+    <section data-testid="dash-today">
       <div className="es-section-header justify-between">
-        <span>This Week</span>
+        <span>
+          Today{' '}
+          <span className="ml-1 normal-case tracking-normal text-ink-muted">
+            {parseDateOnly(day)!.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+          </span>
+        </span>
         <Link href="/calendar" className="min-h-[44px] -my-3 inline-flex items-center normal-case tracking-normal font-body text-sm font-medium text-gray-dark hover:text-body">
           Calendar
         </Link>
       </div>
       {googleStatus !== 'on' && (
-        <p className="font-body text-xs text-ink-muted px-[20px] pt-1 pb-2" data-testid="dash-week-google-note">
+        <p className="font-body text-xs text-ink-muted px-[20px] pt-1 pb-2" data-testid="dash-today-google-note">
           {googleStatus === 'off'
             ? 'Showing CRM appointments. Your Google Calendar will appear here once it’s connected.'
             : 'Couldn’t load your Google Calendar right now. Showing CRM appointments.'}
         </p>
       )}
-      {days.length === 0 ? (
-        <p className="font-body text-sm text-gray-dark px-[20px] py-3">Nothing scheduled in the next 7 days.</p>
-      ) : (
-        days.map(({ day, entries }) => (
-          <div key={day}>
-            <div className="bg-gray-light px-[20px] py-1.5 font-body text-xs font-medium text-gray-dark">
-              {parseDateOnly(day)!.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-            </div>
-            {entries.map((entry) => (
-              <CalendarEntryRow key={entry.key} entry={entry} />
-            ))}
-          </div>
-        ))
-      )}
+      <div className="pt-3 pb-2">
+        <DayCalendar day={day} entries={entries} />
+      </div>
     </section>
   )
 }
@@ -204,7 +202,7 @@ function DashboardSkeleton() {
   const bar = (w: number | string, h: number) => <div className="es-skeleton" style={{ width: w, height: h }} />
   return (
     <div className="flex flex-col gap-6" data-testid="dashboard-skeleton" aria-busy="true" aria-label="Loading dashboard">
-      {['Care Items Due', 'This Week', 'Overdue for an Appointment'].map((title) => (
+      {['Care Items Due', 'Today', 'Overdue for an Appointment'].map((title) => (
         <section key={title}>
           <div className="es-section-header">{title}</div>
           {[0, 1, 2].map((i) => (

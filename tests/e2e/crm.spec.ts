@@ -478,7 +478,7 @@ test.describe('5. Navigation + smoke', () => {
 
   test('dashboard loads with all widgets', async ({ page }) => {
     await page.goto('/')
-    for (const heading of ['Care Items Due', 'This Week', 'Overdue for an Appointment']) {
+    for (const heading of ['Care Items Due', 'Today', 'Overdue for an Appointment']) {
       await expect(page.getByText(heading, { exact: false }).first()).toBeVisible()
     }
   })

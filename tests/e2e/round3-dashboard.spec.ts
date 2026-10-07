@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { signedInDb, ensureTestClient, cleanup } from './fixtures'
 
 // Round 3: Katie's dashboard — Care Items Due (To Dos / Follow Ups, add/edit/complete/delete with a
-// client lookup), This Week, and Overdue for an Appointment (no purchase in 6+ months, with phone).
+// client lookup), Today (a Google-style day view), and Overdue for an Appointment (no purchase in 6+ months, with phone).
 
 let db: SupabaseClient
 let dashyId: string
@@ -37,10 +37,10 @@ async function openDashboard(page: Page) {
 }
 
 test.describe('Round 3 — Dashboard', () => {
-  test('shows only Care Items Due, This Week, and Overdue for an Appointment', async ({ page }) => {
+  test('shows only Care Items Due, Today, and Overdue for an Appointment', async ({ page }) => {
     await openDashboard(page)
     await expect(page.getByTestId('dash-care')).toBeVisible()
-    await expect(page.getByTestId('dash-week')).toBeVisible()
+    await expect(page.getByTestId('dash-today')).toBeVisible()
     await expect(page.getByTestId('dash-overdue')).toBeVisible()
     for (const gone of ['Revenue', 'Clients by Stage', 'Needs Follow-Up', 'Recent Orders', 'Deadlines']) {
       await expect(page.getByText(gone, { exact: true })).toHaveCount(0)
@@ -97,16 +97,32 @@ test.describe('Round 3 — Dashboard', () => {
     expect(data).toEqual([])
   })
 
-  test('This Week shows a CRM appointment in the next 7 days', async ({ page }) => {
-    const start = new Date(); start.setDate(start.getDate() + 1); start.setHours(14, 0, 0, 0)
-    const res = await page.request.post('/api/appointments', {
-      data: { client_id: dashyId, appointment_type: 'fitting', title: 'E2E Dash Fitting', start_time: start.toISOString(), end_time: new Date(start.getTime() + 3_600_000).toISOString() },
-    })
-    expect(res.status()).toBeLessThan(300)
+  test('Today lays out today only, as boxes on an hour grid like Google Calendar', async ({ page }) => {
+    const book = async (title: string, daysAhead: number, hour: number, minutes: number) => {
+      const start = new Date(); start.setDate(start.getDate() + daysAhead); start.setHours(hour, 0, 0, 0)
+      const res = await page.request.post('/api/appointments', {
+        data: { client_id: dashyId, appointment_type: 'fitting', title, start_time: start.toISOString(), end_time: new Date(start.getTime() + minutes * 60_000).toISOString() },
+      })
+      expect(res.status()).toBeLessThan(300)
+    }
+    await book('E2E Dash Fitting', 0, 14, 60)
+    await book('E2E Dash Overlap', 0, 14, 30)
+    await book('E2E Dash Tomorrow', 1, 14, 60)
     await openDashboard(page)
-    const week = page.getByTestId('dash-week')
-    await expect(week.getByText('E2E Dash Fitting')).toBeVisible()
-    await expect(week).toContainText('2:00 PM')
+    const today = page.getByTestId('dash-today')
+    const fitting = today.getByTestId('day-block-appointment').filter({ hasText: 'E2E Dash Fitting' })
+    const overlap = today.getByTestId('day-block-appointment').filter({ hasText: 'E2E Dash Overlap' })
+    await expect(fitting).toContainText('2:00 – 3:00 PM')
+    await expect(fitting).toHaveAttribute('href', `/clients/${dashyId}`)
+    await expect(today.getByText('E2E Dash Tomorrow')).toHaveCount(0)
+    await expect(today.getByText('2 PM', { exact: true })).toBeVisible()
+
+    // The 1-hour box is twice as tall as the 30-minute one, and they sit side by side at the same time.
+    const a = (await fitting.boundingBox())!
+    const b = (await overlap.boundingBox())!
+    expect(Math.abs(a.y - b.y)).toBeLessThan(2)
+    expect(a.height / b.height).toBeGreaterThan(1.8)
+    expect(a.x + a.width).toBeLessThanOrEqual(b.x + 1)
   })
 
   test('Overdue for an Appointment lists clients with no purchase in 6+ months, with a tap-to-call phone', async ({ page }) => {
