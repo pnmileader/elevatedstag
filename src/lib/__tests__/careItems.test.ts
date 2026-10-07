@@ -1,6 +1,6 @@
 // Run with: npx tsx src/lib/__tests__/careItems.test.ts
 import assert from 'node:assert/strict'
-import { careLabel, parseLocalDate, formatDueDate, isOverdue, latestThankYouNote, listableCareItems, type CareItemLike } from '../careItems'
+import { careLabel, parseLocalDate, formatDueDate, isOverdue, latestThankYouNote, listableCareItems, groupCareItems, type CareItemLike } from '../careItems'
 
 let passed = 0
 const t = (name: string, fn: () => void) => { fn(); passed++; console.log(`  ok  ${name}`) }
@@ -47,6 +47,20 @@ t('the Thank You Note line uses the newest thank-you item; the list leaves thank
   assert.equal(latestThankYouNote(items)?.id, 'b')
   assert.deepEqual(listableCareItems(items).map((i) => i.id), ['c', 'd'])
   assert.equal(latestThankYouNote([item({})]), null)
+})
+
+t('dashboard groups open items into To Dos and Follow Ups: dated first by due date, undated last, no thank-you notes or completed items', () => {
+  const items = [
+    item({ id: 'f2', item_type: 'follow_up', due_date: '2026-10-20' }),
+    item({ id: 't0', item_type: 'to_do', due_date: null }),
+    item({ id: 'f1', item_type: 'follow_up_2week', due_date: '2026-10-01' }),
+    item({ id: 't1', item_type: 'custom', due_date: '2026-10-12' }),
+    item({ id: 'done', item_type: 'to_do', due_date: '2026-10-02', completed: true }),
+    item({ id: 'ty', item_type: 'thank_you_note', due_date: '2026-10-03' }),
+  ]
+  const g = groupCareItems(items)
+  assert.deepEqual(g.toDos.map((i) => i.id), ['t1', 't0'])
+  assert.deepEqual(g.followUps.map((i) => i.id), ['f1', 'f2'])
 })
 
 console.log(`careItems: ${passed} passed`)

@@ -20,3 +20,21 @@ export function daysUntil(value: string | null | undefined, now: Date = new Date
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   return Math.round((d.getTime() - today.getTime()) / 86_400_000) // round absorbs DST's 23/25-hour days
 }
+
+/** YYYY-MM-DD for the same day `months` calendar months back (clamped to the month's last day). */
+export function monthsAgoISO(months: number, now: Date = new Date()): string {
+  const target = new Date(now.getFullYear(), now.getMonth() - months, 1)
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  target.setDate(Math.min(now.getDate(), lastDay))
+  const m = String(target.getMonth() + 1).padStart(2, '0')
+  const d = String(target.getDate()).padStart(2, '0')
+  return `${target.getFullYear()}-${m}-${d}`
+}
+
+/** YYYY-MM-DD from LOCAL date parts. toISOString() shifts to UTC, which moves the day
+ *  for anyone east of Greenwich or late at night. */
+export function localISODate(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${day}`
+}

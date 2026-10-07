@@ -1,6 +1,6 @@
 // Merges the three things the CRM calendar shows into one day-by-day list:
 // CRM appointments, dated Client Care items, and (read-only) Google Calendar events.
-import { localISODate } from './dashboard'
+import { localISODate } from './dates'
 import { careLabel } from './careItems'
 import type { ExternalEvent } from './googleIcal'
 

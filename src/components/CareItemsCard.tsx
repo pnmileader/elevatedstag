@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { Plus, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import CareItemForm, { type CareItemValues } from '@/components/CareItemForm'
 import {
-  CARE_TYPE_OPTIONS,
   THANK_YOU_TYPE,
   careLabel,
   formatDueDate,
@@ -32,17 +32,10 @@ type CareItemsCardProps = {
 export default function CareItemsCard({ clientId, initialItems }: CareItemsCardProps) {
   const [items, setItems] = useState<CareItem[]>(initialItems)
   const [showForm, setShowForm] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null)
 
   const [savingThankYou, setSavingThankYou] = useState(false)
-
-  const [newItem, setNewItem] = useState({
-    title: '',
-    item_type: 'to_do',
-    due_date: '',
-  })
 
   const thankYou = latestThankYouNote(items)
 
@@ -103,31 +96,24 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
     setTogglingId(null)
   }
 
-  const handleAddItem = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newItem.title.trim()) return
-
-    setSaving(true)
+  const handleAddItem = async (values: CareItemValues) => {
     const supabase = createClient()
-
     const { data, error } = await supabase
       .from('client_care_items')
       .insert({
         client_id: clientId,
-        title: newItem.title.trim(),
-        item_type: newItem.item_type,
-        due_date: newItem.due_date || null,
+        title: values.title,
+        item_type: values.item_type,
+        due_date: values.due_date || null,
         completed: false,
       })
       .select()
       .single()
 
     if (!error && data) {
-      setItems([...items, data])
-      setNewItem({ title: '', item_type: 'to_do', due_date: '' })
+      setItems((prev) => [...prev, data])
       setShowForm(false)
     }
-    setSaving(false)
   }
 
   const handleDeleteConfirm = async (itemId: string) => {
@@ -171,58 +157,9 @@ export default function CareItemsCard({ clientId, initialItems }: CareItemsCardP
 
       {/* Add Item Form */}
       {showForm && (
-        <form onSubmit={handleAddItem} className="mb-4 p-3 bg-gray-light rounded">
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <select
-                value={newItem.item_type}
-                onChange={(e) => setNewItem({ ...newItem, item_type: e.target.value })}
-                aria-label="Type"
-                data-testid="care-type-select"
-                className="min-h-[44px] min-w-0 px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold bg-white"
-              >
-                {CARE_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              <input
-                type="date"
-                value={newItem.due_date}
-                onChange={(e) => setNewItem({ ...newItem, due_date: e.target.value })}
-                aria-label="Due date"
-                data-testid="care-due-input"
-                className="min-h-[44px] min-w-0 px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold bg-white"
-              />
-            </div>
-            <input
-              type="text"
-              value={newItem.title}
-              onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
-              placeholder="Brief description, e.g. Needs shirts"
-              aria-label="Description"
-              data-testid="care-title-input"
-              className="w-full min-h-[44px] px-3 py-2 border border-gray-med rounded font-body text-sm focus:outline-none focus:border-gold"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="flex-1 min-h-[44px] px-3 py-2 border border-gray-med rounded font-body text-sm text-gray-dark hover:bg-white transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving || !newItem.title.trim()}
-                data-testid="care-save"
-                className="flex-1 min-h-[44px] px-3 py-2 bg-body text-white rounded font-body text-sm font-medium hover:bg-body-hover disabled:bg-gray-med transition-colors flex items-center justify-center gap-2"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
-              </button>
-            </div>
-          </div>
-        </form>
+        <div className="mb-4">
+          <CareItemForm submitLabel="Add" onSubmit={handleAddItem} onCancel={() => setShowForm(false)} />
+        </div>
       )}
 
       {/* Fixed Thank You Note line */}

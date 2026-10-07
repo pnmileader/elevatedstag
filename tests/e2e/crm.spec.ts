@@ -152,82 +152,7 @@ test.describe('1. Client care (mobile)', () => {
   })
 })
 
-test.describe('1. Dashboard', () => {
-  test('1.9 revenue = custom + ready-made for the right months (checked against the database)', async ({ page }) => {
-    const now = new Date()
-    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    const thisStart = iso(new Date(now.getFullYear(), now.getMonth(), 1))
-    const lastStart = iso(new Date(now.getFullYear(), now.getMonth() - 1, 1))
-    const lastEnd = iso(new Date(now.getFullYear(), now.getMonth(), 0))
-    const [{ data: co }, { data: rm }] = await Promise.all([
-      db.from('custom_orders').select('order_date, price').gte('order_date', lastStart),
-      db.from('ready_made_purchases').select('purchase_date, price, quantity').gte('purchase_date', lastStart),
-    ])
-    const sum = (from: string, to?: string) =>
-      (co || []).filter((o) => o.order_date >= from && (!to || o.order_date <= to)).reduce((a, o) => a + Number(o.price || 0), 0) +
-      (rm || []).filter((p) => p.purchase_date >= from && (!to || p.purchase_date <= to)).reduce((a, p) => a + Number(p.price || 0) * (Number(p.quantity) > 0 ? Number(p.quantity) : 1), 0)
-    const fmt = (n: number) => `$${Math.round(n * 100) / 100 === 0 ? '0' : (Math.round(n * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
-
-    await page.goto('/')
-    await expect(page.getByTestId('revenue-this-month')).toHaveText(fmt(sum(thisStart)))
-    await expect(page.getByTestId('revenue-last-month')).toHaveText(fmt(sum(lastStart, lastEnd)))
-
-    // When the newest sale on file is over a month old, say so instead of showing a bare $0.
-    const { data: newest } = await db.from('custom_orders').select('order_date').order('order_date', { ascending: false }).limit(1)
-    const ageDays = newest?.[0] ? (Date.now() - new Date(newest[0].order_date).getTime()) / 86_400_000 : 0
-    if (ageDays > 40) await expect(page.getByTestId('sales-data-stale')).toBeVisible()
-  })
-
-  test('1.10 In Progress only counts recent, undelivered orders', async ({ page }) => {
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 180)
-    const { count } = await db
-      .from('custom_orders')
-      .select('id', { count: 'exact', head: true })
-      .neq('status', 'delivered')
-      .gte('order_date', cutoff.toISOString().slice(0, 10))
-    await page.goto('/')
-    await expect(page.getByTestId('stat-in-progress')).toHaveText(String(count ?? 0))
-    // Orders outside the window never count, however many undelivered ones history holds.
-    const { count: allUndelivered } = await db
-      .from('custom_orders')
-      .select('id', { count: 'exact', head: true })
-      .neq('status', 'delivered')
-    const { count: oldUndelivered } = await db
-      .from('custom_orders')
-      .select('id', { count: 'exact', head: true })
-      .neq('status', 'delivered')
-      .lt('order_date', cutoff.toISOString().slice(0, 10))
-    expect((count ?? 0) + (oldUndelivered ?? 0)).toBe(allUndelivered ?? 0)
-  })
-
-  test('3.7 / 6.3 follow-up never shows fake day counts and the threshold is adjustable', async ({ page }) => {
-    await page.goto('/')
-    const section = page.getByTestId('follow-up')
-    await expect(section.getByTestId('follow-up-days')).toHaveValue('90')
-    await expect(section).not.toContainText('999')
-    await expect(section).not.toContainText('Never' + 'd')
-    const rows = section.getByTestId('follow-up-row')
-    await expect(rows.first()).toBeVisible()
-    await section.getByTestId('follow-up-days').selectOption('365')
-    await expect(section.getByTestId('follow-up-days')).toHaveValue('365')
-  })
-
-  test('3.8 / 6.2 recent orders show one row per client per order date', async ({ page }) => {
-    await page.goto('/')
-    const rows = page.getByTestId('recent-order-row')
-    await expect(rows.first()).toBeVisible()
-    const texts = await rows.allInnerTexts()
-    const keys = texts.map((t) => t.split('\n').slice(0, 2).join('|').replace(/ · .*/, ''))
-    expect(new Set(keys).size).toBe(keys.length)
-    expect(texts.join(' ')).toMatch(/\d+ items?/)
-  })
-
-  test('6.1 stage filter chips link to the filtered client list', async ({ page }) => {
-    await page.goto('/')
-    await page.getByTestId('stage-filter-active').click()
-    await expect(page).toHaveURL(/\/clients\?stage=active/)
-  })
-})
+// Dashboard tests moved to round3-dashboard.spec.ts (Katie's Oct 2026 dashboard: care items, week, call list).
 
 // ---------------------------------------------------------------------------
 // SECTION 3 — features
@@ -485,17 +410,14 @@ test.describe('4. Transitions', () => {
     await expect(toast).toHaveCount(0, { timeout: 8000 }) // it dismisses itself
   })
 
-  test('4.8 + 4.9 dashboard shows a skeleton, then numbers pop in', async ({ page }) => {
+  test('4.8 dashboard shows a skeleton, then the content reveals over it', async ({ page }) => {
     // slow the data down so the skeleton is observable
     await page.route('**/rest/v1/**', async (route) => { await new Promise((r) => setTimeout(r, 700)); await route.continue() })
     await page.goto('/')
     await expect(page.getByTestId('dashboard-skeleton')).toBeVisible()
     await expect(page.getByTestId('dashboard-content')).toBeVisible()
     await expect(page.getByTestId('dashboard-skeleton')).toHaveCount(0)
-    const total = page.getByTestId('stat-total-clients')
-    await expect(total).toHaveClass(/is-animating/)
-    expect(await total.locator('.t-digit').count()).toBeGreaterThan(0)
-    expect(await total.locator('.t-digit').first().evaluate((el) => getComputedStyle(el).animationName)).toBe('t-digit-pop-in')
+    await expect(page.getByTestId('dashboard-content')).toHaveClass(/t-skel-content/)
   })
 
   test('4.10 measurement sections are accordions on a phone and always open on iPad', async ({ page }) => {
@@ -556,10 +478,9 @@ test.describe('5. Navigation + smoke', () => {
 
   test('dashboard loads with all widgets', async ({ page }) => {
     await page.goto('/')
-    for (const heading of ['Revenue', 'Clients by Stage', 'Needs Follow-Up', 'Recent Orders']) {
+    for (const heading of ['Care Items Due', 'This Week', 'Overdue for an Appointment']) {
       await expect(page.getByText(heading, { exact: false }).first()).toBeVisible()
     }
-    expect(await page.getByTestId('revenue-this-month').textContent()).toMatch(/^\$[\d,]+$/)
   })
 
   test('client profile loads with all sections', async ({ page }) => {

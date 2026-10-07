@@ -2,240 +2,100 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Phone } from 'lucide-react'
 import Layout from '@/components/Layout'
-import PopNumber from '@/components/motion/PopNumber'
 import { createClient } from '@/lib/supabase'
-import { clientDisplayName, clientInitials } from '@/lib/clientDisplay'
-import { careLabel, formatDueDate, isOverdue } from '@/lib/careItems'
-import {
-  daysSince,
-  groupRecentOrders,
-  lineTotal,
-  localISODate,
-  monthBounds,
-  revenueBetween,
-  type OrderGroup,
-  type SaleLine,
-} from '@/lib/dashboard'
-import { daysUntil } from '@/lib/dates'
+import { formatDateOnly, monthsAgoISO, parseDateOnly } from '@/lib/dates'
+import { THANK_YOU_TYPE } from '@/lib/careItems'
+import { buildCalendarDays, type AppointmentInput, type CalendarEntry } from '@/lib/calendarView'
+import type { ExternalEvent } from '@/lib/googleIcal'
+import CalendarEntryRow from '@/components/CalendarEntryRow'
+import DashboardCareItems, { type DashboardCareItem } from '@/components/DashboardCareItems'
+import type { ComboClient } from '@/components/ClientCombobox'
 
-interface ClientDeadline {
-  id: string
-  first_name: string
-  last_name: string
-  need_by_date: string
-  need_by_description: string | null
-}
+// Katie's dashboard (Oct 2026): what she acts on in the field — care items, the week ahead,
+// and a call list. Revenue and client counts live in QuickBooks, which has the full picture.
 
-interface ClientFollowUp {
-  id: string
-  first_name: string
-  last_name: string
-  last_contact_date: string
-  stage: string
-}
-
-interface CareItemDue {
-  id: string
-  title: string
-  item_type: string | null
-  due_date: string
-  client: { id: string; first_name: string; last_name: string }
-}
-
-type StageCounts = { lead: number; active: number; vip: number; dormant: number }
-
-interface DashboardStats {
-  totalClients: number
-  stageCounts: StageCounts
-  ordersInProgress: number
-  upcomingDeadlines: ClientDeadline[]
-  recentOrders: OrderGroup[]
-  careItemsDue: CareItemDue[]
-  revenueThisMonth: number
-  revenueLastMonth: number
-  ordersThisMonth: number
-  ordersLastMonth: number
-  latestSaleDate: string | null
-}
-
-interface FollowUpData {
-  clients: ClientFollowUp[]
-  total: number
-  neverContacted: number
-}
-
-type JoinedClient = { id: string; first_name: string | null; last_name: string | null }
+type Person = { first_name: string | null; last_name: string | null } | null
 const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? v[0] ?? null : v ?? null)
 
-const IN_PROGRESS_WINDOW_DAYS = 180
-const FOLLOW_UP_OPTIONS = [30, 60, 90, 120, 180, 365]
-const FOLLOW_UP_KEY = 'es.followUpDays'
+interface OverdueClient {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  phone: string | null
+  last_purchase_date: string
+}
 
-const money = (n: number) =>
-  `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+type GoogleStatus = 'off' | 'on' | 'error'
+
+interface DashboardData {
+  careItems: DashboardCareItem[]
+  clients: ComboClient[]
+  week: Array<{ day: string; entries: CalendarEntry[] }>
+  googleStatus: GoogleStatus
+  overdue: OverdueClient[]
+}
+
+const OVERDUE_MONTHS = 6
+const OVERDUE_PREVIEW = 25
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [followUp, setFollowUp] = useState<FollowUpData | null>(null)
-  const [followUpDays, setFollowUpDays] = useState<number>(() => {
-    if (typeof window === 'undefined') return 90
-    const saved = Number(window.localStorage.getItem(FOLLOW_UP_KEY))
-    return FOLLOW_UP_OPTIONS.includes(saved) ? saved : 90
-  })
+  const [data, setData] = useState<DashboardData | null>(null)
 
-  useEffect(() => {
-    async function fetchDashboardData() {
-      const supabase = createClient()
-      const now = new Date()
-      const today = localISODate(now)
-      const { lastMonthStart } = monthBounds(now)
-      const inProgressCutoff = new Date(now)
-      inProgressCutoff.setDate(inProgressCutoff.getDate() - IN_PROGRESS_WINDOW_DAYS)
-      const careHorizon = new Date(now.getTime() + 14 * 86_400_000)
-
-      const stageCount = (stage: string) =>
-        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('stage', stage)
-
-      const [
-        totalRes, leadRes, activeRes, vipRes, dormantRes,
-        inProgressRes,
-        deadlinesRes,
-        careItemsRes,
-        customSalesRes,
-        readySalesRes,
-        recentCustomRes,
-        recentReadyRes,
-      ] = await Promise.all([
-        supabase.from('clients').select('id', { count: 'exact', head: true }),
-        stageCount('lead'), stageCount('active'), stageCount('vip'), stageCount('dormant'),
-        // In progress = not delivered AND ordered recently. Imports now land as
-        // 'delivered'; the window still guards older rows set by hand.
-        supabase
-          .from('custom_orders')
-          .select('id', { count: 'exact', head: true })
-          .neq('status', 'delivered')
-          .gte('order_date', localISODate(inProgressCutoff)),
-        supabase
-          .from('clients')
-          .select('id, first_name, last_name, need_by_date, need_by_description')
-          .not('need_by_date', 'is', null)
-          .gte('need_by_date', today)
-          .order('need_by_date', { ascending: true })
-          .limit(10),
-        supabase
-          .from('client_care_items')
-          .select('id, title, item_type, due_date, client:clients(id, first_name, last_name)')
-          .eq('completed', false)
-          .not('due_date', 'is', null)
-          .lte('due_date', localISODate(careHorizon))
-          .order('due_date', { ascending: true })
-          .limit(5),
-        // Revenue = custom orders + ready-made purchases since the start of last month
-        supabase.from('custom_orders').select('client_id, order_date, price').gte('order_date', lastMonthStart),
-        supabase.from('ready_made_purchases').select('client_id, purchase_date, price, quantity').gte('purchase_date', lastMonthStart),
-        supabase
-          .from('custom_orders')
-          .select('client_id, order_date, price, garment_type, status, client:clients(id, first_name, last_name)')
-          .order('order_date', { ascending: false })
-          .limit(60),
-        supabase
-          .from('ready_made_purchases')
-          .select('client_id, purchase_date, price, quantity, product_name, category, client:clients(id, first_name, last_name)')
-          .order('purchase_date', { ascending: false })
-          .limit(60),
-      ])
-
-      const monthLines: SaleLine[] = [
-        ...(customSalesRes.data || []).map((o) => ({
-          client_id: o.client_id, date: o.order_date, amount: lineTotal(o.price), label: '', kind: 'custom' as const,
-        })),
-        ...(readySalesRes.data || []).map((p) => ({
-          client_id: p.client_id, date: p.purchase_date, amount: lineTotal(p.price, p.quantity), label: '', kind: 'ready_made' as const,
-        })),
-      ]
-      const { thisMonthStart, lastMonthEnd } = monthBounds(now)
-      const thisMonth = revenueBetween(monthLines, thisMonthStart)
-      const lastMonth = revenueBetween(monthLines, lastMonthStart, lastMonthEnd)
-
-      const recentLines: SaleLine[] = [
-        ...(recentCustomRes.data || []).map((o) => ({
-          client_id: o.client_id, date: o.order_date, amount: lineTotal(o.price),
-          label: o.garment_type || 'Custom order', kind: 'custom' as const, status: o.status,
-          client: one(o.client as JoinedClient | JoinedClient[] | null),
-        })),
-        ...(recentReadyRes.data || []).map((p) => ({
-          client_id: p.client_id, date: p.purchase_date, amount: lineTotal(p.price, p.quantity),
-          label: p.product_name || p.category || 'Ready-made', kind: 'ready_made' as const,
-          client: one(p.client as JoinedClient | JoinedClient[] | null),
-        })),
-      ]
-      const latestSaleDate = recentLines.reduce<string | null>(
-        (max, l) => (l.date && (!max || l.date > max) ? l.date : max), null)
-
-      setStats({
-        totalClients: totalRes.count || 0,
-        stageCounts: {
-          lead: leadRes.count || 0,
-          active: activeRes.count || 0,
-          vip: vipRes.count || 0,
-          dormant: dormantRes.count || 0,
-        },
-        ordersInProgress: inProgressRes.count || 0,
-        upcomingDeadlines: (deadlinesRes.data || []) as ClientDeadline[],
-        recentOrders: groupRecentOrders(recentLines, 5),
-        careItemsDue: (careItemsRes.data || []) as unknown as CareItemDue[],
-        revenueThisMonth: thisMonth.revenue,
-        revenueLastMonth: lastMonth.revenue,
-        ordersThisMonth: thisMonth.orders,
-        ordersLastMonth: lastMonth.orders,
-        latestSaleDate,
-      })
-      setLoading(false)
-    }
-
-    fetchDashboardData()
-  }, [])
-
-  // Follow-up list: only clients with a real last-contact date older than the
-  // chosen threshold. Clients with no contact on record are counted separately
-  // instead of being shown as a fake "999 days".
   useEffect(() => {
     let cancelled = false
-    async function fetchFollowUps() {
+    async function load() {
       const supabase = createClient()
-      const cutoff = new Date()
-      cutoff.setDate(cutoff.getDate() - followUpDays)
-      const cutoffStr = localISODate(cutoff)
+      const now = new Date()
+      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const weekEnd = new Date(weekStart.getTime() + 7 * 86_400_000 - 1)
 
-      const [listRes, countRes, neverRes] = await Promise.all([
+      const google = fetch(`/api/calendar/google?start=${encodeURIComponent(weekStart.toISOString())}&end=${encodeURIComponent(weekEnd.toISOString())}`)
+        .then(async (res) => {
+          const body = (await res.json()) as { configured?: boolean; events?: ExternalEvent[]; error?: string }
+          return { status: (!body.configured ? 'off' : body.error ? 'error' : 'on') as GoogleStatus, events: body.events ?? [] }
+        })
+        .catch(() => ({ status: 'error' as GoogleStatus, events: [] as ExternalEvent[] }))
+
+      const [careRes, clientsRes, aptRes, overdueRes, googleRes] = await Promise.all([
+        supabase
+          .from('client_care_items')
+          .select('id, item_type, title, completed, completed_at, due_date, created_at, client_id, client:clients(id, first_name, last_name)')
+          .eq('completed', false)
+          .neq('item_type', THANK_YOU_TYPE),
+        supabase.from('clients').select('id, first_name, last_name, email').order('last_name').range(0, 4999),
+        supabase
+          .from('appointments')
+          .select('id, title, appointment_type, start_time, location, client_id, client:clients(first_name, last_name)')
+          .gte('start_time', weekStart.toISOString())
+          .lte('start_time', weekEnd.toISOString())
+          .order('start_time', { ascending: true }),
         supabase
           .from('clients')
-          .select('id, first_name, last_name, last_contact_date, stage')
-          .not('last_contact_date', 'is', null)
-          .lt('last_contact_date', cutoffStr)
-          .order('last_contact_date', { ascending: true })
-          .limit(5),
-        supabase
-          .from('clients')
-          .select('id', { count: 'exact', head: true })
-          .not('last_contact_date', 'is', null)
-          .lt('last_contact_date', cutoffStr),
-        supabase.from('clients').select('id', { count: 'exact', head: true }).is('last_contact_date', null),
+          .select('id, first_name, last_name, phone, last_purchase_date')
+          .not('last_purchase_date', 'is', null)
+          .lte('last_purchase_date', monthsAgoISO(OVERDUE_MONTHS, now))
+          .order('last_purchase_date', { ascending: false })
+          .range(0, 4999),
+        google,
       ])
       if (cancelled) return
-      setFollowUp({
-        clients: (listRes.data || []) as ClientFollowUp[],
-        total: countRes.count || 0,
-        neverContacted: neverRes.count || 0,
+
+      const appointments = (aptRes.data || []).map((r) => ({ ...r, client: one(r.client as Person | Person[]) })) as AppointmentInput[]
+      setData({
+        careItems: (careRes.data || []).map((r) => ({ ...r, client: one(r.client) })) as unknown as DashboardCareItem[],
+        clients: (clientsRes.data || []) as ComboClient[],
+        week: buildCalendarDays(appointments, [], googleRes.events),
+        googleStatus: googleRes.status,
+        overdue: (overdueRes.data || []) as OverdueClient[],
       })
     }
-    fetchFollowUps()
+    load()
     return () => { cancelled = true }
-  }, [followUpDays])
+  }, [])
 
-  if (loading) {
+  if (!data) {
     return (
       <Layout currentPage="dashboard" title="Dashboard">
         <DashboardSkeleton />
@@ -243,245 +103,99 @@ export default function DashboardPage() {
     )
   }
 
-  if (!stats) return null
-
-  const now = new Date()
-  const revenueChange = stats.revenueLastMonth > 0
-    ? ((stats.revenueThisMonth - stats.revenueLastMonth) / stats.revenueLastMonth * 100).toFixed(0)
-    : stats.revenueThisMonth > 0 ? '100' : '0'
-  const revenueUp = stats.revenueThisMonth >= stats.revenueLastMonth
-  const dataAgeDays = stats.latestSaleDate ? daysSince(stats.latestSaleDate, now) : null
-  const salesDataStale = dataAgeDays !== null && dataAgeDays > 35
-
   return (
     <Layout currentPage="dashboard" title="Dashboard">
-      <div className="flex flex-col gap-4 t-skel-content" data-testid="dashboard-content">
-
-        {/* ===== REVENUE — first thing she looks at ===== */}
-        <section>
-          <div className="es-section-header">Revenue</div>
-          <div className="grid grid-cols-3 gap-px bg-rule border border-rule">
-            <div className="bg-surface" style={{ padding: '16px 20px' }}>
-              <div className="es-label mb-1">This Month</div>
-              <div className="es-metric revenue-amount"><PopNumber testId="revenue-this-month" value={money(stats.revenueThisMonth)} /></div>
-              <div className="text-ink-muted text-[12px] mt-1">{stats.ordersThisMonth} order{stats.ordersThisMonth !== 1 ? 's' : ''}</div>
-            </div>
-            <div className="bg-surface" style={{ padding: '16px 20px' }}>
-              <div className="es-label mb-1">Last Month</div>
-              <div className="es-metric revenue-amount"><PopNumber testId="revenue-last-month" value={money(stats.revenueLastMonth)} /></div>
-              <div className="text-ink-muted text-[12px] mt-1">{stats.ordersLastMonth} order{stats.ordersLastMonth !== 1 ? 's' : ''}</div>
-            </div>
-            <div className="bg-surface" style={{ padding: '16px 20px' }}>
-              <div className="es-label mb-1">Change</div>
-              <div className={`es-metric ${revenueUp ? 'text-success' : 'text-error'}`}>
-                {revenueUp ? '+' : ''}{revenueChange}%
-              </div>
-              <div className="text-ink-muted text-[12px] mt-1">vs last month</div>
-            </div>
-          </div>
-          {salesDataStale && stats.latestSaleDate && (
-            <Link
-              href="/settings/import"
-              data-testid="sales-data-stale"
-              className="flex items-center justify-between gap-3 border border-t-0 border-rule bg-surface-alt text-[13px] text-ink-secondary min-h-[44px]"
-              style={{ padding: '8px 20px' }}
-            >
-              <span>
-                Sales data only goes through{' '}
-                <strong className="text-ink">
-                  {new Date(`${stats.latestSaleDate}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                </strong>
-                . Import a newer QuickBooks export to bring revenue up to date.
-              </span>
-              <span className="text-gold font-semibold flex-shrink-0">Import &rarr;</span>
-            </Link>
-          )}
-        </section>
-
-        {/* ===== QUICK STATS ===== */}
-        <div className="grid grid-cols-4 gap-px bg-rule border border-rule">
-          <Link href="/clients" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
-            <div className="es-label mb-0.5">Clients</div>
-            <div className="es-metric-sm"><PopNumber testId="stat-total-clients" value={stats.totalClients} /></div>
-            <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
-          </Link>
-          <Link href="/orders" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
-            <div className="es-label mb-0.5">In Progress</div>
-            <div className={`es-metric-sm ${stats.ordersInProgress > 0 ? 'text-gold' : ''}`}><PopNumber testId="stat-in-progress" value={stats.ordersInProgress} /></div>
-            <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
-          </Link>
-          <Link href="/clients?stage=vip" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
-            <div className="es-label mb-0.5">VIP</div>
-            <div className="es-metric-sm"><PopNumber testId="stat-vip" value={stats.stageCounts.vip} /></div>
-            <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
-          </Link>
-          <Link href="/clients?stage=active" className="bg-surface active:bg-surface-alt" style={{ padding: '12px 20px' }}>
-            <div className="es-label mb-0.5">Active</div>
-            <div className="es-metric-sm"><PopNumber testId="stat-active" value={stats.stageCounts.active} /></div>
-            <span className="text-ink-muted text-[10px] mt-1">&rarr;</span>
-          </Link>
-        </div>
-
-        {/* ===== CLIENTS BY STAGE — one-tap filters ===== */}
-        <section>
-          <div className="es-section-header">Clients by Stage</div>
-          <div className="flex flex-wrap gap-2" style={{ padding: '8px 20px 4px' }} data-testid="stage-filters">
-            {(['active', 'vip', 'lead', 'dormant'] as const).map((stage) => (
-              <Link
-                key={stage}
-                href={`/clients?stage=${stage}`}
-                className="es-chip"
-                data-testid={`stage-filter-${stage}`}
-              >
-                <span className="capitalize">{stage === 'vip' ? 'VIP' : stage}</span>
-                <span className="es-chip-count">{stats.stageCounts[stage]}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* ===== DEADLINES ===== */}
-        {stats.upcomingDeadlines.length > 0 && (
-          <section>
-            <div className="es-section-header">
-              Deadlines <span className="text-error ml-1 normal-case tracking-normal">{stats.upcomingDeadlines.length}</span>
-            </div>
-            {stats.upcomingDeadlines.map(client => {
-              const daysLeft = daysUntil(client.need_by_date, now) ?? 0
-              const urgent = daysLeft <= 14
-              return (
-                <Link key={client.id} href={`/clients/${client.id}`}>
-                  <div className="es-row justify-between">
-                    <div className="min-w-0 mr-4">
-                      <div className="font-semibold truncate">{client.first_name} {client.last_name}</div>
-                      <div className="text-ink-muted text-[12px] truncate">{client.need_by_description || 'Deadline'}</div>
-                    </div>
-                    <div className={`flex-shrink-0 font-semibold ${urgent ? 'text-error' : 'text-gold'}`}>{daysLeft}d</div>
-                  </div>
-                </Link>
-              )
-            })}
-          </section>
-        )}
-
-        {/* ===== FOLLOW-UP ===== */}
-        <section data-testid="follow-up">
-          <div className="es-section-header justify-between">
-            <span>
-              Needs Follow-Up{' '}
-              {followUp && <span className="text-warning ml-1 normal-case tracking-normal">{followUp.total}</span>}
-            </span>
-            <label className="flex items-center gap-2 normal-case tracking-normal font-normal text-[12px] text-ink-secondary">
-              No contact in
-              <select
-                value={followUpDays}
-                data-testid="follow-up-days"
-                onChange={(e) => {
-                  const days = Number(e.target.value)
-                  setFollowUpDays(days)
-                  try { window.localStorage.setItem(FOLLOW_UP_KEY, String(days)) } catch { /* private mode */ }
-                }}
-                className="h-[36px] px-2 border border-rule rounded bg-surface text-ink text-[13px]"
-              >
-                {FOLLOW_UP_OPTIONS.map((d) => (
-                  <option key={d} value={d}>{d === 365 ? '1 year' : `${d} days`}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {!followUp ? (
-            <div className="py-4 px-5 text-ink-muted text-[13px]">Loading…</div>
-          ) : followUp.clients.length === 0 ? (
-            <div className="py-4 px-5 text-ink-muted text-[13px]">
-              Everyone has been contacted in the last {followUpDays} days.
-            </div>
-          ) : (
-            followUp.clients.map(client => (
-              <Link key={client.id} href={`/clients/${client.id}`}>
-                <div className="es-row justify-between" data-testid="follow-up-row">
-                  <div className="flex items-center gap-3 min-w-0 mr-4">
-                    <div className="es-avatar">{clientInitials(client)}</div>
-                    <div className="min-w-0">
-                      <div className="font-semibold truncate">{clientDisplayName(client)}</div>
-                      <div className="text-ink-muted text-[12px]">
-                        Last contact {new Date(`${client.last_contact_date.slice(0, 10)}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex-shrink-0 font-semibold text-warning">
-                    {daysSince(client.last_contact_date, now)}d
-                  </div>
-                </div>
-              </Link>
-            ))
-          )}
-          {followUp && followUp.total > followUp.clients.length && (
-            <Link href="/clients?sort=last_contact" className="es-row text-[13px] text-gold font-semibold">
-              View all {followUp.total} &rarr;
-            </Link>
-          )}
-          {followUp && followUp.neverContacted > 0 && (
-            <Link href="/clients?contact=never" className="es-row text-[13px] text-ink-secondary" data-testid="never-contacted">
-              <span>Never contacted</span>
-              <span className="font-semibold">{followUp.neverContacted} client{followUp.neverContacted !== 1 ? 's' : ''} &rarr;</span>
-            </Link>
-          )}
-        </section>
-
-        {/* ===== RECENT ORDERS — one row per client per order date ===== */}
-        <section data-testid="recent-orders">
-          <div className="es-section-header flex items-center justify-between">
-            <span>Recent Orders</span>
-            <Link href="/orders" className="es-btn-ghost normal-case tracking-normal">View All</Link>
-          </div>
-          {stats.recentOrders.length === 0 ? (
-            <div className="py-4 px-5 text-ink-muted text-[13px]">No recent orders.</div>
-          ) : (
-            stats.recentOrders.map(order => (
-              <Link key={order.key} href={`/clients/${order.client?.id}`}>
-                <div className="es-row justify-between" data-testid="recent-order-row">
-                  <div className="min-w-0 mr-4">
-                    <div className="font-semibold truncate">{clientDisplayName(order.client)}</div>
-                    <div className="text-ink-muted text-[12px] truncate">
-                      {new Date(`${order.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      {' · '}
-                      {order.labels.slice(0, 3).join(', ')}{order.labels.length > 3 ? ` +${order.labels.length - 3} more` : ''}
-                    </div>
-                  </div>
-                  <div className="flex-shrink-0 text-right">
-                    <div className="font-semibold">{money(order.total)}</div>
-                    <div className="text-ink-muted text-[12px]">{order.itemCount} item{order.itemCount !== 1 ? 's' : ''}</div>
-                  </div>
-                </div>
-              </Link>
-            ))
-          )}
-        </section>
-
-        {/* ===== CARE ITEMS ===== */}
-        {stats.careItemsDue.length > 0 && (
-          <section>
-            <div className="es-section-header">Care Items Due</div>
-            {stats.careItemsDue.map(item => {
-              const overdue = isOverdue({ due_date: item.due_date, completed: false }, now)
-              return (
-                <Link key={item.id} href={`/clients/${item.client?.id}`}>
-                  <div className="es-row justify-between">
-                    <div className="min-w-0 mr-4">
-                      <div className="truncate"><span className="font-semibold">{careLabel(item.item_type)}:</span> {item.title}</div>
-                      <div className="text-ink-muted text-[12px] truncate">{item.client?.first_name} {item.client?.last_name}</div>
-                    </div>
-                    <div className={`flex-shrink-0 font-semibold ${overdue ? 'text-error' : 'text-ink-secondary'}`}>
-                      {overdue ? 'Overdue' : formatDueDate(item.due_date, { month: 'short', day: 'numeric' })}
-                    </div>
-                  </div>
-                </Link>
-              )
-            })}
-          </section>
-        )}
+      <div className="flex flex-col gap-6 t-skel-content" data-testid="dashboard-content">
+        <DashboardCareItems initialItems={data.careItems} clients={data.clients} />
+        <ThisWeek days={data.week} googleStatus={data.googleStatus} />
+        <OverdueForAppointment clients={data.overdue} />
       </div>
     </Layout>
+  )
+}
+
+function ThisWeek({ days, googleStatus }: { days: Array<{ day: string; entries: CalendarEntry[] }>; googleStatus: GoogleStatus }) {
+  return (
+    <section data-testid="dash-week">
+      <div className="es-section-header justify-between">
+        <span>This Week</span>
+        <Link href="/calendar" className="min-h-[44px] -my-3 inline-flex items-center normal-case tracking-normal font-body text-sm font-medium text-gray-dark hover:text-body">
+          Calendar
+        </Link>
+      </div>
+      {googleStatus !== 'on' && (
+        <p className="font-body text-xs text-ink-muted px-[20px] pt-1 pb-2" data-testid="dash-week-google-note">
+          {googleStatus === 'off'
+            ? 'Showing CRM appointments. Your Google Calendar will appear here once it’s connected.'
+            : 'Couldn’t load your Google Calendar right now. Showing CRM appointments.'}
+        </p>
+      )}
+      {days.length === 0 ? (
+        <p className="font-body text-sm text-gray-dark px-[20px] py-3">Nothing scheduled in the next 7 days.</p>
+      ) : (
+        days.map(({ day, entries }) => (
+          <div key={day}>
+            <div className="bg-gray-light px-[20px] py-1.5 font-body text-xs font-medium text-gray-dark">
+              {parseDateOnly(day)!.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+            </div>
+            {entries.map((entry) => (
+              <CalendarEntryRow key={entry.key} entry={entry} />
+            ))}
+          </div>
+        ))
+      )}
+    </section>
+  )
+}
+
+function OverdueForAppointment({ clients }: { clients: OverdueClient[] }) {
+  const [showAll, setShowAll] = useState(false)
+  const visible = showAll ? clients : clients.slice(0, OVERDUE_PREVIEW)
+  return (
+    <section data-testid="dash-overdue">
+      <div className="es-section-header">
+        Overdue for an Appointment <span className="ml-1.5 normal-case tracking-normal text-ink-muted">{clients.length}</span>
+      </div>
+      <p className="font-body text-xs text-ink-muted px-[20px] pt-1 pb-2">No purchase in {OVERDUE_MONTHS}+ months. Most recent first.</p>
+      {clients.length === 0 ? (
+        <p className="font-body text-sm text-gray-dark px-[20px] py-3">Everyone has purchased in the last {OVERDUE_MONTHS} months.</p>
+      ) : (
+        <>
+          {visible.map((c) => (
+            <div key={c.id} className="es-row" data-testid="dash-overdue-row">
+              <Link href={`/clients/${c.id}`} className="min-w-0 flex-1 min-h-[44px] flex flex-col justify-center">
+                <div className="font-semibold truncate">{`${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || 'Unnamed client'}</div>
+                <div className="text-ink-muted text-[12px]">
+                  Last purchase {formatDateOnly(c.last_purchase_date, { month: 'short', year: 'numeric' })}
+                </div>
+              </Link>
+              {c.phone ? (
+                <a
+                  href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
+                  className="flex-shrink-0 min-h-[44px] inline-flex items-center gap-1.5 px-3 rounded border border-gray-med text-sm font-medium text-body hover:border-body"
+                  data-testid="dash-overdue-phone"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  {c.phone}
+                </a>
+              ) : (
+                <span className="flex-shrink-0 text-[12px] text-ink-muted">No phone</span>
+              )}
+            </div>
+          ))}
+          {clients.length > OVERDUE_PREVIEW && (
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="w-full min-h-[44px] font-body text-sm font-medium text-gray-dark hover:text-body"
+              data-testid="dash-overdue-toggle"
+            >
+              {showAll ? 'Show fewer' : `Show all ${clients.length}`}
+            </button>
+          )}
+        </>
+      )}
+    </section>
   )
 }
 
@@ -489,36 +203,18 @@ export default function DashboardPage() {
 function DashboardSkeleton() {
   const bar = (w: number | string, h: number) => <div className="es-skeleton" style={{ width: w, height: h }} />
   return (
-    <div className="flex flex-col gap-4" data-testid="dashboard-skeleton" aria-busy="true" aria-label="Loading dashboard">
-      <section>
-        <div className="es-section-header">Revenue</div>
-        <div className="grid grid-cols-3 gap-px bg-rule border border-rule">
+    <div className="flex flex-col gap-6" data-testid="dashboard-skeleton" aria-busy="true" aria-label="Loading dashboard">
+      {['Care Items Due', 'This Week', 'Overdue for an Appointment'].map((title) => (
+        <section key={title}>
+          <div className="es-section-header">{title}</div>
           {[0, 1, 2].map((i) => (
-            <div key={i} className="bg-surface flex flex-col gap-2" style={{ padding: '16px 20px' }}>
-              {bar(64, 10)}{bar('70%', 24)}{bar(48, 10)}
+            <div key={i} className="es-row">
+              <div className="flex-1 flex flex-col gap-2">{bar('45%', 12)}{bar('30%', 10)}</div>
+              {bar(56, 12)}
             </div>
           ))}
-        </div>
-      </section>
-      <div className="grid grid-cols-4 gap-px bg-rule border border-rule">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="bg-surface flex flex-col gap-2" style={{ padding: '12px 20px' }}>
-            {bar(48, 10)}{bar(40, 18)}
-          </div>
-        ))}
-      </div>
-      <section>
-        <div className="es-section-header">Needs Follow-Up</div>
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="es-row">
-            <div className="flex items-center gap-3 flex-1">
-              {bar(36, 36)}
-              <div className="flex-1 flex flex-col gap-2">{bar('45%', 12)}{bar('30%', 10)}</div>
-            </div>
-            {bar(36, 12)}
-          </div>
-        ))}
-      </section>
+        </section>
+      ))}
     </div>
   )
 }

@@ -75,8 +75,8 @@ test.describe('Round 2 — Client Care', () => {
     expect(data).toEqual({ item_type: 'follow_up', due_date: iso })
 
     await page.goto('/')
-    const dash = page.locator('a', { hasText: 'E2E shirts' })
-    await expect(dash).toContainText('Follow Up:')
+    const dash = page.getByTestId('dash-care-followups').getByTestId('dash-care-row').filter({ hasText: 'E2E shirts' })
+    await expect(dash).toBeVisible()
     await expect(dash).not.toContainText('Overdue') // due today is not overdue
 
     await page.goto('/calendar')

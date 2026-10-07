@@ -49,3 +49,19 @@ export function latestThankYouNote<T extends CareItemLike>(items: T[]): T | null
 export function listableCareItems<T extends CareItemLike>(items: T[]): T[] {
   return items.filter((i) => i.item_type !== THANK_YOU_TYPE)
 }
+
+/** Open items for the dashboard, split by label. Dated items by due date, undated last. */
+export function groupCareItems<T extends CareItemLike>(items: T[]): { toDos: T[]; followUps: T[] } {
+  const open = listableCareItems(items)
+    .filter((i) => !i.completed)
+    .sort((a, b) => {
+      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
+      if (a.due_date) return -1
+      if (b.due_date) return 1
+      return 0
+    })
+  return {
+    toDos: open.filter((i) => careLabel(i.item_type) === 'To Do'),
+    followUps: open.filter((i) => careLabel(i.item_type) === 'Follow Up'),
+  }
+}
