@@ -66,6 +66,7 @@ export async function POST(request: Request) {
       to: email.to_email,
       subject: renderedSubject,
       html: rendered.html,
+      copyOwner: true,
     })
 
     if (!result.success) {

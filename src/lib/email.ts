@@ -9,6 +9,17 @@ import { Resend } from 'resend'
 const PREFERRED_FROM = process.env.EMAIL_FROM || 'Katie Fore <katie@theelevatedstag.com>'
 const VERIFIED_FROM = process.env.EMAIL_FROM_FALLBACK || 'Katie Fore <katie@mail.theelevatedstag.com>'
 const DEFAULT_REPLY_TO = process.env.EMAIL_REPLY_TO || 'katie@theelevatedstag.com'
+// Katie gets a BCC of every client email so it lands in Gmail, where she can flag it for follow-up
+// (mail sent through Resend never appears in her Gmail Sent folder). EMAIL_BCC=off turns it off.
+const OWNER_BCC = (process.env.EMAIL_BCC ?? 'katie@theelevatedstag.com').trim()
+
+/** The BCC for a client email, or undefined: never for test sends (Resend's @resend.dev inboxes) or mail already going to her. */
+export function ownerBccFor(to: string | string[], owner: string = OWNER_BCC): string | undefined {
+  if (!owner || owner.toLowerCase() === 'off') return undefined
+  const recipients = (Array.isArray(to) ? to : [to]).map((a) => a.trim().toLowerCase())
+  if (recipients.some((a) => a === owner.toLowerCase() || a.endsWith('@resend.dev'))) return undefined
+  return owner
+}
 
 // Remember a "domain not verified" answer for a while so a 60-person mass
 // email doesn't spend 60 extra API calls (Resend rate-limits at ~2/sec).
@@ -47,23 +58,28 @@ export async function sendEmail({
   subject,
   html,
   replyTo,
+  copyOwner = false,
   attachments,
 }: {
   to: string | string[]
   subject: string
   html: string
   replyTo?: string
+  /** BCC Katie (see ownerBccFor). Not for calendar invites: Gmail would add the client's copy to her calendar too. */
+  copyOwner?: boolean
   attachments?: Array<{ filename: string; content: string | Buffer; contentType?: string }>
 }): Promise<SendEmailResult> {
   try {
     const usePreferred = PREFERRED_FROM !== VERIFIED_FROM && Date.now() >= preferredBlockedUntil
     let from = usePreferred ? PREFERRED_FROM : VERIFIED_FROM
+    const bcc = copyOwner ? ownerBccFor(to) : undefined
     const payload = {
       from,
       to,
       subject,
       html,
       replyTo: replyTo || DEFAULT_REPLY_TO,
+      ...(bcc ? { bcc } : {}),
       ...(attachments && attachments.length
         ? {
             attachments: attachments.map((a) => ({

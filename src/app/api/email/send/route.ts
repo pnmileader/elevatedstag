@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
     subject: rendered.subject,
     html: rendered.html,
     replyTo,
+    copyOwner: true,
   })
 
   if (!result.success) {
