@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "dev:3001": "next dev -p 3001",
-    "test:unit": "for f in import quickbooks calendar purchaseImport emailRender clientFilters dates careItems googleIcal calendarView dayView measurementMath zapierQuickbooks email; do npx tsx src/lib/__tests__/$f.test.ts || exit 1; done",
+    "test:unit": "for f in import quickbooks calendar purchaseImport emailRender clientFilters dates careItems googleIcal calendarView dayView measurementMath zapierQuickbooks email tlsGuard; do npx tsx src/lib/__tests__/$f.test.ts || exit 1; done",
     "test:e2e": "playwright test",
     "test:taps": "node scripts/tap-audit.mjs"
   },
@@ -20,10 +20,10 @@
     "ical.js": "^2.2.1",
     "ics": "^3.12.0",
     "lucide-react": "^0.562.0",
-    "next": "^16.2.6",
+    "next": "^16.4.1",
     "papaparse": "^5.5.3",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
     "react-hook-form": "^7.71.0",
     "resend": "^6.12.3",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
@@ -38,10 +38,12 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "^16.2.6",
+    "eslint-plugin-react-hooks": "7.0.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
   "overrides": {
-    "postcss": "^8.4.32"
+    "postcss": "^8.4.32",
+    "sharp": "^0.35.5"
   }
 }
